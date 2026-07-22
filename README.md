@@ -38,12 +38,29 @@ Edit `.env` with your Supabase `DATABASE_URL`, `SUPABASE_URL`, and `SUPABASE_SER
 
 ### 2. Supabase setup
 
-Create a project at [supabase.com](https://supabase.com), then:
+Create a project at [supabase.com](https://supabase.com), then configure `.env`:
 
 ```bash
-# Install Supabase CLI: https://supabase.com/docs/guides/cli
+cp .env.example .env
+```
+
+**Important:** Use the **Session pooler** connection string from Supabase Dashboard → Project Settings → Database → Connection pooling (not the direct `db.*` URI if your network lacks IPv6). Append `?sslmode=require`:
+
+```env
+DATABASE_URL=postgresql://postgres.[project-ref]:[password]@aws-0-[region].pooler.supabase.com:5432/postgres?sslmode=require
+SUPABASE_URL=https://[project-ref].supabase.co
+```
+
+Apply the schema (Supabase CLI or helper script):
+
+```bash
+# Option A: Supabase CLI
 supabase link --project-ref <your-project-ref>
 supabase db push
+
+# Option B: Python helper (uses DATABASE_URL from root .env)
+cd backend
+PYTHONPATH=. python scripts/apply_migration.py
 ```
 
 Migration file: `supabase/migrations/20260722120000_initial_schema.sql`

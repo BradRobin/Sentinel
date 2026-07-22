@@ -15,8 +15,12 @@ _pool: ConnectionPool | None = None
 def get_pool() -> ConnectionPool:
     global _pool
     if _pool is None:
+        conninfo = settings.database_url
+        if "connect_timeout" not in conninfo:
+            sep = "&" if "?" in conninfo else "?"
+            conninfo = f"{conninfo}{sep}connect_timeout=15"
         _pool = ConnectionPool(
-            conninfo=settings.database_url,
+            conninfo=conninfo,
             min_size=1,
             max_size=5,
             kwargs={"row_factory": dict_row},

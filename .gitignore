@@ -65,10 +65,23 @@ web_modules/
 # Yarn Integrity file
 .yarn-integrity
 
-# dotenv environment variable files
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+*.egg-info/
+
+# Environment (keep .env.example tracked)
 .env
 .env.*
 !.env.example
+
+# Supabase
+supabase/.branches
+supabase/.temp
+
 
 # parcel-bundler cache (https://parceljs.org/)
 .cache

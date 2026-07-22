@@ -1,0 +1,33 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #1a1a1a;
+  --icta-red: #c8102e;
+  --icta-black: #1a1a1a;
+  --icta-green: #006b3f;
+  --icta-gray-50: #f9fafb;
+  --icta-gray-100: #f3f4f6;
+  --icta-gray-200: #e5e7eb;
+  --icta-gray-600: #4b5563;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-icta-red: var(--icta-red);
+  --color-icta-black: var(--icta-black);
+  --color-icta-green: var(--icta-green);
+  --color-icta-gray-50: var(--icta-gray-50);
+  --color-icta-gray-100: var(--icta-gray-100);
+  --color-icta-gray-200: var(--icta-gray-200);
+  --color-icta-gray-600: var(--icta-gray-600);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), system-ui, sans-serif;
+}

@@ -1,0 +1,45 @@
+from enum import Enum
+from typing import Literal
+
+from pydantic import BaseModel, Field
+
+
+class FindingStatus(str, Enum):
+    pass_ = "pass"
+    fail = "fail"
+    manual_review = "manual_review"
+
+
+class Finding(BaseModel):
+    category: str
+    check_name: str
+    clause_reference: str
+    status: FindingStatus
+    severity: Literal["high", "medium", "low"]
+    automatability_type: Literal["A", "P", "M"]
+    detail: dict = Field(default_factory=dict)
+
+
+class ScanCreateRequest(BaseModel):
+    url: str
+
+
+class ScanJobResponse(BaseModel):
+    job_id: str
+    status: str
+    url: str
+
+
+class ScanStatusResponse(BaseModel):
+    job_id: str
+    status: str
+    url: str | None = None
+    result: dict | None = None
+    error: str | None = None
+
+
+class HealthResponse(BaseModel):
+    status: str
+    version: str
+    redis: str
+    db: str

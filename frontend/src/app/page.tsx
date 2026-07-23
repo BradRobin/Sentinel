@@ -5,12 +5,6 @@ import { SentinelMark } from "@/components/SentinelMark";
 export default function Home() {
   return (
     <div className="flex flex-1 flex-col">
-      <div className="flex h-2 w-full">
-        <div className="flex-1 bg-icta-black" />
-        <div className="flex-1 bg-icta-red" />
-        <div className="flex-1 bg-icta-green" />
-      </div>
-
       <main className="flex flex-1 flex-col items-center justify-center bg-white px-6 py-24">
         <div className="max-w-2xl text-center">
           <div className="mb-6 flex justify-center">

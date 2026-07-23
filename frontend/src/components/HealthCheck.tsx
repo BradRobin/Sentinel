@@ -56,12 +56,6 @@ export function HealthCheck() {
 
   return (
     <div className="flex flex-1 flex-col">
-      <div className="flex h-2 w-full">
-        <div className="flex-1 bg-icta-black" />
-        <div className="flex-1 bg-icta-red" />
-        <div className="flex-1 bg-icta-green" />
-      </div>
-
       <main className="mx-auto w-full max-w-lg flex-1 px-6 py-16">
         <Link
           href="/"

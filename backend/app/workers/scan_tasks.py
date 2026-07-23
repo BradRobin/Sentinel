@@ -9,8 +9,14 @@ from app.core.config import settings
 from app.core.redis_client import get_redis
 from app.core.ssrf import normalize_url_for_lock
 from app.services.scan_cache import set_cached_scan
-from app.services.scan_repository import get_scan_record, save_findings, update_scan_status
+from app.services.scan_repository import (
+    get_scan_record,
+    save_findings,
+    save_scores,
+    update_scan_status,
+)
 from app.services.scan_runner import run_all_checks
+from app.services.scoring import compute_scores
 
 logger = logging.getLogger(__name__)
 
@@ -48,11 +54,18 @@ def get_job_status(job_id: str) -> dict[str, Any] | None:
     record = get_scan_record(job_id)
     if not record:
         return None
+    result: dict[str, Any] = {}
+    if record["findings"]:
+        result["findings"] = record["findings"]
+        result["finding_count"] = len(record["findings"])
+    if record.get("scores"):
+        result["scores"] = record["scores"]
+        result["overall_score"] = record["scores"].get("overall_score")
     return {
         "job_id": record["scan_id"],
         "status": record["status"],
         "url": record["url"],
-        "result": {"findings": record["findings"]} if record["findings"] else None,
+        "result": result or None,
         "error": None,
         "cache_hit": False,
         "progress": None,
@@ -108,10 +121,18 @@ def run_scan(self, scan_id: str, url: str) -> dict[str, Any]:
             on_progress=on_progress,
         )
         save_findings(scan_id, findings)
+        score_result = compute_scores(findings)
+        save_scores(scan_id, score_result)
         update_scan_status(scan_id, "complete")
 
         findings_payload = [f.model_dump(mode="json") for f in findings]
-        result = {"findings": findings_payload, "finding_count": len(findings_payload)}
+        scores_payload = score_result.to_dict()
+        result = {
+            "findings": findings_payload,
+            "finding_count": len(findings_payload),
+            "scores": scores_payload,
+            "overall_score": round(score_result.overall_score, 2),
+        }
         payload = {
             "job_id": scan_id,
             "status": "complete",

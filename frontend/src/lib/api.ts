@@ -39,11 +39,32 @@ export interface Finding {
   detail: Record<string, unknown>;
 }
 
+export interface CategoryScore {
+  category: string;
+  weight?: number;
+  score: number;
+  pass_count?: number;
+  fail_count?: number;
+  manual_review_count?: number;
+  scorable_count?: number;
+}
+
+export interface ScoresPayload {
+  overall_score: number | null;
+  weights_source?: string;
+  categories: CategoryScore[];
+}
+
 export interface ScanStatusResponse {
   job_id: string;
   status: string;
   url: string | null;
-  result: { findings?: Finding[]; finding_count?: number } | null;
+  result: {
+    findings?: Finding[];
+    finding_count?: number;
+    scores?: ScoresPayload;
+    overall_score?: number | null;
+  } | null;
   error: string | null;
   cache_hit?: boolean;
   progress?: string | null;

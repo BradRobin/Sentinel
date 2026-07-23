@@ -128,6 +128,13 @@ def get_fresh_scan_from_db(url: str) -> dict[str, Any] | None:
                 """,
                 (scan_id,),
             ).fetchall()
+            score_rows = conn.execute(
+                """
+                SELECT category, weighted_score, overall_score
+                FROM scores WHERE scan_id = %s
+                """,
+                (scan_id,),
+            ).fetchall()
 
         findings_payload = [
             {
@@ -141,14 +148,44 @@ def get_fresh_scan_from_db(url: str) -> dict[str, Any] | None:
             }
             for r in findings
         ]
+        scores_payload = None
+        overall_score = None
+        if score_rows:
+            cats = []
+            for r in score_rows:
+                if r["category"] == "overall":
+                    overall_score = (
+                        float(r["overall_score"]) if r["overall_score"] is not None else None
+                    )
+                else:
+                    cats.append(
+                        {
+                            "category": r["category"],
+                            "score": float(r["weighted_score"])
+                            if r["weighted_score"] is not None
+                            else 0.0,
+                        }
+                    )
+                    if overall_score is None and r["overall_score"] is not None:
+                        overall_score = float(r["overall_score"])
+            scores_payload = {
+                "overall_score": overall_score,
+                "categories": cats,
+            }
+
+        result: dict[str, Any] = {
+            "findings": findings_payload,
+            "finding_count": len(findings_payload),
+        }
+        if scores_payload:
+            result["scores"] = scores_payload
+            result["overall_score"] = overall_score
+
         payload = {
             "job_id": scan_id,
             "status": "complete",
             "url": domain_url,
-            "result": {
-                "findings": findings_payload,
-                "finding_count": len(findings_payload),
-            },
+            "result": result,
             "error": None,
             "cache_hit": True,
             "progress": None,

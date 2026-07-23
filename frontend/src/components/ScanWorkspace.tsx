@@ -27,6 +27,10 @@ export function ScanWorkspace() {
   const [findings, setFindings] = useState<Finding[]>([]);
   const [progress, setProgress] = useState<string | null>(null);
 
+  const overallScore =
+    scan?.result?.overall_score ?? scan?.result?.scores?.overall_score ?? null;
+  const categoryScores = scan?.result?.scores?.categories ?? [];
+
   async function pollUntilDone(jobId: string) {
     for (let i = 0; i < 90; i++) {
       const status = await getScan(jobId);
@@ -153,6 +157,30 @@ export function ScanWorkspace() {
             {scan.cache_hit ? " · cache hit" : ""}
             {scan.url ? ` · ${scan.url}` : ""}
           </p>
+        )}
+
+        {overallScore !== null && overallScore !== undefined && (
+          <div className="mb-8 rounded-md border border-icta-gray-200 p-4">
+            <div className="mb-1 text-sm font-medium uppercase tracking-wide text-icta-gray-600">
+              Compliance score
+            </div>
+            <div className="mb-4 text-4xl font-bold text-icta-black">
+              {Number(overallScore).toFixed(1)}%
+            </div>
+            {categoryScores.length > 0 && (
+              <ul className="space-y-1 text-sm text-icta-gray-600">
+                {categoryScores.map((c) => (
+                  <li key={c.category} className="flex justify-between gap-4">
+                    <span>{c.category.replaceAll("_", " ")}</span>
+                    <span className="font-mono text-icta-black">
+                      {Number(c.score).toFixed(1)}%
+                      {c.weight != null ? ` · wt ${c.weight}` : ""}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         )}
 
         {findings.length > 0 && (

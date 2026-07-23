@@ -94,6 +94,64 @@ def save_findings(scan_id: str, findings: list[Finding]) -> None:
         conn.commit()
 
 
+def save_scores(scan_id: str, score_result: Any) -> None:
+    """Persist category + overall scores for a scan (replaces prior rows for scan_id)."""
+    from app.services.scoring import ScoreResult
+
+    if not isinstance(score_result, ScoreResult):
+        raise TypeError("score_result must be a ScoreResult")
+
+    overall = round(score_result.overall_score, 2)
+    with get_connection() as conn:
+        conn.execute("DELETE FROM scores WHERE scan_id = %s", (scan_id,))
+        for cat in score_result.categories:
+            conn.execute(
+                """
+                INSERT INTO scores (scan_id, category, weighted_score, overall_score)
+                VALUES (%s, %s, %s, %s)
+                """,
+                (scan_id, cat.category, round(cat.score, 2), overall),
+            )
+        conn.execute(
+            """
+            INSERT INTO scores (scan_id, category, weighted_score, overall_score)
+            VALUES (%s, 'overall', %s, %s)
+            """,
+            (scan_id, overall, overall),
+        )
+        conn.commit()
+
+
+def get_scores_for_scan(scan_id: str) -> dict[str, Any] | None:
+    with get_connection() as conn:
+        rows = conn.execute(
+            """
+            SELECT category, weighted_score, overall_score
+            FROM scores
+            WHERE scan_id = %s
+            ORDER BY category
+            """,
+            (scan_id,),
+        ).fetchall()
+    if not rows:
+        return None
+    categories = []
+    overall = None
+    for r in rows:
+        if r["category"] == "overall":
+            overall = float(r["overall_score"]) if r["overall_score"] is not None else None
+        else:
+            categories.append(
+                {
+                    "category": r["category"],
+                    "score": float(r["weighted_score"]) if r["weighted_score"] is not None else 0.0,
+                }
+            )
+            if overall is None and r["overall_score"] is not None:
+                overall = float(r["overall_score"])
+    return {"overall_score": overall, "categories": categories}
+
+
 def get_scan_record(scan_id: str) -> dict[str, Any] | None:
     with get_connection() as conn:
         scan = conn.execute(
@@ -117,6 +175,36 @@ def get_scan_record(scan_id: str) -> dict[str, Any] | None:
             """,
             (scan_id,),
         ).fetchall()
+        score_rows = conn.execute(
+            """
+            SELECT category, weighted_score, overall_score
+            FROM scores
+            WHERE scan_id = %s
+            ORDER BY category
+            """,
+            (scan_id,),
+        ).fetchall()
+
+    scores_payload: dict[str, Any] | None = None
+    if score_rows:
+        cats = []
+        overall = None
+        for r in score_rows:
+            if r["category"] == "overall":
+                overall = float(r["overall_score"]) if r["overall_score"] is not None else None
+            else:
+                cats.append(
+                    {
+                        "category": r["category"],
+                        "score": float(r["weighted_score"])
+                        if r["weighted_score"] is not None
+                        else 0.0,
+                    }
+                )
+                if overall is None and r["overall_score"] is not None:
+                    overall = float(r["overall_score"])
+        scores_payload = {"overall_score": overall, "categories": cats}
+
     return {
         "scan_id": str(scan["id"]),
         "status": scan["status"],
@@ -135,4 +223,5 @@ def get_scan_record(scan_id: str) -> dict[str, Any] | None:
             }
             for r in findings
         ],
+        "scores": scores_payload,
     }

@@ -1,9 +1,10 @@
 import Link from "next/link";
 
+import { SentinelMark } from "@/components/SentinelMark";
+
 export default function Home() {
   return (
     <div className="flex flex-1 flex-col">
-      {/* ICTA stripe motif — placeholder branding only */}
       <div className="flex h-2 w-full">
         <div className="flex-1 bg-icta-black" />
         <div className="flex-1 bg-icta-red" />
@@ -12,6 +13,9 @@ export default function Home() {
 
       <main className="flex flex-1 flex-col items-center justify-center bg-white px-6 py-24">
         <div className="max-w-2xl text-center">
+          <div className="mb-6 flex justify-center">
+            <SentinelMark state="idle" size={140} />
+          </div>
           <p className="mb-2 text-sm font-medium uppercase tracking-wider text-icta-gray-600">
             ICT Authority, Kenya
           </p>
@@ -23,7 +27,7 @@ export default function Home() {
             Section 6.4
           </p>
           <p className="mb-8 text-sm text-icta-gray-600">
-            [Placeholder branding — official ICTA assets pending]
+            Government website compliance checker — internal ICTA tool
           </p>
           <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
             <Link

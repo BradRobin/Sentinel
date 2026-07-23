@@ -1,4 +1,18 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8001";
+
+function formatApiDetail(detail: unknown): string {
+  if (typeof detail === "string") return detail;
+  if (Array.isArray(detail)) {
+    return detail
+      .map((item) =>
+        typeof item === "object" && item && "msg" in item
+          ? String((item as { msg: string }).msg)
+          : String(item),
+      )
+      .join("; ");
+  }
+  return "Request failed";
+}
 
 export interface HealthResponse {
   status: string;
@@ -49,7 +63,10 @@ export async function createScan(url: string): Promise<ScanJobResponse> {
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw new Error(body.detail ?? `Scan request failed: ${res.status}`);
+    const detail = formatApiDetail((body as { detail?: unknown }).detail);
+    throw new Error(
+      `${detail} (POST ${API_URL}/api/v1/scans — is the Sentinel API running on port 8001?)`,
+    );
   }
   return res.json();
 }
@@ -59,7 +76,9 @@ export async function getScan(jobId: string): Promise<ScanStatusResponse> {
     cache: "no-store",
   });
   if (!res.ok) {
-    throw new Error(`Scan status failed: ${res.status}`);
+    const body = await res.json().catch(() => ({}));
+    const detail = formatApiDetail((body as { detail?: unknown }).detail);
+    throw new Error(`${detail} (GET ${API_URL}/api/v1/scans/${jobId})`);
   }
   return res.json();
 }

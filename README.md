@@ -72,11 +72,13 @@ docker compose up --build
 ```
 
 Services:
-- **API** — http://localhost:8000
+- **API** — http://localhost:8001
 - **Redis** — localhost:6379
 - **Celery worker** — bounded concurrency (default 2)
 
-Health check: `GET http://localhost:8000/health`
+Health check: `GET http://localhost:8001/health`
+
+> **Note:** Port **8001** is used by default to avoid conflicting with other local apps on 8000.
 
 ### 4. Frontend
 

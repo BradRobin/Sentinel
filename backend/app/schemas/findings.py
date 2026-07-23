@@ -22,12 +22,15 @@ class Finding(BaseModel):
 
 class ScanCreateRequest(BaseModel):
     url: str
+    force: bool = False
 
 
 class ScanJobResponse(BaseModel):
     job_id: str
     status: str
     url: str
+    cache_hit: bool = False
+    progress: str | None = None
 
 
 class ScanStatusResponse(BaseModel):
@@ -36,6 +39,8 @@ class ScanStatusResponse(BaseModel):
     url: str | None = None
     result: dict | None = None
     error: str | None = None
+    cache_hit: bool = False
+    progress: str | None = None
 
 
 class FindingResponse(BaseModel):

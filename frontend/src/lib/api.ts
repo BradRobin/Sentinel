@@ -25,6 +25,8 @@ export interface ScanJobResponse {
   job_id: string;
   status: string;
   url: string;
+  cache_hit?: boolean;
+  progress?: string | null;
 }
 
 export interface Finding {
@@ -43,6 +45,8 @@ export interface ScanStatusResponse {
   url: string | null;
   result: { findings?: Finding[]; finding_count?: number } | null;
   error: string | null;
+  cache_hit?: boolean;
+  progress?: string | null;
 }
 
 export async function fetchBackendHealth(): Promise<HealthResponse> {
@@ -55,13 +59,16 @@ export async function fetchBackendHealth(): Promise<HealthResponse> {
   return res.json();
 }
 
-export async function createScan(url: string): Promise<ScanJobResponse> {
+export async function createScan(
+  url: string,
+  options?: { force?: boolean },
+): Promise<ScanJobResponse> {
   let res: Response;
   try {
     res = await fetch(`${API_URL}/api/v1/scans`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url }),
+      body: JSON.stringify({ url, force: options?.force ?? false }),
     });
   } catch {
     throw new Error(

@@ -20,29 +20,35 @@ function markStateFromStatus(status: string | null): SentinelMarkState {
 
 export function ScanWorkspace() {
   const [url, setUrl] = useState("https://www.ict.go.ke");
+  const [force, setForce] = useState(false);
   const [markState, setMarkState] = useState<SentinelMarkState>("idle");
   const [error, setError] = useState<string | null>(null);
   const [scan, setScan] = useState<ScanStatusResponse | null>(null);
   const [findings, setFindings] = useState<Finding[]>([]);
+  const [progress, setProgress] = useState<string | null>(null);
 
   async function pollUntilDone(jobId: string) {
-    for (let i = 0; i < 60; i++) {
+    for (let i = 0; i < 90; i++) {
       const status = await getScan(jobId);
       setScan(status);
+      setProgress(status.progress ?? null);
       setMarkState(markStateFromStatus(status.status));
 
       if (status.status === "complete") {
         setFindings(status.result?.findings ?? []);
+        setProgress(null);
         return;
       }
       if (status.status === "failed") {
         setError(status.error ?? "Scan failed");
+        setProgress(null);
         return;
       }
-      await new Promise((r) => setTimeout(r, 1000));
+      await new Promise((r) => setTimeout(r, 800));
     }
     setError("Scan timed out");
     setMarkState("idle");
+    setProgress(null);
   }
 
   async function onSubmit(e: FormEvent) {
@@ -50,14 +56,34 @@ export function ScanWorkspace() {
     setError(null);
     setScan(null);
     setFindings([]);
+    setProgress("Queued…");
     setMarkState("processing");
 
     try {
-      const job = await createScan(url.trim());
-      setScan({ ...job, url: job.url, result: null, error: null });
+      const job = await createScan(url.trim(), { force });
+      setScan({
+        ...job,
+        url: job.url,
+        result: null,
+        error: null,
+        cache_hit: job.cache_hit,
+        progress: job.progress ?? null,
+      });
+
+      if (job.status === "complete" && job.cache_hit) {
+        // Cache hit — fetch full payload (findings) via GET
+        const full = await getScan(job.job_id);
+        setScan(full);
+        setFindings(full.result?.findings ?? []);
+        setMarkState("complete");
+        setProgress(null);
+        return;
+      }
+
       await pollUntilDone(job.job_id);
     } catch (err) {
       setMarkState("idle");
+      setProgress(null);
       setError(err instanceof Error ? err.message : "Unknown error");
     }
   }
@@ -75,15 +101,18 @@ export function ScanWorkspace() {
         <div className="mb-8 flex flex-col items-center gap-3">
           <SentinelMark state={markState} size={120} />
           <p className="text-sm text-icta-gray-600">
-            {markState === "processing" && "Running compliance checks…"}
-            {markState === "complete" && "Scan complete"}
+            {markState === "processing" && (progress || "Running compliance checks…")}
+            {markState === "complete" &&
+              (scan?.cache_hit
+                ? "Served from cache (fresh within 24h)"
+                : "Scan complete")}
             {markState === "idle" && !scan && "Enter a .go.ke URL to scan"}
           </p>
         </div>
 
         <h1 className="mb-2 text-2xl font-bold text-icta-black">Scan</h1>
         <p className="mb-6 text-sm text-icta-gray-600">
-          Security, domain format, and SEO checks (Phase 2 preview)
+          Full ICTA.6.002:2019 §6.4 checklist preview — results cached for 24 hours
         </p>
 
         <form onSubmit={onSubmit} className="mb-8 space-y-3">
@@ -95,6 +124,14 @@ export function ScanWorkspace() {
             placeholder="https://example.go.ke"
             className="w-full rounded-md border border-icta-gray-200 px-3 py-2 text-sm"
           />
+          <label className="flex items-center gap-2 text-sm text-icta-gray-600">
+            <input
+              type="checkbox"
+              checked={force}
+              onChange={(e) => setForce(e.target.checked)}
+            />
+            Force fresh scan (bypass cache)
+          </label>
           <button
             type="submit"
             disabled={markState === "processing"}
@@ -113,13 +150,16 @@ export function ScanWorkspace() {
         {scan && (
           <p className="mb-4 text-sm text-icta-gray-600">
             Job: {scan.job_id} · Status: {scan.status}
+            {scan.cache_hit ? " · cache hit" : ""}
             {scan.url ? ` · ${scan.url}` : ""}
           </p>
         )}
 
         {findings.length > 0 && (
           <div>
-            <h2 className="mb-3 text-lg font-semibold">Findings ({findings.length})</h2>
+            <h2 className="mb-3 text-lg font-semibold">
+              Findings ({findings.length})
+            </h2>
             <ul className="space-y-3">
               {findings.map((f) => (
                 <li

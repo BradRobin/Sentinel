@@ -8,6 +8,7 @@ from app.core.celery_app import celery_app
 from app.core.config import settings
 from app.core.redis_client import get_redis
 from app.core.ssrf import normalize_url_for_lock
+from app.services.scan_cache import set_cached_scan
 from app.services.scan_repository import get_scan_record, save_findings, update_scan_status
 from app.services.scan_runner import run_all_checks
 
@@ -29,14 +30,21 @@ def _lock_key(url: str) -> str:
 
 def set_job_status(job_id: str, payload: dict[str, Any]) -> None:
     redis_client = get_redis()
-    redis_client.setex(_job_key(job_id), settings.scan_cache_ttl_seconds, json.dumps(payload, default=str))
+    redis_client.setex(
+        _job_key(job_id),
+        settings.scan_cache_ttl_seconds,
+        json.dumps(payload, default=str),
+    )
 
 
 def get_job_status(job_id: str) -> dict[str, Any] | None:
     redis_client = get_redis()
     raw = redis_client.get(_job_key(job_id))
     if raw:
-        return json.loads(raw)
+        data = json.loads(raw)
+        data.setdefault("cache_hit", False)
+        data.setdefault("progress", None)
+        return data
     record = get_scan_record(job_id)
     if not record:
         return None
@@ -46,12 +54,14 @@ def get_job_status(job_id: str) -> dict[str, Any] | None:
         "url": record["url"],
         "result": {"findings": record["findings"]} if record["findings"] else None,
         "error": None,
+        "cache_hit": False,
+        "progress": None,
     }
 
 
 @celery_app.task(name="app.workers.scan_tasks.run_scan", bind=True)
 def run_scan(self, scan_id: str, url: str) -> dict[str, Any]:
-    """Run security, domain, and SEO checks; persist findings to Postgres."""
+    """Run full check suite with category progress; persist and cache results."""
     redis_client = get_redis()
     lock_key = _lock_key(url)
     allowed_tlds = [t.strip() for t in settings.allowed_tld.split(",") if t.strip()]
@@ -67,19 +77,35 @@ def run_scan(self, scan_id: str, url: str) -> dict[str, Any]:
             "url": url,
             "result": None,
             "error": "A scan for this URL is already in progress",
+            "cache_hit": False,
+            "progress": None,
         }
         set_job_status(scan_id, payload)
         return payload
 
-    try:
-        update_scan_status(scan_id, "running")
+    def on_progress(message: str) -> None:
         set_job_status(
             scan_id,
-            {"job_id": scan_id, "status": "running", "url": url, "result": None, "error": None},
+            {
+                "job_id": scan_id,
+                "status": "running",
+                "url": url,
+                "result": None,
+                "error": None,
+                "cache_hit": False,
+                "progress": message,
+            },
         )
 
+    try:
+        update_scan_status(scan_id, "running")
+        on_progress("Starting scan…")
+
         findings = run_all_checks(
-            url, allowed_tlds=allowed_tlds, allow_tld_bypass=settings.allow_tld_bypass
+            url,
+            allowed_tlds=allowed_tlds,
+            allow_tld_bypass=settings.allow_tld_bypass,
+            on_progress=on_progress,
         )
         save_findings(scan_id, findings)
         update_scan_status(scan_id, "complete")
@@ -92,8 +118,11 @@ def run_scan(self, scan_id: str, url: str) -> dict[str, Any]:
             "url": url,
             "result": result,
             "error": None,
+            "cache_hit": False,
+            "progress": None,
         }
         set_job_status(scan_id, payload)
+        set_cached_scan(url, payload)
         return payload
     except Exception as exc:
         logger.exception("Scan failed for scan %s", scan_id)
@@ -104,6 +133,8 @@ def run_scan(self, scan_id: str, url: str) -> dict[str, Any]:
             "url": url,
             "result": None,
             "error": str(exc),
+            "cache_hit": False,
+            "progress": None,
         }
         set_job_status(scan_id, payload)
         return payload

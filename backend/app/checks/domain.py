@@ -19,13 +19,64 @@ def _registrable_host(hostname: str) -> str:
     return host
 
 
+def _check_duplicate(url: str) -> Finding:
+    """6.4.5 — Not a duplicate of an already-registered entity (internal registry)."""
+    from app.services.scan_repository import normalize_domain_url
+
+    domain_url = normalize_domain_url(url)
+    duplicates: list[str] = []
+    try:
+        from app.core.database import get_connection
+
+        with get_connection() as conn:
+            host = urlparse(domain_url).netloc.lower()
+            rows2 = conn.execute(
+                """
+                SELECT url, registered_name FROM domains
+                WHERE lower(url) LIKE %s
+                """,
+                (f"%{host}%",),
+            ).fetchall()
+            if len(rows2) > 1:
+                duplicates = [r["url"] for r in rows2]
+            elif rows2 and rows2[0].get("registered_name"):
+                name = rows2[0]["registered_name"]
+                clash = conn.execute(
+                    """
+                    SELECT url FROM domains
+                    WHERE registered_name = %s AND lower(url) NOT LIKE %s
+                    """,
+                    (name, f"%{host}%"),
+                ).fetchall()
+                duplicates = [r["url"] for r in clash]
+    except Exception as exc:
+        return Finding(
+            category="domain_identity",
+            check_name="domain_not_duplicate",
+            clause_reference="6.4.5",
+            status=FindingStatus.manual_review,
+            severity="medium",
+            automatability_type="A",
+            detail={"error": str(exc), "note": "Registry lookup failed"},
+        )
+
+    return Finding(
+        category="domain_identity",
+        check_name="domain_not_duplicate",
+        clause_reference="6.4.5",
+        status=FindingStatus.pass_ if not duplicates else FindingStatus.fail,
+        severity="medium",
+        automatability_type="A",
+        detail={"url": domain_url, "duplicate_urls": duplicates},
+    )
+
+
 def run_domain_checks(url: str) -> list[Finding]:
     parsed = urlparse(url)
     hostname = (parsed.hostname or "").lower()
     registrable = _registrable_host(hostname)
     findings: list[Finding] = []
 
-    # 6.4.4 — TLD
     tld_ok = hostname.endswith(".go.ke") or hostname.endswith(".gov.ke")
     findings.append(
         Finding(
@@ -39,7 +90,6 @@ def run_domain_checks(url: str) -> list[Finding]:
         )
     )
 
-    # 6.4.4 — length ≤ 40 (full hostname per SRS domain string)
     length_ok = len(hostname) <= 40
     findings.append(
         Finding(
@@ -53,7 +103,6 @@ def run_domain_checks(url: str) -> list[Finding]:
         )
     )
 
-    # 6.4.4 — not entirely numeric
     not_numeric = not registrable.replace(".", "").replace("-", "").isdigit()
     findings.append(
         Finding(
@@ -67,7 +116,6 @@ def run_domain_checks(url: str) -> list[Finding]:
         )
     )
 
-    # 6.4.4 — letters/numbers/hyphens; no leading/trailing hyphen; max one hyphen per label
     labels = registrable.split(".")
     format_issues: list[str] = []
     for label in labels:
@@ -94,4 +142,5 @@ def run_domain_checks(url: str) -> list[Finding]:
         )
     )
 
+    findings.append(_check_duplicate(url))
     return findings

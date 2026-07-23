@@ -1,12 +1,12 @@
-# Clause 6.4.17 — Meta title/description, robots.txt, sitemap.xml
+# Clause 6.4.17 — Meta title/description, robots.txt, sitemap.xml, indexability
 
 from __future__ import annotations
 
 import re
 from html.parser import HTMLParser
-from urllib.parse import urlparse
 
-from app.checks.fetcher import fetch_path, fetch_url
+from app.checks.fetcher import fetch_path
+from app.checks.page import PageSnapshot
 from app.schemas.findings import Finding, FindingStatus
 
 
@@ -15,6 +15,7 @@ class _HeadParser(HTMLParser):
         super().__init__()
         self.title: str | None = None
         self.description: str | None = None
+        self.robots_meta: str | None = None
         self._in_title = False
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
@@ -25,6 +26,8 @@ class _HeadParser(HTMLParser):
             name = attr.get("name", "").lower()
             if name == "description" and attr.get("content", "").strip():
                 self.description = attr["content"].strip()
+            if name == "robots":
+                self.robots_meta = attr.get("content", "").strip().lower()
 
     def handle_endtag(self, tag: str) -> None:
         if tag.lower() == "title":
@@ -37,13 +40,12 @@ class _HeadParser(HTMLParser):
                 self.title = (self.title or "") + chunk
 
 
-def _parse_head(html: str) -> tuple[str | None, str | None]:
+def _parse_head(html: str) -> tuple[str | None, str | None, str | None]:
     parser = _HeadParser()
     try:
         parser.feed(html[:500_000])
     except Exception:
         pass
-    # Fallback regex if parser missed title
     title = parser.title
     if not title:
         m = re.search(r"<title[^>]*>([^<]+)</title>", html, re.I | re.S)
@@ -56,51 +58,32 @@ def _parse_head(html: str) -> tuple[str | None, str | None]:
             re.I,
         )
         description = m.group(1).strip() if m else None
-    return title, description
+    return title, description, parser.robots_meta
 
 
 def run_seo_checks(
-    url: str,
+    snap: PageSnapshot,
     *,
     allowed_tlds: list[str] | None = None,
     allow_tld_bypass: bool = False,
 ) -> list[Finding]:
     findings: list[Finding] = []
-    parsed = urlparse(url)
-    fetch_target = url if parsed.scheme == "https" else f"https://{parsed.netloc}/"
-
-    try:
-        page = fetch_url(
-            fetch_target,
-            allowed_tlds=allowed_tlds,
-            allow_tld_bypass=allow_tld_bypass,
-        )
-    except Exception as exc:
-        findings.append(
-            Finding(
-                category="seo",
-                check_name="meta_tags",
-                clause_reference="6.4.17",
-                status=FindingStatus.fail,
-                severity="low",
-                automatability_type="A",
-                detail={"error": str(exc)},
+    if not snap.ok:
+        for name in ("meta_tags", "robots_sitemap", "search_engine_indexed"):
+            findings.append(
+                Finding(
+                    category="seo",
+                    check_name=name,
+                    clause_reference="6.4.17",
+                    status=FindingStatus.fail,
+                    severity="low",
+                    automatability_type="A",
+                    detail={"error": snap.error or "Page fetch failed"},
+                )
             )
-        )
-        findings.append(
-            Finding(
-                category="seo",
-                check_name="robots_sitemap",
-                clause_reference="6.4.17",
-                status=FindingStatus.fail,
-                severity="low",
-                automatability_type="A",
-                detail={"error": str(exc)},
-            )
-        )
         return findings
 
-    title, description = _parse_head(page.text)
+    title, description, robots_meta = _parse_head(snap.html)
     meta_ok = bool(title and description)
     findings.append(
         Finding(
@@ -120,13 +103,13 @@ def run_seo_checks(
     )
 
     robots = fetch_path(
-        fetch_target,
+        snap.request_url,
         "/robots.txt",
         allowed_tlds=allowed_tlds,
         allow_tld_bypass=allow_tld_bypass,
     )
     sitemap = fetch_path(
-        fetch_target,
+        snap.request_url,
         "/sitemap.xml",
         allowed_tlds=allowed_tlds,
         allow_tld_bypass=allow_tld_bypass,
@@ -139,9 +122,7 @@ def run_seo_checks(
             category="seo",
             check_name="robots_sitemap",
             clause_reference="6.4.17",
-            status=FindingStatus.pass_
-            if robots_ok and sitemap_ok
-            else FindingStatus.fail,
+            status=FindingStatus.pass_ if robots_ok and sitemap_ok else FindingStatus.fail,
             severity="low",
             automatability_type="A",
             detail={
@@ -153,6 +134,36 @@ def run_seo_checks(
                     "found": sitemap_ok,
                     "status_code": sitemap.status_code if sitemap else None,
                 },
+            },
+        )
+    )
+
+    # Indexability heuristics (true live SERP check needs Search Console / API)
+    x_robots = snap.headers.get("x-robots-tag", "").lower()
+    noindex = (
+        (robots_meta and "noindex" in robots_meta)
+        or ("noindex" in x_robots)
+    )
+    robots_disallow_all = False
+    if robots_ok and robots:
+        if re.search(r"(?m)^user-agent:\s*\*\s*$[\s\S]*?^disallow:\s*/\s*$", robots.text, re.I):
+            robots_disallow_all = True
+
+    indexable = not noindex and not robots_disallow_all
+    findings.append(
+        Finding(
+            category="seo",
+            check_name="search_engine_indexed",
+            clause_reference="6.4.17",
+            status=FindingStatus.pass_ if indexable else FindingStatus.fail,
+            severity="low",
+            automatability_type="A",
+            detail={
+                "indexable_signals": indexable,
+                "robots_meta": robots_meta,
+                "x_robots_tag": x_robots or None,
+                "robots_disallow_all": robots_disallow_all,
+                "note": "Heuristic indexability — not a live SERP confirmation",
             },
         )
     )

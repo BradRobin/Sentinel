@@ -10,13 +10,15 @@ def test_parse_title_and_description():
     <meta name="description" content="Official ICTA website">
     </head></html>
     """
-    title, desc = _parse_head(html)
+    title, desc, robots = _parse_head(html)
     assert title == "ICT Authority"
     assert desc == "Official ICTA website"
+    assert robots is None
 
 
 def test_missing_meta_fails_parse():
     html = "<html><head><title>Only Title</title></head></html>"
-    title, desc = _parse_head(html)
+    title, desc, robots = _parse_head(html)
     assert title == "Only Title"
     assert desc is None
+    assert robots is None

@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-import uuid
-
 from fastapi import APIRouter, HTTPException
 
 from app.core.config import settings
 from app.core.ssrf import SSRFError, validate_scan_url
 from app.schemas.findings import ScanCreateRequest, ScanJobResponse, ScanStatusResponse
+from app.services.scan_repository import create_scan_record
 from app.workers.scan_tasks import get_job_status, run_scan, set_job_status
 
 router = APIRouter(prefix="/scans", tags=["scans"])
@@ -24,14 +23,20 @@ def create_scan(body: ScanCreateRequest) -> ScanJobResponse:
     except SSRFError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    job_id = str(uuid.uuid4())
+    scan_id = create_scan_record(validated.original)
     set_job_status(
-        job_id,
-        {"job_id": job_id, "status": "queued", "url": validated.original, "result": None, "error": None},
+        scan_id,
+        {
+            "job_id": scan_id,
+            "status": "queued",
+            "url": validated.original,
+            "result": None,
+            "error": None,
+        },
     )
-    run_scan.delay(job_id, validated.original)
+    run_scan.delay(scan_id, validated.original)
 
-    return ScanJobResponse(job_id=job_id, status="queued", url=validated.original)
+    return ScanJobResponse(job_id=scan_id, status="queued", url=validated.original)
 
 
 @router.get("/{job_id}", response_model=ScanStatusResponse)

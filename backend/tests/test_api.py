@@ -51,8 +51,10 @@ class TestScanEndpoint:
 
     def test_create_scan_accepts_valid_go_ke(self):
         with patch("app.core.ssrf.socket.getaddrinfo") as mock_dns, patch(
-            "app.api.v1.scans.run_scan.delay"
-        ) as mock_delay, patch("app.api.v1.scans.set_job_status") as mock_set:
+            "app.api.v1.scans.create_scan_record", return_value="scan-uuid-1"
+        ), patch("app.api.v1.scans.run_scan.delay") as mock_delay, patch(
+            "app.api.v1.scans.set_job_status"
+        ) as mock_set:
             mock_dns.return_value = [(2, 1, 6, "", ("102.68.142.1", 0))]
             response = client.post(
                 "/api/v1/scans",
@@ -61,8 +63,8 @@ class TestScanEndpoint:
             assert response.status_code == 202
             data = response.json()
             assert data["status"] == "queued"
-            assert "job_id" in data
-            mock_delay.assert_called_once()
+            assert data["job_id"] == "scan-uuid-1"
+            mock_delay.assert_called_once_with("scan-uuid-1", "https://www.ict.go.ke")
             mock_set.assert_called_once()
 
     def test_get_scan_not_found(self):

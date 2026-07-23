@@ -38,6 +38,16 @@ class ScanStatusResponse(BaseModel):
     error: str | None = None
 
 
+class FindingResponse(BaseModel):
+    category: str
+    check_name: str
+    clause_reference: str
+    status: str
+    severity: str
+    automatability_type: str
+    detail: dict = Field(default_factory=dict)
+
+
 class HealthResponse(BaseModel):
     status: str
     version: str

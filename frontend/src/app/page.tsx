@@ -25,8 +25,14 @@ export default function Home() {
           </p>
           <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
             <Link
-              href="/health"
+              href="/scan"
               className="rounded-md bg-icta-red px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-icta-red/90"
+            >
+              Scan a site
+            </Link>
+            <Link
+              href="/health"
+              className="rounded-md border border-icta-gray-200 px-6 py-3 text-sm font-semibold text-icta-black transition-colors hover:bg-icta-gray-50"
             >
               System health
             </Link>

@@ -56,11 +56,18 @@ export async function fetchBackendHealth(): Promise<HealthResponse> {
 }
 
 export async function createScan(url: string): Promise<ScanJobResponse> {
-  const res = await fetch(`${API_URL}/api/v1/scans`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ url }),
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}/api/v1/scans`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url }),
+    });
+  } catch {
+    throw new Error(
+      `Failed to reach Sentinel API at ${API_URL}. Check docker compose is up and CORS allows this page origin (localhost and 127.0.0.1).`,
+    );
+  }
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     const detail = formatApiDetail((body as { detail?: unknown }).detail);

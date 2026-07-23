@@ -34,9 +34,19 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Dev browsers often use 127.0.0.1 instead of localhost — both must be allowed
+# or the browser surfaces a generic "Failed to fetch" CORS error.
+_cors_origins = {
+    settings.frontend_url.rstrip("/"),
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:3001",
+    "http://127.0.0.1:3001",
+}
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.frontend_url],
+    allow_origins=sorted(_cors_origins),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

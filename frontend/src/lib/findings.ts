@@ -158,7 +158,18 @@ export function findingSummaryLine(finding: Finding): string {
     return `Missing: ${d.missing.map(String).join(", ")}`;
   }
   if (Array.isArray(d.exposed) && d.exposed.length > 0) {
-    return `Exposed: ${d.exposed.map(String).join(", ")}`;
+    const paths = d.exposed
+      .map((item) => {
+        if (typeof item === "string") return item;
+        if (item && typeof item === "object" && "path" in item) {
+          return String((item as { path: unknown }).path);
+        }
+        return null;
+      })
+      .filter((p): p is string => Boolean(p));
+    if (paths.length > 0) {
+      return `Flagged paths: ${paths.join(", ")}`;
+    }
   }
   if (Array.isArray(d.issues) && d.issues.length > 0) {
     return String(d.issues[0]);
@@ -193,6 +204,8 @@ const DETAIL_KEY_LABELS: Record<string, string> = {
   note: "Note",
   missing: "Missing",
   exposed: "Exposed paths",
+  content_exposed_count: "Confirmed content exposures",
+  redirect_exposed_count: "Redirect-only admin paths",
   issues: "Issues",
   probed: "Paths probed",
   samples: "Sample images",
@@ -304,6 +317,8 @@ export function formatDetailListItem(item: unknown): string {
     const parts = [o.path];
     if (o.status_code != null) parts.push(`HTTP ${o.status_code}`);
     if (typeof o.bytes === "number") parts.push(formatBytes(o.bytes));
+    if (o.exposure_kind === "redirect") parts.push("redirect only");
+    if (o.exposure_kind === "content") parts.push("content returned");
     return parts.join(" · ");
   }
 

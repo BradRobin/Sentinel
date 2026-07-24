@@ -130,6 +130,11 @@ class TestScanEndpoint:
                 "error": None,
                 "cache_hit": False,
                 "progress": "Checking security…",
+                "current_category": "security",
+                "categories_completed": ["domain_identity"],
+                "total_categories": 8,
+                "updated_at": "2026-07-24T09:51:02Z",
+                "error_category": None,
             },
         ):
             response = client.get("/api/v1/scans/abc-123")
@@ -137,3 +142,7 @@ class TestScanEndpoint:
             data = response.json()
             assert data["status"] == "running"
             assert data["progress"] == "Checking security…"
+            assert data["current_category"] == "security"
+            assert data["categories_completed"] == ["domain_identity"]
+            assert data["total_categories"] == 8
+            assert data["updated_at"] == "2026-07-24T09:51:02Z"

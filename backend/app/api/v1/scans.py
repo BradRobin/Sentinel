@@ -37,6 +37,10 @@ def create_scan(body: ScanCreateRequest, response: Response) -> ScanJobResponse:
                     **cached,
                     "cache_hit": True,
                     "progress": None,
+                    "current_category": None,
+                    "categories_completed": cached.get("categories_completed") or [],
+                    "total_categories": cached.get("total_categories") or 8,
+                    "error_category": None,
                 },
             )
             return ScanJobResponse(
@@ -45,6 +49,9 @@ def create_scan(body: ScanCreateRequest, response: Response) -> ScanJobResponse:
                 url=cached.get("url") or validated.original,
                 cache_hit=True,
                 progress=None,
+                current_category=None,
+                categories_completed=[],
+                total_categories=cached.get("total_categories") or 8,
             )
 
     scan_id = create_scan_record(validated.original)
@@ -58,6 +65,11 @@ def create_scan(body: ScanCreateRequest, response: Response) -> ScanJobResponse:
             "error": None,
             "cache_hit": False,
             "progress": "Queued…",
+            "current_category": None,
+            "categories_completed": [],
+            "total_categories": 8,
+            "updated_at": None,
+            "error_category": None,
         },
     )
     run_scan.delay(scan_id, validated.original)
@@ -69,6 +81,9 @@ def create_scan(body: ScanCreateRequest, response: Response) -> ScanJobResponse:
         url=validated.original,
         cache_hit=False,
         progress="Queued…",
+        current_category=None,
+        categories_completed=[],
+        total_categories=8,
     )
 
 

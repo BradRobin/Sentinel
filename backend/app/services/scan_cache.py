@@ -37,6 +37,10 @@ def get_cached_scan(url: str) -> dict[str, Any] | None:
             payload = json.loads(raw)
             payload["cache_hit"] = True
             payload["progress"] = None
+            payload["current_category"] = None
+            payload.setdefault("categories_completed", [])
+            payload.setdefault("total_categories", 8)
+            payload["error_category"] = None
             return payload
     except Exception as exc:
         logger.warning("Redis cache read failed: %s", exc)

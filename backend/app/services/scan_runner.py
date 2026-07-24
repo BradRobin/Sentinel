@@ -17,11 +17,22 @@ from app.checks.security import _EXPOSED_PATHS, run_security_checks
 from app.checks.seo import run_seo_checks
 from app.schemas.findings import Finding
 
-ProgressCallback = Callable[[str], None]
+# Scored categories in scoring_weights / SRS display order (monitoring excluded)
+SCORED_PROGRESS_CATEGORIES: tuple[str, ...] = (
+    "domain_identity",
+    "security",
+    "interoperability",
+    "accessibility",
+    "design_branding",
+    "multimedia_performance",
+    "legal_content",
+    "seo",
+)
 
-# Human-readable labels for SRS §8.4 processing state
+TOTAL_SCORED_CATEGORIES = len(SCORED_PROGRESS_CATEGORIES)
+
+# Human-readable labels for processing state (API / logs); UI may map keys itself
 CATEGORY_LABELS: dict[str, str] = {
-    "fetch": "Fetching page…",
     "domain_identity": "Checking domain identity…",
     "security": "Checking security…",
     "interoperability": "Checking interoperability…",
@@ -30,10 +41,9 @@ CATEGORY_LABELS: dict[str, str] = {
     "multimedia_performance": "Checking multimedia and performance…",
     "legal_content": "Checking legal and content…",
     "seo": "Checking SEO and visibility…",
-    "monitoring": "Checking site availability…",
-    "manual_review": "Recording items that need manual review…",
-    "complete": "Scan complete",
 }
+
+ProgressCallback = Callable[[str | None, list[str]], None]
 
 
 def run_all_checks(
@@ -43,11 +53,21 @@ def run_all_checks(
     allow_tld_bypass: bool = False,
     on_progress: ProgressCallback | None = None,
 ) -> list[Finding]:
-    def progress(key: str) -> None:
-        if on_progress:
-            on_progress(CATEGORY_LABELS.get(key, key))
+    """
+    Run checks in scoring order.
 
-    progress("fetch")
+    ``on_progress(current_category, categories_completed)`` is invoked
+    immediately *before* each scored category starts, and again after it
+    finishes (so ``categories_completed`` advances while the category key
+    is still current). Fetch / monitoring / manual_review are not part of
+    the scored progress sequence.
+    """
+
+    def report(current: str | None, completed: list[str]) -> None:
+        if on_progress:
+            on_progress(current, list(completed))
+
+    # Fetch phase: no current_category yet (UI stays on Queued…)
     snap = load_page_snapshot(
         url,
         allowed_tlds=allowed_tlds,
@@ -56,44 +76,37 @@ def run_all_checks(
     )
 
     findings: list[Finding] = []
+    completed: list[str] = []
 
-    progress("domain_identity")
-    findings.extend(run_domain_checks(url))
+    runners: list[tuple[str, Callable[[], list[Finding]]]] = [
+        ("domain_identity", lambda: run_domain_checks(url)),
+        ("security", lambda: run_security_checks(snap)),
+        ("interoperability", lambda: run_interoperability_checks(snap)),
+        ("accessibility", lambda: run_accessibility_checks(snap)),
+        ("design_branding", lambda: run_design_checks(snap)),
+        (
+            "multimedia_performance",
+            lambda: run_multimedia_checks(
+                snap, allowed_tlds=allowed_tlds, allow_tld_bypass=allow_tld_bypass
+            ),
+        ),
+        ("legal_content", lambda: run_legal_checks(snap)),
+        (
+            "seo",
+            lambda: run_seo_checks(
+                snap, allowed_tlds=allowed_tlds, allow_tld_bypass=allow_tld_bypass
+            ),
+        ),
+    ]
 
-    progress("security")
-    findings.extend(run_security_checks(snap))
+    for category, runner in runners:
+        report(category, completed)
+        findings.extend(runner())
+        completed.append(category)
+        report(category, completed)
 
-    progress("interoperability")
-    findings.extend(run_interoperability_checks(snap))
-
-    progress("accessibility")
-    findings.extend(run_accessibility_checks(snap))
-
-    progress("design_branding")
-    findings.extend(run_design_checks(snap))
-
-    progress("multimedia_performance")
-    findings.extend(
-        run_multimedia_checks(
-            snap, allowed_tlds=allowed_tlds, allow_tld_bypass=allow_tld_bypass
-        )
-    )
-
-    progress("legal_content")
-    findings.extend(run_legal_checks(snap))
-
-    progress("seo")
-    findings.extend(
-        run_seo_checks(
-            snap, allowed_tlds=allowed_tlds, allow_tld_bypass=allow_tld_bypass
-        )
-    )
-
-    progress("monitoring")
+    # Excluded from scored progress sequence
     findings.extend(run_monitoring_checks(snap))
-
-    progress("manual_review")
     findings.extend(emit_manual_review_findings())
 
-    progress("complete")
     return findings

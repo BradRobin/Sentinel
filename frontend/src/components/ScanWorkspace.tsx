@@ -12,6 +12,7 @@ import {
   type ScanStatusResponse,
 } from "@/lib/api";
 import {
+  checkingLabel,
   classifyScanError,
   errorHint,
   errorTitle,
@@ -19,10 +20,35 @@ import {
 } from "@/lib/findings";
 import type { SentinelMarkState } from "@/lib/sentinel-mark-paths";
 
+const POLL_INTERVAL_MS = 600;
+const STALE_CATEGORY_MS = 15_000;
+const MAX_POLLS = 120;
+
 function markStateFromStatus(status: string | null): SentinelMarkState {
   if (!status || status === "queued" || status === "running") return "processing";
   if (status === "complete") return "complete";
   return "idle";
+}
+
+/** Label under SentinelMark while a job is processing — driven by Redis progress. */
+function processingLabel(
+  status: ScanStatusResponse | null,
+  fallbackQueued: string,
+  lastCategoryAt: number,
+  now: number,
+): string {
+  if (!status || status.status === "queued") return fallbackQueued;
+  if (status.status !== "running") return fallbackQueued;
+
+  const category = status.current_category ?? null;
+  // Gap between queued → worker start / fetch: stay on Queued… until first category
+  if (!category) return fallbackQueued;
+
+  if (now - lastCategoryAt >= STALE_CATEGORY_MS) {
+    return "Still working…";
+  }
+
+  return checkingLabel(category) ?? "Running compliance checks…";
 }
 
 interface ErrorState {
@@ -48,7 +74,7 @@ export function ScanWorkspace() {
   const [error, setError] = useState<ErrorState | null>(null);
   const [scan, setScan] = useState<ScanStatusResponse | null>(null);
   const [findings, setFindings] = useState<Finding[]>([]);
-  const [progress, setProgress] = useState<string | null>(null);
+  const [progressLabel, setProgressLabel] = useState<string | null>(null);
   const [hasSubmitted, setHasSubmitted] = useState(false);
 
   const overallScore =
@@ -68,28 +94,46 @@ export function ScanWorkspace() {
   }
 
   async function pollUntilDone(jobId: string) {
-    for (let i = 0; i < 90; i++) {
+    let lastCategory: string | null = null;
+    let lastCategoryAt = Date.now();
+
+    for (let i = 0; i < MAX_POLLS; i++) {
       const status = await getScan(jobId);
+      const now = Date.now();
+      const category = status.current_category ?? null;
+
+      if (category !== lastCategory) {
+        lastCategory = category;
+        lastCategoryAt = now;
+      }
+
       setScan(status);
-      setProgress(status.progress ?? null);
       setMarkState(markStateFromStatus(status.status));
 
       if (status.status === "complete") {
         setFindings(status.result?.findings ?? []);
-        setProgress(null);
+        setProgressLabel(null);
         return;
       }
       if (status.status === "failed") {
-        setErrorFromMessage(status.error ?? "Scan failed");
-        setProgress(null);
+        const detail = status.error ?? "Scan failed";
+        const withCategory = status.error_category
+          ? `${detail} (${status.error_category})`
+          : detail;
+        setErrorFromMessage(withCategory);
+        setProgressLabel(null);
         setMarkState("idle");
         return;
       }
-      await new Promise((r) => setTimeout(r, 800));
+
+      setProgressLabel(
+        processingLabel(status, "Queued…", lastCategoryAt, now),
+      );
+      await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
     }
     setErrorFromMessage("Scan timed out");
     setMarkState("idle");
-    setProgress(null);
+    setProgressLabel(null);
   }
 
   async function onSubmit(e: FormEvent) {
@@ -98,14 +142,14 @@ export function ScanWorkspace() {
     setError(null);
     setScan(null);
     setFindings([]);
-    setProgress("Queued…");
+    setProgressLabel("Queued…");
     setMarkState("processing");
 
     const trimmed = url.trim();
     if (!trimmed) {
       setErrorFromMessage("URL is required");
       setMarkState("idle");
-      setProgress(null);
+      setProgressLabel(null);
       return;
     }
 
@@ -118,21 +162,25 @@ export function ScanWorkspace() {
         error: null,
         cache_hit: job.cache_hit,
         progress: job.progress ?? null,
+        current_category: job.current_category ?? null,
+        categories_completed: job.categories_completed ?? [],
+        total_categories: job.total_categories ?? 8,
       });
 
+      // Cache hit: skip processing flash — go straight to results
       if (job.status === "complete" && job.cache_hit) {
         const full = await getScan(job.job_id);
         setScan(full);
         setFindings(full.result?.findings ?? []);
         setMarkState("complete");
-        setProgress(null);
+        setProgressLabel(null);
         return;
       }
 
       await pollUntilDone(job.job_id);
     } catch (err) {
       setMarkState("idle");
-      setProgress(null);
+      setProgressLabel(null);
       setErrorFromMessage(err instanceof Error ? err.message : "Unknown error");
     }
   }
@@ -151,7 +199,7 @@ export function ScanWorkspace() {
           <SentinelMark state={markState} size={120} />
           <p className="text-sm text-icta-gray-600">
             {markState === "processing" &&
-              (progress || "Running compliance checks…")}
+              (progressLabel || "Queued…")}
             {markState === "complete" &&
               (scan?.cache_hit
                 ? "Served from cache (fresh within 24h)"

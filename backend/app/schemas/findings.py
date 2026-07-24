@@ -31,6 +31,9 @@ class ScanJobResponse(BaseModel):
     url: str
     cache_hit: bool = False
     progress: str | None = None
+    current_category: str | None = None
+    categories_completed: list[str] = Field(default_factory=list)
+    total_categories: int = 8
 
 
 class ScanStatusResponse(BaseModel):
@@ -41,6 +44,11 @@ class ScanStatusResponse(BaseModel):
     error: str | None = None
     cache_hit: bool = False
     progress: str | None = None
+    current_category: str | None = None
+    categories_completed: list[str] = Field(default_factory=list)
+    total_categories: int = 8
+    updated_at: str | None = None
+    error_category: str | None = None
 
 
 class FindingResponse(BaseModel):

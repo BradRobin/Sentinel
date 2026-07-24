@@ -27,6 +27,9 @@ export interface ScanJobResponse {
   url: string;
   cache_hit?: boolean;
   progress?: string | null;
+  current_category?: string | null;
+  categories_completed?: string[];
+  total_categories?: number;
 }
 
 export interface Finding {
@@ -68,6 +71,11 @@ export interface ScanStatusResponse {
   error: string | null;
   cache_hit?: boolean;
   progress?: string | null;
+  current_category?: string | null;
+  categories_completed?: string[];
+  total_categories?: number;
+  updated_at?: string | null;
+  error_category?: string | null;
 }
 
 export async function fetchBackendHealth(): Promise<HealthResponse> {

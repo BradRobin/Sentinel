@@ -25,6 +25,20 @@ export const CATEGORY_LABELS: Record<string, string> = {
   monitoring: "Monitoring",
 };
 
+/** Processing-state labels driven by polled `current_category` keys */
+export const CHECKING_CATEGORY_LABELS: Record<string, string> = {
+  domain_identity: "Checking domain identity…",
+  security: "Checking security…",
+  interoperability: "Checking interoperability…",
+  accessibility: "Checking accessibility…",
+  design_branding: "Checking design and branding…",
+  multimedia_performance: "Checking multimedia and performance…",
+  legal_content: "Checking legal and content…",
+  seo: "Checking SEO and visibility…",
+};
+
+export const SCORED_CATEGORY_COUNT = 8;
+
 export type StatFilter = "fail" | "manual_review" | "pass" | "all";
 
 export interface FindingStats {
@@ -36,6 +50,14 @@ export interface FindingStats {
 
 export function labelCategory(category: string): string {
   return CATEGORY_LABELS[category] ?? category.replaceAll("_", " ");
+}
+
+export function checkingLabel(category: string | null | undefined): string | null {
+  if (!category) return null;
+  return (
+    CHECKING_CATEGORY_LABELS[category] ??
+    `Checking ${labelCategory(category).toLowerCase()}…`
+  );
 }
 
 export function summarizeFindings(findings: Finding[]): FindingStats {

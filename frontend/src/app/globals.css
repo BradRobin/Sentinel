@@ -9,6 +9,8 @@
   --icta-green: #006600;
   /* amber — severity / caution only (not a flag colour) */
   --icta-amber: #b45309;
+  /* Link / interactive text — distinct from flag colours */
+  --icta-link: #0052cc;
   --icta-gray-50: #f9fafb;
   --icta-gray-100: #f3f4f6;
   --icta-gray-200: #e5e7eb;
@@ -22,6 +24,7 @@
   --color-icta-black: var(--icta-black);
   --color-icta-green: var(--icta-green);
   --color-icta-amber: var(--icta-amber);
+  --color-icta-link: var(--icta-link);
   --color-icta-gray-50: var(--icta-gray-50);
   --color-icta-gray-100: var(--icta-gray-100);
   --color-icta-gray-200: var(--icta-gray-200);

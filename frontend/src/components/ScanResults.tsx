@@ -42,25 +42,16 @@ function InlineStat({
   count,
   label,
   onClick,
-  tone,
 }: {
   count: number;
   label: string;
   onClick: () => void;
-  tone: "fail" | "review" | "pass" | "neutral";
 }) {
-  const toneClass =
-    tone === "fail"
-      ? "text-icta-red"
-      : tone === "pass"
-        ? "text-icta-green"
-        : "text-icta-black";
-
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`underline decoration-from-font underline-offset-2 hover:opacity-80 ${toneClass}`}
+      className="text-icta-link underline decoration-from-font underline-offset-2 transition-opacity hover:opacity-80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-icta-link"
     >
       {count} {label}
     </button>
@@ -247,28 +238,24 @@ export function ScanResults({
           <InlineStat
             count={stats.fail}
             label={stats.fail === 1 ? "failure" : "failures"}
-            tone="fail"
             onClick={() => openPanel("fail")}
           />
           ,{" "}
           <InlineStat
             count={stats.manual_review}
             label="needing review"
-            tone="review"
             onClick={() => openPanel("manual_review")}
           />
           , and{" "}
           <InlineStat
             count={stats.pass}
             label={stats.pass === 1 ? "pass" : "passes"}
-            tone="pass"
             onClick={() => openPanel("pass")}
           />{" "}
           across{" "}
           <InlineStat
             count={stats.total}
             label="checks"
-            tone="neutral"
             onClick={() => openPanel("all")}
           />
           .

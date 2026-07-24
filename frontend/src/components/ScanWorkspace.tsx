@@ -381,6 +381,7 @@ export function ScanWorkspace() {
             cacheHit={scan?.cache_hit}
             scannedUrl={scan?.url}
             jobId={scan?.job_id}
+            narrative={scan?.result?.narrative ?? null}
           />
         )}
       </main>

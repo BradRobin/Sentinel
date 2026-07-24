@@ -21,6 +21,7 @@ from app.services.scan_errors import (
 from app.services.scan_repository import (
     get_scan_record,
     save_findings,
+    save_narrative,
     save_scores,
     update_scan_status,
 )
@@ -30,6 +31,7 @@ from app.services.scan_runner import (
     run_all_checks,
 )
 from app.services.scoring import compute_scores
+from app.services.ai.narrative import generate_scan_narrative
 
 logger = logging.getLogger(__name__)
 
@@ -129,6 +131,8 @@ def get_job_status(job_id: str) -> dict[str, Any] | None:
     if record.get("scores"):
         result["scores"] = record["scores"]
         result["overall_score"] = record["scores"].get("overall_score")
+    if record.get("narrative"):
+        result["narrative"] = record["narrative"]
     return {
         "job_id": record["scan_id"],
         "status": record["status"],
@@ -256,6 +260,16 @@ def run_scan(self, scan_id: str, url: str) -> dict[str, Any]:
         score_result = compute_scores(findings)
         save_scores(scan_id, score_result)
         upsert_historical_score_for_scan(scan_id, score_result)
+
+        # Narrative runs after the timed check suite so LLM latency cannot abort scoring.
+        narrative: str | None = None
+        try:
+            narrative = generate_scan_narrative(url, findings, score_result)
+            if narrative:
+                save_narrative(scan_id, narrative)
+        except Exception as exc:
+            logger.warning("Narrative generation failed for scan %s: %s", scan_id, exc)
+
         update_scan_status(scan_id, "complete")
 
         findings_payload = [f.model_dump(mode="json") for f in findings]
@@ -265,6 +279,7 @@ def run_scan(self, scan_id: str, url: str) -> dict[str, Any]:
             "finding_count": len(findings_payload),
             "scores": scores_payload,
             "overall_score": round(score_result.overall_score, 2),
+            "narrative": narrative,
         }
         payload = _base_payload(
             scan_id,

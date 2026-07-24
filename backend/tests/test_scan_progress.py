@@ -15,6 +15,7 @@ def test_progress_reports_before_each_scored_category():
     with (
         patch("app.services.scan_runner.load_page_snapshot", return_value=MagicMock()),
         patch("app.services.scan_runner.run_domain_checks", return_value=empty),
+        patch("app.services.scan_runner.run_domain_semantic_check", return_value=empty),
         patch("app.services.scan_runner.run_security_checks", return_value=empty),
         patch("app.services.scan_runner.run_interoperability_checks", return_value=empty),
         patch("app.services.scan_runner.run_accessibility_checks", return_value=empty),

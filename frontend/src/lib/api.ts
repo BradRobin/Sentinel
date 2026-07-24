@@ -97,6 +97,7 @@ export interface ScanStatusResponse {
     finding_count?: number;
     scores?: ScoresPayload;
     overall_score?: number | null;
+    narrative?: string | null;
   } | null;
   error: string | null;
   cache_hit?: boolean;

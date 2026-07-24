@@ -122,6 +122,36 @@ def save_scores(scan_id: str, score_result: Any) -> None:
         conn.commit()
 
 
+def save_narrative(scan_id: str, narrative_text: str) -> None:
+    """Persist AI narrative on the reports table (one row per generation)."""
+    with get_connection() as conn:
+        conn.execute(
+            """
+            INSERT INTO reports (scan_id, narrative_text)
+            VALUES (%s, %s)
+            """,
+            (scan_id, narrative_text),
+        )
+        conn.commit()
+
+
+def get_narrative_for_scan(scan_id: str) -> str | None:
+    with get_connection() as conn:
+        row = conn.execute(
+            """
+            SELECT narrative_text FROM reports
+            WHERE scan_id = %s AND narrative_text IS NOT NULL
+            ORDER BY generated_at DESC
+            LIMIT 1
+            """,
+            (scan_id,),
+        ).fetchone()
+    if not row:
+        return None
+    text = row.get("narrative_text")
+    return str(text) if text else None
+
+
 def get_scores_for_scan(scan_id: str) -> dict[str, Any] | None:
     with get_connection() as conn:
         rows = conn.execute(
@@ -224,4 +254,5 @@ def get_scan_record(scan_id: str) -> dict[str, Any] | None:
             for r in findings
         ],
         "scores": scores_payload,
+        "narrative": get_narrative_for_scan(str(scan["id"])),
     }

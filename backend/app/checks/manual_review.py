@@ -1,5 +1,6 @@
 # Emit manual_review findings for every P/M checklist item not covered by automatable modules.
 # SRS: never silently omit a check the system can't verify.
+# domain_semantic_relevance is handled by checks.domain_semantic (Phase 5 LLM).
 
 from __future__ import annotations
 
@@ -7,14 +8,6 @@ from app.schemas.findings import Finding, FindingStatus
 
 # (check_name, clause, category, automatability, severity, reason)
 _MANUAL_OR_PARTIAL: list[tuple[str, str, str, str, str, str]] = [
-    (
-        "domain_semantic_relevance",
-        "6.4.4",
-        "domain_identity",
-        "M",
-        "medium",
-        "Requires human/LLM judgment of semantic connection to stated purpose",
-    ),
     (
         "domain_not_personal_name",
         "6.4.4",

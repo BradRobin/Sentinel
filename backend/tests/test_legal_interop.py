@@ -47,6 +47,7 @@ def test_manual_review_emits_all_pm_items():
     assert len(findings) >= 10
     assert all(f.status == FindingStatus.manual_review for f in findings)
     names = {f.check_name for f in findings}
-    assert "domain_semantic_relevance" in names
+    # domain_semantic_relevance is resolved by the Phase 5 LLM check, not this emitter
+    assert "domain_semantic_relevance" not in names
     assert "db_isolation" in names
     assert "coat_of_arms" in names

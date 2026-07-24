@@ -7,6 +7,7 @@ from collections.abc import Callable
 from app.checks.accessibility import run_accessibility_checks
 from app.checks.design import run_design_checks
 from app.checks.domain import run_domain_checks
+from app.checks.domain_semantic import run_domain_semantic_check
 from app.checks.interoperability import run_interoperability_checks
 from app.checks.legal import run_legal_checks
 from app.checks.manual_review import emit_manual_review_findings
@@ -79,7 +80,13 @@ def run_all_checks(
     completed: list[str] = []
 
     runners: list[tuple[str, Callable[[], list[Finding]]]] = [
-        ("domain_identity", lambda: run_domain_checks(url)),
+        (
+            "domain_identity",
+            lambda: [
+                *run_domain_checks(url),
+                *run_domain_semantic_check(url, snap),
+            ],
+        ),
         ("security", lambda: run_security_checks(snap)),
         ("interoperability", lambda: run_interoperability_checks(snap)),
         ("accessibility", lambda: run_accessibility_checks(snap)),

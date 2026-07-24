@@ -31,6 +31,7 @@ interface ScanResultsProps {
   cacheHit?: boolean;
   scannedUrl?: string | null;
   jobId?: string | null;
+  narrative?: string | null;
 }
 
 function InlineStat({
@@ -101,6 +102,7 @@ export function ScanResults({
   cacheHit,
   scannedUrl,
   jobId,
+  narrative,
 }: ScanResultsProps) {
   const stats = useMemo(() => summarizeFindings(findings), [findings]);
   const grouped = useMemo(() => groupFindingsByCategory(findings), [findings]);
@@ -273,6 +275,13 @@ export function ScanResults({
           </div>
         )}
       </section>
+
+      {narrative ? (
+        <section aria-label="Scan summary">
+          <h2 className="mb-2 text-lg font-semibold text-icta-black">Summary</h2>
+          <p className="text-base leading-relaxed text-icta-black">{narrative}</p>
+        </section>
+      ) : null}
 
       {topIssues.length > 0 && (
         <section>

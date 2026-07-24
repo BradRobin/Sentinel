@@ -11,6 +11,7 @@ from app.core.config import settings
 from app.core.redis_client import get_redis
 from app.core.ssrf import normalize_url_for_lock
 from app.services.historical import upsert_historical_score_for_scan
+from app.services.registry import record_score_update_for_scan
 from app.services.scan_cache import set_cached_scan
 from app.services.scan_errors import (
     ERROR_CATEGORIES,
@@ -289,6 +290,12 @@ def run_scan(self, scan_id: str, url: str) -> dict[str, Any]:
         score_result = compute_scores(findings)
         save_scores(scan_id, score_result)
         upsert_historical_score_for_scan(scan_id, score_result)
+        try:
+            record_score_update_for_scan(scan_id, score_result)
+        except Exception as exc:
+            logger.warning(
+                "Registry score update failed for scan %s: %s", scan_id, exc
+            )
 
         # Narrative runs after the timed check suite so LLM latency cannot abort scoring.
         narrative: str | None = None

@@ -19,26 +19,39 @@ def normalize_domain_url(url: str) -> str:
     return f"{scheme}://{netloc}".lower().rstrip("/")
 
 
-def create_scan_record(url: str) -> str:
+def create_scan_record(
+    url: str,
+    *,
+    triggered_type: str = "manual",
+    domain_id: str | None = None,
+) -> str:
+    """Create a scan row, linking to an existing or newly upserted domain."""
+    if triggered_type not in ("manual", "scheduled"):
+        triggered_type = "manual"
+
     domain_url = normalize_domain_url(url)
     with get_connection() as conn:
-        domain_row = conn.execute(
-            """
-            INSERT INTO domains (url)
-            VALUES (%s)
-            ON CONFLICT (url) DO UPDATE SET url = EXCLUDED.url
-            RETURNING id
-            """,
-            (domain_url,),
-        ).fetchone()
-        domain_id = domain_row["id"]
+        if domain_id:
+            resolved_id = domain_id
+        else:
+            domain_row = conn.execute(
+                """
+                INSERT INTO domains (url)
+                VALUES (%s)
+                ON CONFLICT (url) DO UPDATE SET url = EXCLUDED.url
+                RETURNING id
+                """,
+                (domain_url,),
+            ).fetchone()
+            resolved_id = str(domain_row["id"])
+
         scan_row = conn.execute(
             """
             INSERT INTO scans (domain_id, status, triggered_type)
-            VALUES (%s, 'queued', 'manual')
+            VALUES (%s, 'queued', %s::triggered_type)
             RETURNING id
             """,
-            (str(domain_id),),
+            (str(resolved_id), triggered_type),
         ).fetchone()
         conn.commit()
         return str(scan_row["id"])

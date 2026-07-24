@@ -34,6 +34,22 @@ function extractErrorCategory(detail: unknown): string | null {
   return null;
 }
 
+function parseScanErrorBody(body: unknown): {
+  message: string;
+  category: string | null;
+} {
+  const record = body && typeof body === "object" ? (body as Record<string, unknown>) : {};
+  // Prefer FastAPI `detail` object; also accept top-level category/message.
+  const detail = "detail" in record ? record.detail : body;
+  const category =
+    extractErrorCategory(detail) ??
+    (typeof record.error_category === "string" ? record.error_category : null);
+  const message =
+    formatApiDetail(detail) ||
+    (typeof record.message === "string" ? record.message : "Request failed");
+  return { message, category };
+}
+
 export class ScanApiError extends Error {
   errorCategory: string | null;
   constructor(message: string, errorCategory: string | null = null) {
@@ -157,9 +173,7 @@ export async function createScan(
   }
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    const detail = (body as { detail?: unknown }).detail;
-    const category = extractErrorCategory(detail);
-    const message = formatApiDetail(detail);
+    const { message, category } = parseScanErrorBody(body);
     throw new ScanApiError(message, category);
   }
   return res.json();
@@ -171,8 +185,8 @@ export async function getScan(jobId: string): Promise<ScanStatusResponse> {
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    const detail = (body as { detail?: unknown }).detail;
-    throw new ScanApiError(formatApiDetail(detail), extractErrorCategory(detail));
+    const { message, category } = parseScanErrorBody(body);
+    throw new ScanApiError(message, category);
   }
   return res.json();
 }

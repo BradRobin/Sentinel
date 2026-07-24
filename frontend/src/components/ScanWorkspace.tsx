@@ -61,6 +61,12 @@ function processingLabel(
 function clientValidateUrl(raw: string): ScanErrorKind | null {
   const trimmed = raw.trim();
   if (!trimmed) return "invalid_url";
+
+  // Require an explicit http(s) scheme — do not silently "fix" bare hosts.
+  if (!/^https?:\/\//i.test(trimmed)) {
+    return "invalid_url";
+  }
+
   let parsed: URL;
   try {
     parsed = new URL(trimmed);
@@ -70,7 +76,8 @@ function clientValidateUrl(raw: string): ScanErrorKind | null {
   if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
     return "invalid_url";
   }
-  const host = parsed.hostname.toLowerCase();
+  const host = parsed.hostname.toLowerCase().replace(/\.$/, "");
+  if (!host) return "invalid_url";
   if (!host.endsWith(".go.ke") && !host.endsWith(".gov.ke")) {
     return "domain_not_allowed";
   }
@@ -233,9 +240,20 @@ export function ScanWorkspace() {
 
       await pollUntilDone(job.job_id);
     } catch (err) {
-      const category =
-        err instanceof ScanApiError ? err.errorCategory : null;
-      const message = err instanceof Error ? err.message : "Unknown error";
+      // Duck-type ScanApiError — `instanceof` can fail across bundled chunks.
+      const apiErr =
+        err instanceof ScanApiError
+          ? err
+          : err &&
+              typeof err === "object" &&
+              "errorCategory" in err &&
+              typeof (err as { message?: unknown }).message === "string"
+            ? (err as ScanApiError)
+            : null;
+      const category = apiErr?.errorCategory ?? null;
+      const message =
+        apiErr?.message ??
+        (err instanceof Error ? err.message : "Unknown error");
       const kind = classifyScanError(message, category);
 
       if (isFormValidationError(kind)) {
@@ -292,7 +310,15 @@ export function ScanWorkspace() {
             {markState === "idle" &&
               !hasSubmitted &&
               "Enter a .go.ke URL to scan"}
-            {markState === "idle" && hasSubmitted && fieldError && "Check the URL"}
+            {markState === "idle" &&
+              hasSubmitted &&
+              fieldError &&
+              "Check the URL"}
+            {markState === "idle" &&
+              hasSubmitted &&
+              !fieldError &&
+              !scanError &&
+              "Enter a .go.ke URL to scan"}
           </p>
         </div>
 
@@ -301,10 +327,17 @@ export function ScanWorkspace() {
           ICTA.6.002:2019 §6.4 compliance checks — results cached for 24 hours
         </p>
 
-        <form onSubmit={onSubmit} className="mb-8 space-y-3">
+        <form
+          onSubmit={onSubmit}
+          noValidate
+          className="mb-8 space-y-3"
+        >
           <div>
             <input
-              type="url"
+              type="text"
+              inputMode="url"
+              autoComplete="url"
+              name="scan-url"
               required
               value={url}
               onChange={(e) => {

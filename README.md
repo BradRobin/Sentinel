@@ -10,7 +10,7 @@ AI-powered government website compliance checker for the ICT Authority (ICTA), K
 | API | FastAPI — single gateway for all scan/job endpoints |
 | Workers | Celery + Redis — async scan jobs, cache, idempotency locks |
 | Database | PostgreSQL via Supabase |
-| AI (Phase 5+) | Anthropic Claude — narrative and judgment calls only |
+| AI (Phase 5+) | Google Gemini — narrative and judgment calls only |
 
 ```
 frontend/     Next.js UI
@@ -65,6 +65,20 @@ PYTHONPATH=. python scripts/apply_migration.py
 
 Migration file: `supabase/migrations/20260722120000_initial_schema.sql`
 
+MCDA registry (organizations, verified domains, weekly score updates):
+
+```bash
+# After initial schema
+supabase db push   # or apply 20260724120000_mcda_registry.sql
+
+cd backend
+PYTHONPATH=. python scripts/seed_mcda_registry.py --allow-remote   # hosted DB
+# local Supabase:
+PYTHONPATH=. python scripts/seed_mcda_registry.py
+```
+
+Celery Beat (weekly Monday 02:00 Africa/Nairobi) is included in `docker compose` as the `beat` service.
+
 ### 3. Backend + workers (Docker)
 
 ```bash
@@ -75,6 +89,7 @@ Services:
 - **API** — http://localhost:8001
 - **Redis** — localhost:6379
 - **Celery worker** — bounded concurrency (default 2)
+- **Celery beat** — weekly MCDA registry rescan schedule
 
 Health check: `GET http://localhost:8001/health`
 
@@ -109,8 +124,10 @@ Requires Redis running (`docker run -p 6379:6379 redis:7-alpine`).
 |--------|------|-------------|
 | GET | `/health` | Health check (Redis + DB) |
 | GET | `/api/v1/health` | Versioned health alias |
-| POST | `/api/v1/scans` | Enqueue stub scan (`{ "url": "https://example.go.ke" }`) |
+| POST | `/api/v1/scans` | Enqueue scan (`{ "url": "https://example.go.ke" }`) |
 | GET | `/api/v1/scans/{job_id}` | Poll job status |
+| GET | `/api/v1/registry` | MCDA registry list (scores, trend, last checked) |
+| GET | `/api/v1/registry/suggestions?q=` | Autocomplete suggestions from registry |
 
 SSRF protection is enforced on every scan request: DNS resolution, private/metadata IP rejection, `.go.ke`/`.gov.ke` allowlist.
 

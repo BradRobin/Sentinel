@@ -31,14 +31,17 @@ export default function Home() {
               Scan a site
             </Link>
             <Link
+              href="/registry"
+              className="rounded-md border border-icta-gray-200 px-6 py-3 text-sm font-semibold text-icta-black transition-colors hover:bg-icta-gray-50"
+            >
+              MCDA registry
+            </Link>
+            <Link
               href="/health"
               className="rounded-md border border-icta-gray-200 px-6 py-3 text-sm font-semibold text-icta-black transition-colors hover:bg-icta-gray-50"
             >
               System health
             </Link>
-            <span className="text-sm text-icta-gray-600">
-              Full landing page — Phase 7
-            </span>
           </div>
         </div>
       </main>

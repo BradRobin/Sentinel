@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1.health import router as health_router
+from app.api.v1.registry import router as registry_router
 from app.api.v1.scans import router as scans_router
 from app.core.config import settings
 from app.core.database import close_pool
@@ -55,3 +56,4 @@ app.add_middleware(
 app.include_router(health_router)
 app.include_router(health_router, prefix="/api/v1")
 app.include_router(scans_router, prefix="/api/v1")
+app.include_router(registry_router, prefix="/api/v1")

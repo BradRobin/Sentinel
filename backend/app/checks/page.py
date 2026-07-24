@@ -163,12 +163,23 @@ def load_page_snapshot(
 
     snap.fetch = result
 
-    for path in probe_paths or []:
-        snap.path_probes[path] = fetch_path(
-            target,
-            path,
-            allowed_tlds=allowed_tlds,
-            allow_tld_bypass=allow_tld_bypass,
-        )
+    paths = list(probe_paths or [])
+    if paths:
+        # Short-timeout probes in parallel — don't serialize 15s waits per path
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+
+        def _probe(path: str) -> tuple[str, FetchResult | None]:
+            return path, fetch_path(
+                target,
+                path,
+                allowed_tlds=allowed_tlds,
+                allow_tld_bypass=allow_tld_bypass,
+            )
+
+        with ThreadPoolExecutor(max_workers=min(6, len(paths))) as pool:
+            futures = [pool.submit(_probe, p) for p in paths]
+            for fut in as_completed(futures):
+                path, probe = fut.result()
+                snap.path_probes[path] = probe
 
     return snap

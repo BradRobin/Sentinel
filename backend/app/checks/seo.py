@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import re
+from concurrent.futures import ThreadPoolExecutor
 from html.parser import HTMLParser
 
-from app.checks.fetcher import fetch_path
+from app.checks.fetcher import AUX_TIMEOUT, AuxFetchOutcome, fetch_path_aux
 from app.checks.page import PageSnapshot
 from app.schemas.findings import Finding, FindingStatus
 
@@ -61,6 +62,33 @@ def _parse_head(html: str) -> tuple[str | None, str | None, str | None]:
     return title, description, parser.robots_meta
 
 
+def _probe_seo_paths(
+    base_url: str,
+    *,
+    allowed_tlds: list[str] | None,
+    allow_tld_bypass: bool,
+) -> tuple[AuxFetchOutcome, AuxFetchOutcome]:
+    """Fetch robots.txt and sitemap.xml in parallel with short timeouts."""
+
+    def _one(path: str) -> AuxFetchOutcome:
+        return fetch_path_aux(
+            base_url,
+            path,
+            allowed_tlds=allowed_tlds,
+            allow_tld_bypass=allow_tld_bypass,
+            timeout=AUX_TIMEOUT,
+            retries=1,
+        )
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        robots_f = pool.submit(_one, "/robots.txt")
+        sitemap_f = pool.submit(_one, "/sitemap.xml")
+        # Bound wait: one attempt + one retry each, in parallel ≈ 2 * AUX_TIMEOUT
+        robots = robots_f.result(timeout=AUX_TIMEOUT * 2 + 1)
+        sitemap = sitemap_f.result(timeout=AUX_TIMEOUT * 2 + 1)
+    return robots, sitemap
+
+
 def run_seo_checks(
     snap: PageSnapshot,
     *,
@@ -102,18 +130,13 @@ def run_seo_checks(
         )
     )
 
-    robots = fetch_path(
+    robots_out, sitemap_out = _probe_seo_paths(
         snap.request_url,
-        "/robots.txt",
         allowed_tlds=allowed_tlds,
         allow_tld_bypass=allow_tld_bypass,
     )
-    sitemap = fetch_path(
-        snap.request_url,
-        "/sitemap.xml",
-        allowed_tlds=allowed_tlds,
-        allow_tld_bypass=allow_tld_bypass,
-    )
+    robots = robots_out.result
+    sitemap = sitemap_out.result
     robots_ok = robots is not None and robots.status_code == 200
     sitemap_ok = sitemap is not None and sitemap.status_code == 200
 
@@ -129,24 +152,51 @@ def run_seo_checks(
                 "robots_txt": {
                     "found": robots_ok,
                     "status_code": robots.status_code if robots else None,
+                    "timed_out": robots_out.timed_out,
                 },
                 "sitemap_xml": {
                     "found": sitemap_ok,
                     "status_code": sitemap.status_code if sitemap else None,
+                    "timed_out": sitemap_out.timed_out,
                 },
             },
         )
     )
 
-    # Indexability heuristics (true live SERP check needs Search Console / API)
+    # Indexability: local heuristics only (no live SERP). If robots.txt timed out,
+    # don't block the category — mark this sub-check for manual review.
     x_robots = snap.headers.get("x-robots-tag", "").lower()
-    noindex = (
-        (robots_meta and "noindex" in robots_meta)
-        or ("noindex" in x_robots)
-    )
+    noindex = (robots_meta and "noindex" in robots_meta) or ("noindex" in x_robots)
+
+    if robots_out.timed_out and not robots_ok:
+        findings.append(
+            Finding(
+                category="seo",
+                check_name="search_engine_indexed",
+                clause_reference="6.4.17",
+                status=FindingStatus.manual_review,
+                severity="low",
+                automatability_type="P",
+                detail={
+                    "reason": "robots_txt_timeout",
+                    "note": (
+                        "robots.txt did not respond within the probe timeout; "
+                        "confirm indexability manually"
+                    ),
+                    "robots_meta": robots_meta,
+                    "x_robots_tag": x_robots or None,
+                },
+            )
+        )
+        return findings
+
     robots_disallow_all = False
     if robots_ok and robots:
-        if re.search(r"(?m)^user-agent:\s*\*\s*$[\s\S]*?^disallow:\s*/\s*$", robots.text, re.I):
+        if re.search(
+            r"(?m)^user-agent:\s*\*\s*$[\s\S]*?^disallow:\s*/\s*$",
+            robots.text,
+            re.I,
+        ):
             robots_disallow_all = True
 
     indexable = not noindex and not robots_disallow_all

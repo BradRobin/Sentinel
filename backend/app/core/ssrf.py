@@ -80,11 +80,15 @@ def validate_scan_url(
     *,
     allowed_tlds: list[str] | None = None,
     allow_tld_bypass: bool = False,
+    resolve_dns: bool = True,
 ) -> ValidatedURL:
     """
     Validate a user-submitted URL before any fetch.
 
-    Steps: parse → TLD allowlist → DNS resolve → private/metadata IP rejection.
+    Steps: parse → TLD allowlist → (optional) DNS resolve → private/metadata IP rejection.
+
+    ``resolve_dns=False`` is for same-origin auxiliary probes after the landing page
+    was already fully validated — skips a second getaddrinfo round-trip.
     """
     if not url or not url.strip():
         raise SSRFError("URL is required")
@@ -103,7 +107,8 @@ def validate_scan_url(
 
     tlds = allowed_tlds or [".go.ke", ".gov.ke"]
     _hostname_allowed(hostname, tlds, allow_tld_bypass)
-    _resolve_and_validate_ips(hostname)
+    if resolve_dns:
+        _resolve_and_validate_ips(hostname)
 
     return ValidatedURL(
         original=url.strip(),

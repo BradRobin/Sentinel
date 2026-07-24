@@ -1,13 +1,14 @@
 ﻿"use client";
 
 import Link from "next/link";
-import { FormEvent, useState } from "react";
+import { FormEvent, KeyboardEvent, useEffect, useState } from "react";
 
 import { ScanResults } from "@/components/ScanResults";
 import { SentinelMark } from "@/components/SentinelMark";
 import {
   ScanApiError,
   createScan,
+  getRegistrySuggestions,
   getScan,
   type Finding,
   type ScanStatusResponse,
@@ -20,11 +21,24 @@ import {
   scanFailureMessage,
   type ScanErrorKind,
 } from "@/lib/findings";
+import { matchKnownDomain } from "@/lib/known-domains";
 import type { SentinelMarkState } from "@/lib/sentinel-mark-paths";
+import {
+  btnPrimary,
+  btnSecondarySm,
+  inputBase,
+  inputError,
+} from "@/lib/ui";
 
 const POLL_INTERVAL_MS = 600;
 const STALE_CATEGORY_MS = 15_000;
 const MAX_POLLS = 120;
+const SUGGEST_DEBOUNCE_MS = 180;
+
+interface DomainSuggestion {
+  name: string;
+  url: string;
+}
 
 function markStateFromStatus(status: string | null): SentinelMarkState {
   if (!status || status === "queued" || status === "running") return "processing";
@@ -33,7 +47,7 @@ function markStateFromStatus(status: string | null): SentinelMarkState {
   return "idle";
 }
 
-/** Label under SentinelMark while a job is processing ΓÇö driven by Redis progress. */
+/** Label under SentinelMark while a job is processing — driven by Redis progress. */
 function processingLabel(
   status: ScanStatusResponse | null,
   fallbackQueued: string,
@@ -43,7 +57,6 @@ function processingLabel(
   if (!status || status.status === "queued") return fallbackQueued;
   if (status.status !== "running") return fallbackQueued;
 
-  // Post-checks phase: scoring / narrative (no current_category)
   if (status.progress && !status.current_category) {
     return status.progress;
   }
@@ -52,17 +65,16 @@ function processingLabel(
   if (!category) return fallbackQueued;
 
   if (now - lastCategoryAt >= STALE_CATEGORY_MS) {
-    return "Still workingΓÇª";
+    return "Still working…";
   }
 
-  return checkingLabel(category) ?? "Running compliance checksΓÇª";
+  return checkingLabel(category) ?? "Running compliance checks…";
 }
 
 function clientValidateUrl(raw: string): ScanErrorKind | null {
   const trimmed = raw.trim();
   if (!trimmed) return "invalid_url";
 
-  // Require an explicit http(s) scheme ΓÇö do not silently "fix" bare hosts.
   if (!/^https?:\/\//i.test(trimmed)) {
     return "invalid_url";
   }
@@ -110,6 +122,54 @@ export function ScanWorkspace() {
   const [progressLabel, setProgressLabel] = useState<string | null>(null);
   const [attachedNote, setAttachedNote] = useState(false);
   const [hasSubmitted, setHasSubmitted] = useState(false);
+  const [suggestionDismissed, setSuggestionDismissed] = useState(false);
+  const [remoteSuggestion, setRemoteSuggestion] =
+    useState<DomainSuggestion | null>(null);
+
+  const busy = markState === "processing";
+  const staticHit = matchKnownDomain(url);
+  const staticSuggestion: DomainSuggestion | null = staticHit
+    ? { name: staticHit.name, url: staticHit.url }
+    : null;
+  const suggestion =
+    !busy && !suggestionDismissed
+      ? remoteSuggestion ?? staticSuggestion
+      : null;
+
+  useEffect(() => {
+    if (busy || suggestionDismissed) return;
+    const q = url.trim();
+    if (q.length < 2) {
+      setRemoteSuggestion(null);
+      return;
+    }
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      void getRegistrySuggestions(q, 1)
+        .then((items) => {
+          if (cancelled) return;
+          const top = items[0];
+          if (!top) {
+            setRemoteSuggestion(null);
+            return;
+          }
+          const normalized = q.replace(/\/+$/, "").toLowerCase();
+          const target = top.url.replace(/\/+$/, "").toLowerCase();
+          if (normalized === target) {
+            setRemoteSuggestion(null);
+            return;
+          }
+          setRemoteSuggestion({ name: top.name, url: top.url });
+        })
+        .catch(() => {
+          if (!cancelled) setRemoteSuggestion(null);
+        });
+    }, SUGGEST_DEBOUNCE_MS);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [url, busy, suggestionDismissed]);
 
   const resultsReady = scan?.status === "complete";
   const overallScore = resultsReady
@@ -164,9 +224,8 @@ export function ScanWorkspace() {
         return;
       }
       if (status.status === "failed") {
-        // duplicate_in_progress should never surface as an error UI
         if (status.error_category === "duplicate_in_progress") {
-          setProgressLabel("A scan for this URL is already in progressΓÇª");
+          setProgressLabel("A scan for this URL is already in progress…");
           await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
           continue;
         }
@@ -181,14 +240,17 @@ export function ScanWorkspace() {
       }
 
       setProgressLabel(
-        processingLabel(status, "QueuedΓÇª", lastCategoryAt, now),
+        processingLabel(status, "Queued…", lastCategoryAt, now),
       );
       await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
     }
     setScanLevelFailure("timeout");
   }
 
-  async function startScan(options?: { forceFresh?: boolean }) {
+  async function startScan(options?: {
+    forceFresh?: boolean;
+    urlOverride?: string;
+  }) {
     const forceFresh = options?.forceFresh ?? force;
     setHasSubmitted(true);
     setFieldError(null);
@@ -197,7 +259,10 @@ export function ScanWorkspace() {
     setFindings([]);
     setAttachedNote(false);
 
-    const trimmed = url.trim();
+    const trimmed = (options?.urlOverride ?? url).trim();
+    if (options?.urlOverride) {
+      setUrl(trimmed);
+    }
     const localKind = clientValidateUrl(trimmed);
     if (localKind && isFormValidationError(localKind)) {
       setFieldError(localKind);
@@ -206,7 +271,7 @@ export function ScanWorkspace() {
       return;
     }
 
-    setProgressLabel("QueuedΓÇª");
+    setProgressLabel("Queued…");
     setMarkState("processing");
 
     try {
@@ -240,7 +305,6 @@ export function ScanWorkspace() {
 
       await pollUntilDone(job.job_id);
     } catch (err) {
-      // Duck-type ScanApiError ΓÇö `instanceof` can fail across bundled chunks.
       const apiErr =
         err instanceof ScanApiError
           ? err
@@ -264,13 +328,16 @@ export function ScanWorkspace() {
         return;
       }
 
-      // DNS unreachable etc. rejected at submission ΓÇö show scan-level error mark
       setScanLevelFailure(kind === "generic" ? "internal_error" : kind);
     }
   }
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
+    if (suggestion) {
+      await acceptSuggestion(suggestion);
+      return;
+    }
     await startScan();
   }
 
@@ -279,7 +346,25 @@ export function ScanWorkspace() {
     await startScan({ forceFresh: true });
   }
 
-  const busy = markState === "processing";
+  function acceptSuggestion(entry: DomainSuggestion) {
+    setSuggestionDismissed(true);
+    setRemoteSuggestion(null);
+    setFieldError(null);
+    return startScan({ urlOverride: entry.url });
+  }
+
+  function onUrlKeyDown(e: KeyboardEvent<HTMLInputElement>) {
+    if (busy || !suggestion) return;
+    if (e.key === "Tab" || e.key === "Enter") {
+      e.preventDefault();
+      void acceptSuggestion(suggestion);
+      return;
+    }
+    if (e.key === "Escape") {
+      e.preventDefault();
+      setSuggestionDismissed(true);
+    }
+  }
 
   return (
     <div className="flex flex-1 flex-col">
@@ -288,7 +373,7 @@ export function ScanWorkspace() {
           href="/"
           className="mb-8 inline-block text-sm text-icta-gray-600 hover:text-icta-black"
         >
-          ΓåÉ Back
+          ← Back
         </Link>
 
         <div className="mb-8 flex flex-col items-center gap-3">
@@ -298,8 +383,8 @@ export function ScanWorkspace() {
               (attachedNote
                 ? progressLabel
                   ? `${progressLabel} (already in progress)`
-                  : "A scan for this URL is already in progressΓÇª"
-                : progressLabel || "QueuedΓÇª")}
+                  : "A scan for this URL is already in progress…"
+                : progressLabel || "Queued…")}
             {markState === "complete" &&
               (scan?.cache_hit
                 ? "Served from cache (fresh within 24h)"
@@ -324,36 +409,60 @@ export function ScanWorkspace() {
 
         <h1 className="mb-2 text-2xl font-bold text-icta-black">Scan</h1>
         <p className="mb-6 text-sm text-icta-gray-600">
-          ICTA.6.002:2019 ┬º6.4 compliance checks ΓÇö results cached for 24 hours
+          ICTA.6.002:2019 §6.4 compliance checks — results cached for 24 hours
         </p>
 
-        <form
-          onSubmit={onSubmit}
-          noValidate
-          className="mb-8 space-y-3"
-        >
+        <form onSubmit={onSubmit} noValidate className="mb-8 space-y-3">
           <div>
             <input
               type="text"
               inputMode="url"
-              autoComplete="url"
+              autoComplete="off"
               name="scan-url"
               required
               value={url}
               onChange={(e) => {
                 setUrl(e.target.value);
+                setSuggestionDismissed(false);
                 if (fieldError) setFieldError(null);
               }}
-              placeholder="https://example.go.ke"
-              className={`w-full rounded-md border px-3 py-2 text-sm ${
-                fieldError
-                  ? "border-icta-red focus:outline-icta-red"
-                  : "border-icta-gray-200"
-              }`}
+              onKeyDown={onUrlKeyDown}
+              placeholder="https://example.go.ke or try ecitizen, ict…"
+              className={`${inputBase} ${fieldError ? inputError : ""}`}
               disabled={busy}
               aria-invalid={Boolean(fieldError)}
-              aria-describedby={fieldError ? "url-field-error" : undefined}
+              aria-autocomplete="list"
+              aria-expanded={Boolean(suggestion)}
+              aria-controls={suggestion ? "domain-suggestion" : undefined}
+              aria-describedby={
+                [
+                  fieldError ? "url-field-error" : null,
+                  suggestion ? "domain-suggestion" : null,
+                ]
+                  .filter(Boolean)
+                  .join(" ") || undefined
+              }
             />
+            {suggestion && (
+              <button
+                type="button"
+                id="domain-suggestion"
+                onClick={() => void acceptSuggestion(suggestion)}
+                className="mt-1.5 flex w-full items-baseline justify-between gap-3 rounded-md border border-icta-gray-200 bg-icta-gray-50 px-3 py-2 text-left transition-colors hover:border-icta-black/30 hover:bg-white"
+              >
+                <span className="min-w-0">
+                  <span className="block text-sm font-medium text-icta-black">
+                    {suggestion.name}
+                  </span>
+                  <span className="block truncate text-xs text-icta-gray-600">
+                    {suggestion.url}
+                  </span>
+                </span>
+                <span className="shrink-0 text-xs text-icta-gray-600">
+                  Tab / Enter
+                </span>
+              </button>
+            )}
             {fieldError && (
               <p
                 id="url-field-error"
@@ -373,11 +482,7 @@ export function ScanWorkspace() {
             />
             Force fresh scan (bypass cache)
           </label>
-          <button
-            type="submit"
-            disabled={busy}
-            className="rounded-md bg-icta-red px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-          >
+          <button type="submit" disabled={busy} className={btnPrimary}>
             Start scan
           </button>
         </form>
@@ -393,7 +498,7 @@ export function ScanWorkspace() {
             <button
               type="button"
               onClick={onRetry}
-              className="mt-4 rounded-md border border-icta-black px-3 py-1.5 text-sm font-semibold text-icta-black hover:bg-icta-gray-50"
+              className={`mt-4 ${btnSecondarySm}`}
             >
               Try again
             </button>
@@ -411,8 +516,8 @@ export function ScanWorkspace() {
         {scan && findings.length > 0 && (
           <div className="mb-4 text-xs text-icta-gray-600">
             Job {scan.job_id}
-            {scan.cache_hit ? " ┬╖ cache" : ""}
-            {!resultsReady ? " ┬╖ results updatingΓÇª" : ""}
+            {scan.cache_hit ? " · cache" : ""}
+            {!resultsReady ? " · results updating…" : ""}
           </div>
         )}
 
@@ -429,7 +534,6 @@ export function ScanWorkspace() {
             scannedUrl={scan?.url}
             jobId={resultsReady ? scan?.job_id : null}
             narrative={narrative}
-            resultsReady={resultsReady}
           />
         )}
       </main>

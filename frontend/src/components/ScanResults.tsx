@@ -471,7 +471,7 @@ export function ScanResults({
                   {fails > 0 ? (
                     <button
                       type="button"
-                      className="text-icta-red underline decoration-from-font underline-offset-2"
+                      className="text-icta-link underline decoration-from-font underline-offset-2"
                       onClick={() =>
                         openFindings(
                           group.findings.filter((f) => f.status === "fail"),

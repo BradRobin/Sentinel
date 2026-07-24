@@ -179,12 +179,13 @@ export function StatusDonut({
             type="button"
             className="inline-flex items-center gap-2 text-icta-red underline decoration-from-font underline-offset-2 hover:opacity-80"
             onClick={() => onSelect?.("fail")}
+            aria-label={`${counts.fail} failures`}
           >
             <span
               className="inline-block h-2.5 w-2.5 rounded-sm bg-icta-red"
               aria-hidden
             />
-            {counts.fail} {counts.fail === 1 ? "failure" : "failures"}
+            failures
           </button>
         </li>
         <li>
@@ -192,12 +193,13 @@ export function StatusDonut({
             type="button"
             className="inline-flex items-center gap-2 text-icta-gray-600 underline decoration-from-font underline-offset-2 hover:opacity-80"
             onClick={() => onSelect?.("manual_review")}
+            aria-label={`${counts.review} needing review`}
           >
             <span
               className="inline-block h-2.5 w-2.5 rounded-sm bg-icta-gray-200 ring-1 ring-icta-gray-600/30"
               aria-hidden
             />
-            {counts.review} needing review
+            needing review
           </button>
         </li>
         <li>
@@ -205,12 +207,13 @@ export function StatusDonut({
             type="button"
             className="inline-flex items-center gap-2 text-icta-green underline decoration-from-font underline-offset-2 hover:opacity-80"
             onClick={() => onSelect?.("pass")}
+            aria-label={`${counts.pass} passes`}
           >
             <span
               className="inline-block h-2.5 w-2.5 rounded-sm bg-icta-green"
               aria-hidden
             />
-            {counts.pass} {counts.pass === 1 ? "pass" : "passes"}
+            passes
           </button>
         </li>
       </ul>

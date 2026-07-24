@@ -1,12 +1,13 @@
 @import "tailwindcss";
 
 :root {
+  /* Official colours of the Flag of Kenya */
   --background: #ffffff;
-  --foreground: #1a1a1a;
-  --icta-red: #c8102e;
-  --icta-black: #1a1a1a;
-  --icta-green: #006b3f;
-  /* amber-700 — ~4.6:1 on white for text/labels (WCAG AA) */
+  --foreground: #000000;
+  --icta-red: #bb0000;
+  --icta-black: #000000;
+  --icta-green: #006600;
+  /* amber — severity / caution only (not a flag colour) */
   --icta-amber: #b45309;
   --icta-gray-50: #f9fafb;
   --icta-gray-100: #f3f4f6;

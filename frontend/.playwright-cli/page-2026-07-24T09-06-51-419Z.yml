@@ -1,0 +1,19 @@
+- generic [active] [ref=f1e1]:
+  - main [ref=f1e3]:
+    - link "← Back" [ref=f1e4] [cursor=pointer]:
+      - /url: /
+    - generic [ref=f1e5]:
+      - img "Sentinel mark — ready" [ref=f1e6]
+      - paragraph [ref=f1e10]: Enter a .go.ke URL to scan
+    - heading "Scan" [level=1] [ref=f1e11]
+    - paragraph [ref=f1e12]: ICTA.6.002:2019 §6.4 compliance checks — results cached for 24 hours
+    - generic [ref=f1e13]:
+      - textbox "https://example.go.ke" [ref=f1e15]: https://www.ict.go.ke
+      - generic [ref=f1e16]:
+        - checkbox "Force fresh scan (bypass cache)" [ref=f1e17]
+        - text: Force fresh scan (bypass cache)
+      - button "Start scan" [ref=f1e18]
+    - generic [ref=f1e19]:
+      - paragraph [ref=f1e20]: No scan yet
+      - paragraph [ref=f1e21]: Enter a public .go.ke or .gov.ke URL above to run compliance checks.
+  - button "Open Next.js Dev Tools" [ref=f1e27] [cursor=pointer]

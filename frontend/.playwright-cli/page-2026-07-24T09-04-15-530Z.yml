@@ -1,0 +1,17 @@
+- generic [ref=e1]:
+  - main [ref=e3]:
+    - link "← Back" [ref=e4] [cursor=pointer]:
+      - /url: /
+    - generic [ref=e5]:
+      - img "Sentinel mark — ready" [ref=e6]
+      - paragraph
+    - heading "Scan" [level=1] [ref=e11]
+    - paragraph [ref=e12]: ICTA.6.002:2019 §6.4 compliance checks — results cached for 24 hours
+    - generic [ref=e13]:
+      - textbox "https://example.go.ke" [active] [ref=e15]: example.com
+      - generic [ref=e16]:
+        - checkbox "Force fresh scan (bypass cache)" [ref=e17]
+        - text: Force fresh scan (bypass cache)
+      - button "Start scan" [ref=e18]
+  - button "Open Next.js Dev Tools" [ref=e27] [cursor=pointer]
+  - alert [ref=e39]

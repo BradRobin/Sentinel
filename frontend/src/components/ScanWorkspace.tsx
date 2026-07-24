@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { FormEvent, useState } from "react";
@@ -33,7 +33,7 @@ function markStateFromStatus(status: string | null): SentinelMarkState {
   return "idle";
 }
 
-/** Label under SentinelMark while a job is processing — driven by Redis progress. */
+/** Label under SentinelMark while a job is processing ΓÇö driven by Redis progress. */
 function processingLabel(
   status: ScanStatusResponse | null,
   fallbackQueued: string,
@@ -52,17 +52,17 @@ function processingLabel(
   if (!category) return fallbackQueued;
 
   if (now - lastCategoryAt >= STALE_CATEGORY_MS) {
-    return "Still working…";
+    return "Still workingΓÇª";
   }
 
-  return checkingLabel(category) ?? "Running compliance checks…";
+  return checkingLabel(category) ?? "Running compliance checksΓÇª";
 }
 
 function clientValidateUrl(raw: string): ScanErrorKind | null {
   const trimmed = raw.trim();
   if (!trimmed) return "invalid_url";
 
-  // Require an explicit http(s) scheme — do not silently "fix" bare hosts.
+  // Require an explicit http(s) scheme ΓÇö do not silently "fix" bare hosts.
   if (!/^https?:\/\//i.test(trimmed)) {
     return "invalid_url";
   }
@@ -166,7 +166,7 @@ export function ScanWorkspace() {
       if (status.status === "failed") {
         // duplicate_in_progress should never surface as an error UI
         if (status.error_category === "duplicate_in_progress") {
-          setProgressLabel("A scan for this URL is already in progress…");
+          setProgressLabel("A scan for this URL is already in progressΓÇª");
           await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
           continue;
         }
@@ -181,7 +181,7 @@ export function ScanWorkspace() {
       }
 
       setProgressLabel(
-        processingLabel(status, "Queued…", lastCategoryAt, now),
+        processingLabel(status, "QueuedΓÇª", lastCategoryAt, now),
       );
       await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
     }
@@ -206,7 +206,7 @@ export function ScanWorkspace() {
       return;
     }
 
-    setProgressLabel("Queued…");
+    setProgressLabel("QueuedΓÇª");
     setMarkState("processing");
 
     try {
@@ -240,7 +240,7 @@ export function ScanWorkspace() {
 
       await pollUntilDone(job.job_id);
     } catch (err) {
-      // Duck-type ScanApiError — `instanceof` can fail across bundled chunks.
+      // Duck-type ScanApiError ΓÇö `instanceof` can fail across bundled chunks.
       const apiErr =
         err instanceof ScanApiError
           ? err
@@ -264,7 +264,7 @@ export function ScanWorkspace() {
         return;
       }
 
-      // DNS unreachable etc. rejected at submission — show scan-level error mark
+      // DNS unreachable etc. rejected at submission ΓÇö show scan-level error mark
       setScanLevelFailure(kind === "generic" ? "internal_error" : kind);
     }
   }
@@ -288,7 +288,7 @@ export function ScanWorkspace() {
           href="/"
           className="mb-8 inline-block text-sm text-icta-gray-600 hover:text-icta-black"
         >
-          ← Back
+          ΓåÉ Back
         </Link>
 
         <div className="mb-8 flex flex-col items-center gap-3">
@@ -298,8 +298,8 @@ export function ScanWorkspace() {
               (attachedNote
                 ? progressLabel
                   ? `${progressLabel} (already in progress)`
-                  : "A scan for this URL is already in progress…"
-                : progressLabel || "Queued…")}
+                  : "A scan for this URL is already in progressΓÇª"
+                : progressLabel || "QueuedΓÇª")}
             {markState === "complete" &&
               (scan?.cache_hit
                 ? "Served from cache (fresh within 24h)"
@@ -324,7 +324,7 @@ export function ScanWorkspace() {
 
         <h1 className="mb-2 text-2xl font-bold text-icta-black">Scan</h1>
         <p className="mb-6 text-sm text-icta-gray-600">
-          ICTA.6.002:2019 §6.4 compliance checks — results cached for 24 hours
+          ICTA.6.002:2019 ┬º6.4 compliance checks ΓÇö results cached for 24 hours
         </p>
 
         <form
@@ -411,8 +411,8 @@ export function ScanWorkspace() {
         {scan && findings.length > 0 && (
           <div className="mb-4 text-xs text-icta-gray-600">
             Job {scan.job_id}
-            {scan.cache_hit ? " · cache" : ""}
-            {!resultsReady ? " · results updating…" : ""}
+            {scan.cache_hit ? " ┬╖ cache" : ""}
+            {!resultsReady ? " ┬╖ results updatingΓÇª" : ""}
           </div>
         )}
 

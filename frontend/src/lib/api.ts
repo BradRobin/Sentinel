@@ -207,4 +207,71 @@ export async function getScanComparison(
   return res.json();
 }
 
+export type RegistryTrend = "up" | "down" | "flat" | "unknown";
+
+export interface RegistryEntry {
+  domain_id: string;
+  org_id: string;
+  org_name: string;
+  org_type: "ministry" | "county" | "agency";
+  sector: string | null;
+  url: string;
+  registered_name: string | null;
+  aliases: string[];
+  latest_score: number | null;
+  previous_score: number | null;
+  last_checked_at: string | null;
+  last_source: string | null;
+  trend: RegistryTrend;
+  score_delta: number | null;
+}
+
+export interface RegistryListResponse {
+  count: number;
+  items: RegistryEntry[];
+}
+
+export interface RegistrySuggestion {
+  name: string;
+  org_name: string;
+  url: string;
+  aliases: string[];
+}
+
+export async function getRegistry(options?: {
+  orgType?: string;
+  q?: string;
+  limit?: number;
+}): Promise<RegistryListResponse> {
+  const params = new URLSearchParams();
+  if (options?.orgType) params.set("org_type", options.orgType);
+  if (options?.q) params.set("q", options.q);
+  if (options?.limit) params.set("limit", String(options.limit));
+  const qs = params.toString();
+  const res = await fetch(
+    `${API_URL}/api/v1/registry${qs ? `?${qs}` : ""}`,
+    { cache: "no-store" },
+  );
+  if (!res.ok) {
+    throw new Error(`Registry list failed: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function getRegistrySuggestions(
+  q: string,
+  limit = 5,
+): Promise<RegistrySuggestion[]> {
+  const params = new URLSearchParams({ q, limit: String(limit) });
+  const res = await fetch(
+    `${API_URL}/api/v1/registry/suggestions?${params}`,
+    { cache: "no-store" },
+  );
+  if (!res.ok) {
+    throw new Error(`Registry suggestions failed: ${res.status}`);
+  }
+  const body = (await res.json()) as { items: RegistrySuggestion[] };
+  return body.items ?? [];
+}
+
 export { API_URL };

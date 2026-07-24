@@ -10,7 +10,7 @@ from app.checks.page import PageSnapshot
 from app.schemas.findings import Finding, FindingStatus
 from app.services.ai.client import parse_json_object
 from app.services.ai.domain_semantic import judge_domain_semantic_relevance
-from app.services.ai.narrative import generate_scan_narrative
+from app.services.ai.narrative import _trim_narrative, generate_scan_narrative
 from app.services.scoring import CategoryScore, ScoreResult
 
 
@@ -23,6 +23,37 @@ def test_parse_json_object_raw_and_fenced():
         "status": "fail",
         "justification": "no",
     }
+
+
+def test_trim_narrative_preserves_decimals_and_clause_refs():
+    raw = (
+        "Your website scored 67.9% against ICTA.6.002:2019. "
+        "HTTPS enforcement failed. "
+        "Several images are missing alt text. "
+        "Extra fourth sentence should be dropped."
+    )
+    trimmed = _trim_narrative(raw, max_sentences=3)
+    assert "67.9%" in trimmed
+    assert "ICTA.6.002:2019" in trimmed
+    assert "Extra fourth" not in trimmed
+    assert trimmed.count("HTTPS") == 1
+
+
+def test_generate_scan_narrative_preserves_score_decimals():
+    with patch(
+        "app.services.ai.narrative.complete_text",
+        return_value=(
+            "Your website achieved a compliance score of 67.9% against ICTA.6.002:2019. "
+            "High-severity HTTPS gaps remain. "
+            "Accessibility alt text is incomplete."
+        ),
+    ):
+        text = generate_scan_narrative("https://www.ict.go.ke", [])
+    assert text is not None
+    assert "67.9%" in text
+    assert "ICTA.6.002:2019" in text
+    assert "67. 9" not in text
+    assert "ICTA. 6" not in text
 
 
 def test_judge_domain_semantic_pass_fail_flag():

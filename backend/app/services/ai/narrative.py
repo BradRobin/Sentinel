@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from typing import Any
 
 from app.schemas.findings import Finding, FindingStatus
@@ -11,11 +12,14 @@ from app.services.scoring import ScoreResult
 
 logger = logging.getLogger(__name__)
 
+# Split after .!? only when followed by whitespace — keeps 67.9% and ICTA.6.002 intact.
+_SENTENCE_END_RE = re.compile(r"(?<=[.!?])\s+")
+
 _SYSTEM = """You are an ICT Authority (Kenya) compliance officer summarizing a website scan
 against ICTA.6.002:2019 Section 6.4. Write 2–3 short sentences of plain English for a
 government web officer. Focus on the most important failures and review items. Do not
 invent checks that are not in the data. Do not use bullet lists or markdown headings.
-Do not mention that you are an AI."""
+Do not mention that you are an AI. Prefer the site hostname over full URLs."""
 
 
 def _status_value(status: FindingStatus | str) -> str:
@@ -69,6 +73,17 @@ def _counts(findings: list[Finding]) -> dict[str, int]:
     return counts
 
 
+def _trim_narrative(text: str, max_sentences: int = 3) -> str:
+    """Normalize whitespace and keep at most max_sentences without splitting decimals."""
+    cleaned = " ".join(line.strip() for line in text.splitlines() if line.strip())
+    if cleaned.startswith("- "):
+        cleaned = cleaned.lstrip("- ").strip()
+    parts = [p.strip() for p in _SENTENCE_END_RE.split(cleaned) if p.strip()]
+    if len(parts) > max_sentences:
+        return " ".join(parts[:max_sentences])
+    return cleaned
+
+
 def generate_scan_narrative(
     url: str,
     findings: list[Finding],
@@ -99,16 +114,9 @@ def generate_scan_narrative(
         "Write the 2–3 sentence officer-facing summary now."
     )
 
-    text = complete_text(system=_SYSTEM, user=user, max_tokens=280)
+    text = complete_text(system=_SYSTEM, user=user, max_tokens=400)
     if not text:
         return None
 
-    # Collapse accidental multi-paragraph / bullet noise into a short paragraph block
-    cleaned = " ".join(line.strip() for line in text.splitlines() if line.strip())
-    if cleaned.startswith("- "):
-        cleaned = cleaned.lstrip("- ").strip()
-    # Soft length guard — keep first ~3 sentences if the model overruns
-    sentences = [s.strip() for s in cleaned.replace("!", ".").split(".") if s.strip()]
-    if len(sentences) > 3:
-        cleaned = ". ".join(sentences[:3]).rstrip(".") + "."
+    cleaned = _trim_narrative(text)
     return cleaned or None

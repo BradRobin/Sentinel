@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+
 from fastapi import APIRouter, HTTPException, Response
 
 from app.core.config import settings
@@ -23,6 +25,20 @@ from app.workers.scan_tasks import (
 )
 
 router = APIRouter(prefix="/scans", tags=["scans"])
+
+# Cached summaries mangled by the old "." splitter look like "67. 9%" / "ICTA. 6."
+_MANGLED_NARRATIVE_RE = re.compile(r"\d\.\s+\d")
+
+
+def _cached_result_usable(cached: dict) -> bool:
+    """Reject pre-AI or mangled narrative cache entries so a fresh scan can refill them."""
+    result = cached.get("result") or {}
+    narrative = result.get("narrative")
+    if not isinstance(narrative, str) or not narrative.strip():
+        return False
+    if _MANGLED_NARRATIVE_RE.search(narrative):
+        return False
+    return True
 
 
 def _validation_http_error(exc: SSRFError) -> HTTPException:
@@ -53,31 +69,34 @@ def create_scan(body: ScanCreateRequest, response: Response) -> ScanJobResponse:
     else:
         cached = get_cached_scan(validated.original)
         if cached and cached.get("status") == "complete":
-            response.status_code = 200
-            set_job_status(
-                cached["job_id"],
-                {
-                    **cached,
-                    "cache_hit": True,
-                    "progress": None,
-                    "current_category": None,
-                    "categories_completed": cached.get("categories_completed") or [],
-                    "total_categories": cached.get("total_categories") or 8,
-                    "error_category": None,
-                    "attached_to_existing": False,
-                },
-            )
-            return ScanJobResponse(
-                job_id=cached["job_id"],
-                status="complete",
-                url=cached.get("url") or validated.original,
-                cache_hit=True,
-                progress=None,
-                current_category=None,
-                categories_completed=[],
-                total_categories=cached.get("total_categories") or 8,
-                attached_to_existing=False,
-            )
+            if not _cached_result_usable(cached):
+                invalidate_cached_scan(validated.original)
+            else:
+                response.status_code = 200
+                set_job_status(
+                    cached["job_id"],
+                    {
+                        **cached,
+                        "cache_hit": True,
+                        "progress": None,
+                        "current_category": None,
+                        "categories_completed": cached.get("categories_completed") or [],
+                        "total_categories": cached.get("total_categories") or 8,
+                        "error_category": None,
+                        "attached_to_existing": False,
+                    },
+                )
+                return ScanJobResponse(
+                    job_id=cached["job_id"],
+                    status="complete",
+                    url=cached.get("url") or validated.original,
+                    cache_hit=True,
+                    progress=None,
+                    current_category=None,
+                    categories_completed=[],
+                    total_categories=cached.get("total_categories") or 8,
+                    attached_to_existing=False,
+                )
 
     # Attach to in-flight scan instead of creating a duplicate job
     existing_id = get_active_scan_job_id(validated.original)

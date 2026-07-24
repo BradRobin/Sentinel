@@ -20,6 +20,7 @@ import {
   topFailFindings,
   type StatFilter,
 } from "@/lib/findings";
+import { btnSecondarySm } from "@/lib/ui";
 
 /** Show drop headline when overall compliance fell by this many points or more */
 const DECLINE_HEADLINE_THRESHOLD = -5;
@@ -278,11 +279,7 @@ export function ScanResults({
               type="button"
               disabled={!hasHistory}
               onClick={() => setComparisonOpen(true)}
-              className={
-                hasHistory
-                  ? "rounded-md border border-icta-black px-3 py-1.5 text-sm font-semibold text-icta-black hover:bg-icta-gray-50"
-                  : "cursor-not-allowed rounded-md border border-icta-gray-200 px-3 py-1.5 text-sm font-medium text-icta-gray-600 opacity-70"
-              }
+              className={btnSecondarySm}
             >
               Compare to last quarter
             </button>

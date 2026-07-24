@@ -4,6 +4,12 @@ import { useEffect, useMemo } from "react";
 
 import type { ComparisonResponse } from "@/lib/api";
 import { labelCategory } from "@/lib/findings";
+import {
+  btnGhost,
+  panelBackdrop,
+  panelHeader,
+  panelShell,
+} from "@/lib/ui";
 
 /** Scored categories only — same order as scoring_weights / historical jsonb keys */
 const SCORED_CATEGORIES = [
@@ -87,14 +93,14 @@ export function ComparisonSidePanel({
   return (
     <>
       <div
-        className={`fixed inset-0 z-40 bg-icta-black/20 transition-opacity ${
+        className={`${panelBackdrop} ${
           open ? "opacity-100" : "pointer-events-none opacity-0"
         }`}
         onClick={onClose}
         aria-hidden={!open}
       />
       <aside
-        className={`fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col border-l border-icta-gray-200 bg-white shadow-xl transition-transform duration-300 ease-out motion-reduce:transition-none ${
+        className={`${panelShell} ${
           open ? "translate-x-0" : "translate-x-full"
         }`}
         role="dialog"
@@ -102,7 +108,7 @@ export function ComparisonSidePanel({
         aria-label="Compare to last quarter"
         aria-hidden={!open}
       >
-        <header className="flex items-start justify-between gap-4 border-b border-icta-gray-200 px-5 py-4">
+        <header className={panelHeader}>
           <div>
             <h2 className="text-lg font-semibold text-icta-black">
               Compare to last quarter
@@ -116,7 +122,8 @@ export function ComparisonSidePanel({
           <button
             type="button"
             onClick={onClose}
-            className="shrink-0 rounded-md px-2 py-1 text-sm text-icta-gray-600 hover:bg-icta-gray-50 hover:text-icta-black"
+            className={btnGhost}
+            aria-label="Close panel"
           >
             Close
           </button>

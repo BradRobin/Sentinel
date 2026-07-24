@@ -6,21 +6,53 @@ import { useEffect, useState } from "react";
 import { SentinelMark } from "@/components/SentinelMark";
 import { fetchBackendHealth, type HealthResponse } from "@/lib/api";
 import type { SentinelMarkState } from "@/lib/sentinel-mark-paths";
+import { linkQuiet } from "@/lib/ui";
+
+function statusTone(value: string): {
+  pill: string;
+  dot: string;
+} {
+  if (value === "ok") {
+    return {
+      pill: "bg-icta-green/10 text-icta-green",
+      dot: "bg-icta-green",
+    };
+  }
+  if (value === "degraded") {
+    return {
+      pill: "bg-icta-amber/10 text-icta-amber",
+      dot: "bg-icta-amber",
+    };
+  }
+  return {
+    pill: "bg-icta-red/10 text-icta-red",
+    dot: "bg-icta-red",
+  };
+}
 
 function StatusBadge({ label, value }: { label: string; value: string }) {
-  const ok = value === "ok";
+  const tone = statusTone(value);
   return (
-    <div className="flex items-center justify-between rounded-lg border border-icta-gray-200 px-4 py-3">
-      <span className="text-sm font-medium text-icta-gray-600">{label}</span>
+    <div className="flex items-center justify-between gap-3 rounded-md border border-icta-gray-200 bg-white px-4 py-3">
+      <span className="text-sm font-medium text-icta-black">{label}</span>
       <span
-        className={`rounded-full px-3 py-1 text-xs font-semibold uppercase ${
-          ok
-            ? "bg-icta-green/10 text-icta-green"
-            : "bg-icta-red/10 text-icta-red"
-        }`}
+        className={`inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-semibold uppercase tracking-wide ${tone.pill}`}
       >
+        <span
+          className={`size-1.5 shrink-0 rounded-full ${tone.dot}`}
+          aria-hidden="true"
+        />
         {value}
       </span>
+    </div>
+  );
+}
+
+function MetaRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-md border border-icta-gray-200 bg-white px-4 py-3">
+      <span className="text-sm font-medium text-icta-black">{label}</span>
+      <span className="font-mono text-sm text-icta-gray-600">{value}</span>
     </div>
   );
 }
@@ -40,11 +72,13 @@ export function HealthCheck() {
         const data = await fetchBackendHealth();
         if (cancelled) return;
         setHealth(data);
-        setMarkState(data.status === "ok" ? "complete" : "idle");
+        if (data.status === "ok") setMarkState("complete");
+        else if (data.status === "degraded") setMarkState("idle");
+        else setMarkState("error");
       } catch (e) {
         if (cancelled) return;
         setError(e instanceof Error ? e.message : "Unknown error");
-        setMarkState("idle");
+        setMarkState("error");
       }
     }
 
@@ -57,20 +91,18 @@ export function HealthCheck() {
   return (
     <div className="flex flex-1 flex-col">
       <main className="mx-auto w-full max-w-lg flex-1 px-6 py-16">
-        <Link
-          href="/"
-          className="mb-8 inline-block text-sm text-icta-gray-600 hover:text-icta-black"
-        >
+        <Link href="/" className={`mb-8 inline-block ${linkQuiet}`}>
           ← Back
         </Link>
 
         <div className="mb-8 flex flex-col items-center gap-3">
           <SentinelMark state={markState} size={120} />
-          <p className="text-sm text-icta-gray-600">
+          <p className="text-center text-sm text-icta-gray-600">
             {markState === "processing" && "Checking backend connectivity…"}
             {markState === "complete" && "All systems operational"}
-            {markState === "idle" && error && "Backend unreachable"}
-            {markState === "idle" && !error && health?.status === "degraded" &&
+            {markState === "error" && "Backend unreachable"}
+            {markState === "idle" &&
+              health?.status === "degraded" &&
               "Some services degraded"}
           </p>
         </div>
@@ -82,15 +114,15 @@ export function HealthCheck() {
           Frontend and backend connectivity check
         </p>
 
-        <div className="mb-6 rounded-lg border border-icta-gray-200 p-4">
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-icta-gray-600">
+        <section className="mb-6 rounded-md border border-icta-gray-200 p-4">
+          <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-icta-gray-600">
             Frontend
           </h2>
           <StatusBadge label="Next.js" value="ok" />
-        </div>
+        </section>
 
-        <div className="rounded-lg border border-icta-gray-200 p-4">
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-icta-gray-600">
+        <section className="rounded-md border border-icta-gray-200 p-4">
+          <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-icta-gray-600">
             Backend API
           </h2>
 
@@ -99,7 +131,10 @@ export function HealthCheck() {
           )}
 
           {error && (
-            <div className="rounded-lg bg-icta-red/10 px-4 py-3 text-sm text-icta-red">
+            <div
+              className="rounded-md border border-icta-red/20 bg-icta-red/5 px-4 py-3 text-sm text-icta-red"
+              role="alert"
+            >
               {error}
             </div>
           )}
@@ -107,19 +142,12 @@ export function HealthCheck() {
           {health && markState !== "processing" && (
             <div className="space-y-2">
               <StatusBadge label="Overall" value={health.status} />
-              <div className="flex items-center justify-between rounded-lg border border-icta-gray-200 px-4 py-3">
-                <span className="text-sm font-medium text-icta-gray-600">
-                  Version
-                </span>
-                <span className="font-mono text-sm text-icta-black">
-                  {health.version}
-                </span>
-              </div>
+              <MetaRow label="Version" value={health.version} />
               <StatusBadge label="Redis" value={health.redis} />
               <StatusBadge label="Database" value={health.db} />
             </div>
           )}
-        </div>
+        </section>
       </main>
     </div>
   );

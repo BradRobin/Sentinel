@@ -35,6 +35,16 @@ body {
   font-family: var(--font-sans), system-ui, sans-serif;
 }
 
+/* Shared focus ring fallback for native controls without explicit focus classes */
+input[type="checkbox"]:focus-visible {
+  outline: 2px solid var(--icta-black);
+  outline-offset: 2px;
+}
+
+input[type="checkbox"] {
+  accent-color: var(--icta-red);
+}
+
 /* Sentinel mark animations */
 .sentinel-mark {
   position: relative;

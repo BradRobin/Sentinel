@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { SentinelMark } from "@/components/SentinelMark";
+import { btnPrimaryLg, btnSecondaryLg } from "@/lib/ui";
 
 export default function Home() {
   return (
@@ -23,23 +24,14 @@ export default function Home() {
           <p className="mb-8 text-sm text-icta-gray-600">
             Government website compliance checker — internal ICTA tool
           </p>
-          <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
-            <Link
-              href="/scan"
-              className="rounded-md bg-icta-red px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-icta-red/90"
-            >
+          <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+            <Link href="/scan" className={btnPrimaryLg}>
               Scan a site
             </Link>
-            <Link
-              href="/registry"
-              className="rounded-md border border-icta-gray-200 px-6 py-3 text-sm font-semibold text-icta-black transition-colors hover:bg-icta-gray-50"
-            >
+            <Link href="/registry" className={btnSecondaryLg}>
               MCDA registry
             </Link>
-            <Link
-              href="/health"
-              className="rounded-md border border-icta-gray-200 px-6 py-3 text-sm font-semibold text-icta-black transition-colors hover:bg-icta-gray-50"
-            >
+            <Link href="/health" className={btnSecondaryLg}>
               System health
             </Link>
           </div>

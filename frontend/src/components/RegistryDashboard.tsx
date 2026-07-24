@@ -8,6 +8,13 @@ import {
   type RegistryEntry,
   type RegistryTrend,
 } from "@/lib/api";
+import {
+  btnFilterActive,
+  btnFilterIdle,
+  btnPrimary,
+  inputBase,
+  linkQuiet,
+} from "@/lib/ui";
 
 function trendLabel(trend: RegistryTrend): string {
   switch (trend) {
@@ -89,7 +96,7 @@ export function RegistryDashboard() {
       <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-16">
         <Link
           href="/"
-          className="mb-8 inline-block text-sm text-icta-gray-600 hover:text-icta-black"
+          className={`mb-8 inline-block ${linkQuiet}`}
         >
           ← Back
         </Link>
@@ -120,7 +127,7 @@ export function RegistryDashboard() {
                 if (e.key === "Enter") load(query, orgFilter);
               }}
               placeholder="Name, alias, or URL…"
-              className="w-full rounded-md border border-icta-gray-200 px-3 py-2 text-sm"
+              className={inputBase}
             />
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -139,11 +146,9 @@ export function RegistryDashboard() {
                   setOrgFilter(value);
                   load(query, value);
                 }}
-                className={`rounded-md px-3 py-1.5 text-sm font-medium ${
-                  orgFilter === value
-                    ? "bg-icta-black text-white"
-                    : "border border-icta-gray-200 text-icta-gray-600 hover:bg-icta-gray-50"
-                }`}
+                className={
+                  orgFilter === value ? btnFilterActive : btnFilterIdle
+                }
               >
                 {label}
               </button>
@@ -151,7 +156,7 @@ export function RegistryDashboard() {
             <button
               type="button"
               onClick={() => load(query, orgFilter)}
-              className="rounded-md bg-icta-red px-3 py-1.5 text-sm font-semibold text-white"
+              className={btnPrimary}
             >
               Refresh
             </button>

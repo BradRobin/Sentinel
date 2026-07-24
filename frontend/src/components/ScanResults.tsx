@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 import { ComparisonSidePanel } from "@/components/ComparisonSidePanel";
 import { FindingsSidePanel } from "@/components/FindingsSidePanel";
@@ -22,6 +22,10 @@ import {
   type StatFilter,
 } from "@/lib/findings";
 import { btnSecondarySm } from "@/lib/ui";
+import {
+  findNarrativeStatLinks,
+  type NarrativeStatKind,
+} from "@/lib/narrativeLinks";
 
 /** Show drop headline when overall compliance fell by this many points or more */
 const DECLINE_HEADLINE_THRESHOLD = -5;
@@ -55,6 +59,75 @@ function InlineStat({
     >
       {count} {label}
     </button>
+  );
+}
+
+const narrativeLinkClass =
+  "text-icta-link underline decoration-from-font underline-offset-2 transition-opacity hover:opacity-80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-icta-link";
+
+function NarrativeSummary({
+  text,
+  stats,
+  overallScore,
+  onStatClick,
+}: {
+  text: string;
+  stats: { fail: number; pass: number; manual_review: number; total: number };
+  overallScore: number | null;
+  onStatClick: (kind: NarrativeStatKind) => void;
+}) {
+  const spans = useMemo(
+    () =>
+      findNarrativeStatLinks(
+        text,
+        {
+          fail: stats.fail,
+          pass: stats.pass,
+          manual_review: stats.manual_review,
+          total: stats.total,
+        },
+        overallScore,
+      ),
+    [
+      text,
+      stats.fail,
+      stats.pass,
+      stats.manual_review,
+      stats.total,
+      overallScore,
+    ],
+  );
+
+  if (spans.length === 0) {
+    return (
+      <p className="text-base leading-relaxed text-icta-black">{text}</p>
+    );
+  }
+
+  const parts: ReactNode[] = [];
+  let cursor = 0;
+  spans.forEach((span, i) => {
+    if (span.start > cursor) {
+      parts.push(text.slice(cursor, span.start));
+    }
+    parts.push(
+      <button
+        key={`${span.kind}-${span.start}-${i}`}
+        type="button"
+        className={narrativeLinkClass}
+        onClick={() => onStatClick(span.kind)}
+      >
+        {text.slice(span.start, span.end)}
+      </button>,
+    );
+    cursor = span.end;
+  });
+  if (cursor < text.length) {
+    parts.push(text.slice(cursor));
+  }
+
+  return (
+    <p className="text-base leading-relaxed text-icta-black">{parts}</p>
   );
 }
 
@@ -290,7 +363,19 @@ export function ScanResults({
       {resultsReady && narrative ? (
         <section aria-label="Scan summary">
           <h2 className="mb-2 text-lg font-semibold text-icta-black">Summary</h2>
-          <p className="text-base leading-relaxed text-icta-black">{narrative}</p>
+          <NarrativeSummary
+            text={narrative}
+            stats={stats}
+            overallScore={
+              overallScore !== null && overallScore !== undefined
+                ? Number(overallScore)
+                : null
+            }
+            onStatClick={(kind) => {
+              if (kind === "score") openPanel("all");
+              else openPanel(kind);
+            }}
+          />
         </section>
       ) : !resultsReady ? (
         <section aria-label="Scan summary pending" aria-busy="true">

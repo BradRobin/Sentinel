@@ -9,6 +9,7 @@ from app.core.celery_app import celery_app
 from app.core.config import settings
 from app.core.redis_client import get_redis
 from app.core.ssrf import SSRFError, normalize_url_for_lock
+from app.services.historical import upsert_historical_score_for_scan
 from app.services.scan_cache import set_cached_scan
 from app.services.scan_repository import (
     get_scan_record,
@@ -212,6 +213,7 @@ def run_scan(self, scan_id: str, url: str) -> dict[str, Any]:
         save_findings(scan_id, findings)
         score_result = compute_scores(findings)
         save_scores(scan_id, score_result)
+        upsert_historical_score_for_scan(scan_id, score_result)
         update_scan_status(scan_id, "complete")
 
         findings_payload = [f.model_dump(mode="json") for f in findings]

@@ -78,6 +78,22 @@ export interface ScanStatusResponse {
   error_category?: string | null;
 }
 
+export interface QuarterScoreSnapshot {
+  quarter: string;
+  overall_score: number;
+  category_breakdown: Record<string, number>;
+}
+
+export interface ComparisonResponse {
+  has_history: boolean;
+  current?: QuarterScoreSnapshot | null;
+  previous?: QuarterScoreSnapshot | null;
+  delta?: {
+    overall: number;
+    category_breakdown: Record<string, number>;
+  } | null;
+}
+
 export async function fetchBackendHealth(): Promise<HealthResponse> {
   const res = await fetch(`${API_URL}/health`, {
     cache: "no-store",
@@ -122,6 +138,22 @@ export async function getScan(jobId: string): Promise<ScanStatusResponse> {
     const body = await res.json().catch(() => ({}));
     const detail = formatApiDetail((body as { detail?: unknown }).detail);
     throw new Error(`${detail} (GET ${API_URL}/api/v1/scans/${jobId})`);
+  }
+  return res.json();
+}
+
+export async function getScanComparison(
+  jobId: string,
+): Promise<ComparisonResponse> {
+  const res = await fetch(`${API_URL}/api/v1/scans/${jobId}/comparison`, {
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    const detail = formatApiDetail((body as { detail?: unknown }).detail);
+    throw new Error(
+      `${detail} (GET ${API_URL}/api/v1/scans/${jobId}/comparison)`,
+    );
   }
   return res.json();
 }

@@ -4,7 +4,13 @@ from fastapi import APIRouter, HTTPException, Response
 
 from app.core.config import settings
 from app.core.ssrf import SSRFError, validate_scan_url
-from app.schemas.findings import ScanCreateRequest, ScanJobResponse, ScanStatusResponse
+from app.schemas.findings import (
+    ComparisonResponse,
+    ScanCreateRequest,
+    ScanJobResponse,
+    ScanStatusResponse,
+)
+from app.services.historical import get_comparison_for_scan
 from app.services.scan_cache import get_cached_scan, invalidate_cached_scan
 from app.services.scan_repository import create_scan_record
 from app.workers.scan_tasks import get_job_status, run_scan, set_job_status
@@ -93,3 +99,21 @@ def get_scan(job_id: str) -> ScanStatusResponse:
     if not payload:
         raise HTTPException(status_code=404, detail="Scan job not found")
     return ScanStatusResponse(**payload)
+
+
+@router.get(
+    "/{job_id}/comparison",
+    response_model=ComparisonResponse,
+    response_model_exclude_none=True,
+)
+def get_scan_comparison(job_id: str) -> ComparisonResponse:
+    """
+    Compare this scan's domain latest quarter vs most recent prior historical entry.
+
+    Returns ``has_history: false`` when fewer than two quarterly snapshots exist
+    (normal for first-time domains).
+    """
+    comparison = get_comparison_for_scan(job_id)
+    if comparison is None:
+        raise HTTPException(status_code=404, detail="Scan job not found")
+    return ComparisonResponse(**comparison)

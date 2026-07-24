@@ -66,3 +66,21 @@ class HealthResponse(BaseModel):
     version: str
     redis: str
     db: str
+
+
+class QuarterScoreSnapshot(BaseModel):
+    quarter: str
+    overall_score: float
+    category_breakdown: dict[str, float]
+
+
+class ComparisonDelta(BaseModel):
+    overall: float
+    category_breakdown: dict[str, float]
+
+
+class ComparisonResponse(BaseModel):
+    has_history: bool
+    current: QuarterScoreSnapshot | None = None
+    previous: QuarterScoreSnapshot | None = None
+    delta: ComparisonDelta | None = None

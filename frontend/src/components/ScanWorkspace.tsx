@@ -283,6 +283,7 @@ export function ScanWorkspace() {
             categoryScores={categoryScores}
             cacheHit={scan?.cache_hit}
             scannedUrl={scan?.url}
+            jobId={scan?.job_id}
           />
         )}
       </main>

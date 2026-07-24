@@ -146,3 +146,44 @@ class TestScanEndpoint:
             assert data["categories_completed"] == ["domain_identity"]
             assert data["total_categories"] == 8
             assert data["updated_at"] == "2026-07-24T09:51:02Z"
+
+    def test_get_comparison_no_history(self):
+        with patch(
+            "app.api.v1.scans.get_comparison_for_scan",
+            return_value={"has_history": False},
+        ):
+            response = client.get("/api/v1/scans/abc-123/comparison")
+            assert response.status_code == 200
+            assert response.json() == {"has_history": False}
+
+    def test_get_comparison_with_history(self):
+        payload = {
+            "has_history": True,
+            "current": {
+                "quarter": "2026-Q3",
+                "overall_score": 73.0,
+                "category_breakdown": {"security": 60.0},
+            },
+            "previous": {
+                "quarter": "2026-Q2",
+                "overall_score": 81.0,
+                "category_breakdown": {"security": 80.0},
+            },
+            "delta": {
+                "overall": -8.0,
+                "category_breakdown": {"security": -20.0},
+            },
+        }
+        with patch(
+            "app.api.v1.scans.get_comparison_for_scan", return_value=payload
+        ):
+            response = client.get("/api/v1/scans/abc-123/comparison")
+            assert response.status_code == 200
+            data = response.json()
+            assert data["has_history"] is True
+            assert data["delta"]["overall"] == -8.0
+
+    def test_get_comparison_scan_not_found(self):
+        with patch("app.api.v1.scans.get_comparison_for_scan", return_value=None):
+            response = client.get("/api/v1/scans/missing/comparison")
+            assert response.status_code == 404

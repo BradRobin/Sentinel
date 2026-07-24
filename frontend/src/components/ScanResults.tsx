@@ -1,9 +1,15 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
+import { ComparisonSidePanel } from "@/components/ComparisonSidePanel";
 import { FindingsSidePanel } from "@/components/FindingsSidePanel";
-import type { CategoryScore, Finding } from "@/lib/api";
+import {
+  getScanComparison,
+  type CategoryScore,
+  type ComparisonResponse,
+  type Finding,
+} from "@/lib/api";
 import {
   findingSummaryLine,
   findingVisualWeight,
@@ -15,12 +21,16 @@ import {
   type StatFilter,
 } from "@/lib/findings";
 
+/** Show drop headline when overall compliance fell by this many points or more */
+const DECLINE_HEADLINE_THRESHOLD = -5;
+
 interface ScanResultsProps {
   findings: Finding[];
   overallScore: number | null;
   categoryScores: CategoryScore[];
   cacheHit?: boolean;
   scannedUrl?: string | null;
+  jobId?: string | null;
 }
 
 function InlineStat({
@@ -90,6 +100,7 @@ export function ScanResults({
   categoryScores,
   cacheHit,
   scannedUrl,
+  jobId,
 }: ScanResultsProps) {
   const stats = useMemo(() => summarizeFindings(findings), [findings]);
   const grouped = useMemo(() => groupFindingsByCategory(findings), [findings]);
@@ -104,6 +115,36 @@ export function ScanResults({
   const [panelTitle, setPanelTitle] = useState("");
   const [panelSubtitle, setPanelSubtitle] = useState<string | undefined>();
   const [panelFindings, setPanelFindings] = useState<Finding[]>([]);
+
+  const [comparison, setComparison] = useState<ComparisonResponse | null>(null);
+  const [comparisonOpen, setComparisonOpen] = useState(false);
+
+  useEffect(() => {
+    if (!jobId) {
+      setComparison(null);
+      return;
+    }
+    let cancelled = false;
+    getScanComparison(jobId)
+      .then((data) => {
+        if (!cancelled) setComparison(data);
+      })
+      .catch(() => {
+        if (!cancelled) setComparison({ has_history: false });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [jobId]);
+
+  const hasHistory = comparison?.has_history === true;
+  const overallDelta = comparison?.delta?.overall ?? null;
+  const showDeclineHeadline =
+    hasHistory &&
+    overallDelta != null &&
+    overallDelta <= DECLINE_HEADLINE_THRESHOLD &&
+    comparison?.previous &&
+    comparison?.current;
 
   function openFindings(list: Finding[], title: string, subtitle?: string) {
     setPanelTitle(title);
@@ -151,7 +192,6 @@ export function ScanResults({
 
   return (
     <div className="space-y-8">
-      {/* Score + summary sentence with clickable inline stats */}
       <section>
         {overallScore !== null && overallScore !== undefined && (
           <div className="mb-3 text-4xl font-bold tracking-tight text-icta-black">
@@ -160,6 +200,21 @@ export function ScanResults({
               compliance
             </span>
           </div>
+        )}
+
+        {showDeclineHeadline && comparison?.previous && comparison?.current && (
+          <p className="mb-3 text-base text-icta-black">
+            <button
+              type="button"
+              onClick={() => setComparisonOpen(true)}
+              className="text-left underline decoration-from-font underline-offset-2 hover:opacity-80"
+            >
+              Compliance dropped from{" "}
+              {comparison.previous.overall_score.toFixed(0)}% to{" "}
+              {comparison.current.overall_score.toFixed(0)}% since{" "}
+              {comparison.previous.quarter}
+            </button>
+          </p>
         )}
 
         <p className="text-base leading-relaxed text-icta-black">
@@ -195,9 +250,30 @@ export function ScanResults({
           />
           .
         </p>
+
+        {jobId && comparison !== null && (
+          <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1">
+            <button
+              type="button"
+              disabled={!hasHistory}
+              onClick={() => setComparisonOpen(true)}
+              className={
+                hasHistory
+                  ? "rounded-md border border-icta-black px-3 py-1.5 text-sm font-semibold text-icta-black hover:bg-icta-gray-50"
+                  : "cursor-not-allowed rounded-md border border-icta-gray-200 px-3 py-1.5 text-sm font-medium text-icta-gray-600 opacity-70"
+              }
+            >
+              Compare to last quarter
+            </button>
+            {!hasHistory && (
+              <span className="text-sm text-icta-gray-600">
+                No historical data yet — check back next quarter.
+              </span>
+            )}
+          </div>
+        )}
       </section>
 
-      {/* Top issues — omit entirely when no failures */}
       {topIssues.length > 0 && (
         <section>
           <h2 className="mb-3 text-lg font-semibold text-icta-black">
@@ -273,7 +349,6 @@ export function ScanResults({
         </section>
       )}
 
-      {/* Grouped findings */}
       <section className="space-y-6">
         <h2 className="text-lg font-semibold text-icta-black">
           Findings by category
@@ -340,6 +415,12 @@ export function ScanResults({
         subtitle={panelSubtitle}
         findings={panelFindings}
         onClose={() => setPanelOpen(false)}
+      />
+
+      <ComparisonSidePanel
+        open={comparisonOpen}
+        comparison={comparison}
+        onClose={() => setComparisonOpen(false)}
       />
     </div>
   );

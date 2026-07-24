@@ -51,7 +51,7 @@ def judge_domain_semantic_relevance(
     meta_description: str | None = None,
 ) -> DomainSemanticJudgment:
     """
-    Ask Claude to judge domain ↔ purpose relevance.
+    Ask Gemini to judge domain ↔ purpose relevance.
 
     On missing API key or parse failure, returns status=\"flag\" so the finding
     stays reviewable rather than inventing a deterministic fail.

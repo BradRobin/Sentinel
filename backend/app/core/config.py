@@ -21,7 +21,8 @@ class Settings(BaseSettings):
     allow_tld_bypass: bool = False
     supabase_url: str = ""
     supabase_service_role_key: str = ""
-    anthropic_api_key: str = ""
+    anthropic_api_key: str = ""  # unused; kept for env compatibility
+    gemini_api_key: str = ""
 
 
 settings = Settings()

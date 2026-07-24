@@ -1,4 +1,4 @@
-"""Phase 5 AI layer — narrative and domain semantic judgment (mocked Anthropic)."""
+"""Phase 5 AI layer — narrative and domain semantic judgment (mocked Gemini)."""
 
 from __future__ import annotations
 

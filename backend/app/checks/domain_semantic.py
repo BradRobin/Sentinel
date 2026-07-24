@@ -68,7 +68,7 @@ def _lookup_org_context(url: str) -> dict[str, str | None]:
 
 def run_domain_semantic_check(url: str, snap: PageSnapshot | None = None) -> list[Finding]:
     """
-    Resolve domain_semantic_relevance via Claude when configured.
+    Resolve domain_semantic_relevance via Gemini when configured.
 
     Returns a single Finding; status maps flag → manual_review.
     """

@@ -1,4 +1,4 @@
-"""Thin Anthropic Messages API client. Isolated from the rule engine."""
+"""Thin Gemini API client. Isolated from the rule engine."""
 
 from __future__ import annotations
 
@@ -11,14 +11,14 @@ from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_MODEL = "claude-haiku-4-5-20251001"
+DEFAULT_MODEL = "gemini-3.5-flash-lite"
 DEFAULT_TIMEOUT_SECONDS = 20.0
 
 _JSON_FENCE_RE = re.compile(r"```(?:json)?\s*([\s\S]*?)```", re.IGNORECASE)
 
 
 def is_ai_configured() -> bool:
-    return bool(settings.anthropic_api_key and settings.anthropic_api_key.strip())
+    return bool(settings.gemini_api_key and settings.gemini_api_key.strip())
 
 
 def complete_text(
@@ -30,7 +30,7 @@ def complete_text(
     timeout: float = DEFAULT_TIMEOUT_SECONDS,
 ) -> str | None:
     """
-    Call Claude and return assistant text, or None on missing key / API failure.
+    Call Gemini and return assistant text, or None on missing key / API failure.
 
     Never raises — callers degrade to manual_review / omit narrative.
     """
@@ -38,32 +38,34 @@ def complete_text(
         return None
 
     try:
-        import anthropic
+        from google import genai
+        from google.genai import types
     except ImportError:
-        logger.warning("anthropic package not installed; skipping AI call")
+        logger.warning("google-genai package not installed; skipping AI call")
         return None
 
     try:
-        client = anthropic.Anthropic(
-            api_key=settings.anthropic_api_key.strip(),
-            timeout=timeout,
+        client = genai.Client(
+            api_key=settings.gemini_api_key.strip(),
+            http_options=types.HttpOptions(timeout=int(timeout * 1000)),
         )
-        message = client.messages.create(
+        response = client.models.generate_content(
             model=model or DEFAULT_MODEL,
-            max_tokens=max_tokens,
-            system=system,
-            messages=[{"role": "user", "content": user}],
+            contents=user,
+            config=types.GenerateContentConfig(
+                system_instruction=system,
+                max_output_tokens=max_tokens,
+                temperature=0.2,
+            ),
         )
     except Exception as exc:
-        logger.warning("Anthropic API call failed: %s", exc)
+        logger.warning("Gemini API call failed: %s", exc)
         return None
 
-    parts: list[str] = []
-    for block in getattr(message, "content", []) or []:
-        text = getattr(block, "text", None)
-        if isinstance(text, str) and text.strip():
-            parts.append(text.strip())
-    return "\n".join(parts).strip() or None
+    text = getattr(response, "text", None)
+    if isinstance(text, str) and text.strip():
+        return text.strip()
+    return None
 
 
 def parse_json_object(text: str) -> dict[str, Any] | None:

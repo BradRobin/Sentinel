@@ -7,7 +7,7 @@ redis>=5.2.0
 psycopg[binary,pool]>=3.2.0
 httpx>=0.28.0
 python-multipart>=0.0.18
-anthropic>=0.40.0
+google-genai>=1.0.0
 
 # Dev / test
 pytest>=8.3.0

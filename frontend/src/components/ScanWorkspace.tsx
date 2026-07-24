@@ -5,6 +5,7 @@ import { FormEvent, KeyboardEvent, useEffect, useState } from "react";
 
 import { ScanResults } from "@/components/ScanResults";
 import { SentinelMark } from "@/components/SentinelMark";
+import { TypingPlaceholder } from "@/components/TypingPlaceholder";
 import {
   ScanApiError,
   createScan,
@@ -22,6 +23,7 @@ import {
 } from "@/lib/findings";
 import {
   matchKnownDomain,
+  SCAN_URL_PLACEHOLDER_EXAMPLES,
   type KnownDomain,
 } from "@/lib/known-domains";
 import { getCopiedScanUrl } from "@/lib/scan-url-clipboard";
@@ -110,7 +112,7 @@ function EmptyIdle() {
 }
 
 export function ScanWorkspace() {
-  const [url, setUrl] = useState("https://www.ict.go.ke");
+  const [url, setUrl] = useState("");
   const [force, setForce] = useState(false);
   const [markState, setMarkState] = useState<SentinelMarkState>("idle");
   const [fieldError, setFieldError] = useState<ScanErrorKind | null>(null);
@@ -122,6 +124,7 @@ export function ScanWorkspace() {
   const [hasSubmitted, setHasSubmitted] = useState(false);
   const [suggestionDismissed, setSuggestionDismissed] = useState(false);
   const [pendingPasteUrl, setPendingPasteUrl] = useState<string | null>(null);
+  const [urlFocused, setUrlFocused] = useState(false);
 
   const busy = markState === "processing";
   const suggestion =
@@ -130,6 +133,8 @@ export function ScanWorkspace() {
     Boolean(pendingPasteUrl) &&
     !busy &&
     pendingPasteUrl?.trim() !== url.trim();
+  const showTypingPlaceholder =
+    !urlFocused && !url.trim() && !busy && !showPaste;
 
   useEffect(() => {
     function refreshPendingPaste() {
@@ -416,8 +421,11 @@ export function ScanWorkspace() {
                   setSuggestionDismissed(false);
                   if (fieldError) setFieldError(null);
                 }}
+                onFocus={() => setUrlFocused(true)}
+                onBlur={() => setUrlFocused(false)}
                 onKeyDown={onUrlKeyDown}
-                placeholder="https://example.go.ke or try ecitizen, ict…"
+                placeholder=""
+                aria-label="Government website URL"
                 className={`${inputBase} ${showPaste ? "pr-20" : ""} ${fieldError ? inputError : ""}`}
                 disabled={busy}
                 aria-invalid={Boolean(fieldError)}
@@ -432,6 +440,10 @@ export function ScanWorkspace() {
                     .filter(Boolean)
                     .join(" ") || undefined
                 }
+              />
+              <TypingPlaceholder
+                examples={SCAN_URL_PLACEHOLDER_EXAMPLES}
+                active={showTypingPlaceholder}
               />
               {showPaste && (
                 <button

@@ -165,6 +165,11 @@ export const KNOWN_DOMAINS: readonly KnownDomain[] = [
   },
 ] as const;
 
+/** Canonical URLs for the scan-field typing placeholder (MCDA-style .go.ke examples). */
+export const SCAN_URL_PLACEHOLDER_EXAMPLES: readonly string[] = KNOWN_DOMAINS.map(
+  (d) => d.url,
+);
+
 const MIN_QUERY_LEN = 2;
 
 function normalizeKey(value: string): string {

@@ -6,6 +6,8 @@
   --icta-red: #c8102e;
   --icta-black: #1a1a1a;
   --icta-green: #006b3f;
+  /* amber-700 — ~4.6:1 on white for text/labels (WCAG AA) */
+  --icta-amber: #b45309;
   --icta-gray-50: #f9fafb;
   --icta-gray-100: #f3f4f6;
   --icta-gray-200: #e5e7eb;
@@ -18,6 +20,7 @@
   --color-icta-red: var(--icta-red);
   --color-icta-black: var(--icta-black);
   --color-icta-green: var(--icta-green);
+  --color-icta-amber: var(--icta-amber);
   --color-icta-gray-50: var(--icta-gray-50);
   --color-icta-gray-100: var(--icta-gray-100);
   --color-icta-gray-200: var(--icta-gray-200);

@@ -70,6 +70,35 @@ export function summarizeFindings(findings: Finding[]): FindingStats {
   return stats;
 }
 
+/** Schema values from Finding.severity — high | medium | low */
+export type FindingSeverity = "high" | "medium" | "low";
+
+const STATUS_RANK: Record<string, number> = {
+  fail: 0,
+  manual_review: 1,
+  pass: 2,
+};
+
+const SEVERITY_RANK: Record<string, number> = {
+  high: 0,
+  medium: 1,
+  low: 2,
+};
+
+/** fail (high→low), then manual_review (high→low), then pass */
+export function compareFindingsPriority(a: Finding, b: Finding): number {
+  const byStatus =
+    (STATUS_RANK[a.status] ?? 99) - (STATUS_RANK[b.status] ?? 99);
+  if (byStatus !== 0) return byStatus;
+  return (
+    (SEVERITY_RANK[a.severity] ?? 99) - (SEVERITY_RANK[b.severity] ?? 99)
+  );
+}
+
+export function sortFindingsByPriority(findings: Finding[]): Finding[] {
+  return [...findings].sort(compareFindingsPriority);
+}
+
 export function groupFindingsByCategory(
   findings: Finding[],
 ): { category: string; label: string; findings: Finding[] }[] {
@@ -84,14 +113,128 @@ export function groupFindingsByCategory(
   for (const cat of CATEGORY_ORDER) {
     const items = map.get(cat);
     if (items?.length) {
-      ordered.push({ category: cat, label: labelCategory(cat), findings: items });
+      ordered.push({
+        category: cat,
+        label: labelCategory(cat),
+        findings: sortFindingsByPriority(items),
+      });
       map.delete(cat);
     }
   }
   for (const [category, items] of map) {
-    ordered.push({ category, label: labelCategory(category), findings: items });
+    ordered.push({
+      category,
+      label: labelCategory(category),
+      findings: sortFindingsByPriority(items),
+    });
   }
   return ordered;
+}
+
+/** Highest-severity fails across the whole scan (for Top issues). */
+export function topFailFindings(
+  findings: Finding[],
+  limit = 3,
+): Finding[] {
+  return findings
+    .filter((f) => f.status === "fail")
+    .sort((a, b) => {
+      const bySev =
+        (SEVERITY_RANK[a.severity] ?? 99) - (SEVERITY_RANK[b.severity] ?? 99);
+      if (bySev !== 0) return bySev;
+      return a.check_name.localeCompare(b.check_name);
+    })
+    .slice(0, limit);
+}
+
+/** One-line plain description from finding.detail for summaries. */
+export function findingSummaryLine(finding: Finding): string {
+  const d = finding.detail ?? {};
+  for (const key of ["error", "note", "message", "summary", "reason"]) {
+    const v = d[key];
+    if (typeof v === "string" && v.trim()) return v.trim();
+  }
+  if (Array.isArray(d.missing) && d.missing.length > 0) {
+    return `Missing: ${d.missing.map(String).join(", ")}`;
+  }
+  if (Array.isArray(d.exposed) && d.exposed.length > 0) {
+    return `Exposed: ${d.exposed.map(String).join(", ")}`;
+  }
+  if (Array.isArray(d.issues) && d.issues.length > 0) {
+    return String(d.issues[0]);
+  }
+  for (const v of Object.values(d)) {
+    if (typeof v === "string" && v.trim()) return v.trim();
+  }
+  return `Clause ${finding.clause_reference}`;
+}
+
+export interface FindingVisualWeight {
+  /** Left border + optional tint — non-color severity cue */
+  row: string;
+  /** Side-panel / section header accent */
+  header: string;
+  name: string;
+  badge: string;
+  severityLabel: string;
+}
+
+/**
+ * Visual weight from status + severity.
+ * Passes stay quiet; only fail / manual_review escalate.
+ * Border width + font weight reinforce color (WCAG — not color alone).
+ */
+export function findingVisualWeight(
+  status: string,
+  severity: string,
+): FindingVisualWeight {
+  if (status === "pass") {
+    return {
+      row: "border-l-2 border-l-transparent",
+      header: "border-l-4 border-l-icta-green",
+      name: "font-medium text-icta-black",
+      badge: "bg-icta-green/10 text-icta-green font-semibold",
+      severityLabel: "text-icta-gray-600",
+    };
+  }
+
+  if (status === "manual_review") {
+    return {
+      row: "border-l-[3px] border-l-icta-gray-200",
+      header: "border-l-4 border-l-icta-gray-200",
+      name: "font-medium text-icta-black",
+      badge: "bg-icta-gray-100 text-icta-gray-600 font-semibold",
+      severityLabel: "text-icta-gray-600",
+    };
+  }
+
+  // fail
+  if (severity === "high") {
+    return {
+      row: "border-l-4 border-l-icta-red bg-icta-red/[0.04]",
+      header: "border-l-4 border-l-icta-red bg-icta-red/[0.04]",
+      name: "font-bold text-icta-black",
+      badge: "bg-icta-red/15 text-icta-red font-bold",
+      severityLabel: "font-semibold text-icta-red",
+    };
+  }
+  if (severity === "medium") {
+    return {
+      row: "border-l-[3px] border-l-icta-amber",
+      header: "border-l-4 border-l-icta-amber",
+      name: "font-semibold text-icta-black",
+      badge: "bg-icta-amber/10 text-icta-amber font-semibold",
+      severityLabel: "font-medium text-icta-amber",
+    };
+  }
+  // low
+  return {
+    row: "border-l-2 border-l-icta-red/45",
+    header: "border-l-4 border-l-icta-red/45",
+    name: "font-medium text-icta-black",
+    badge: "bg-icta-red/10 text-icta-red font-semibold",
+    severityLabel: "text-icta-gray-600",
+  };
 }
 
 export type ScanErrorKind =

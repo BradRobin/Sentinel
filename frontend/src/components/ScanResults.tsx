@@ -5,9 +5,13 @@ import { useMemo, useState } from "react";
 import { FindingsSidePanel } from "@/components/FindingsSidePanel";
 import type { CategoryScore, Finding } from "@/lib/api";
 import {
+  findingSummaryLine,
+  findingVisualWeight,
   groupFindingsByCategory,
   labelCategory,
+  sortFindingsByPriority,
   summarizeFindings,
+  topFailFindings,
   type StatFilter,
 } from "@/lib/findings";
 
@@ -48,10 +52,36 @@ function InlineStat({
   );
 }
 
-function statusBadge(status: string): string {
-  if (status === "pass") return "bg-icta-green/10 text-icta-green";
-  if (status === "fail") return "bg-icta-red/10 text-icta-red";
-  return "bg-icta-gray-100 text-icta-gray-600";
+function FindingListItem({
+  finding,
+  onOpen,
+}: {
+  finding: Finding;
+  onOpen: () => void;
+}) {
+  const weight = findingVisualWeight(finding.status, finding.severity);
+  return (
+    <li>
+      <button
+        type="button"
+        className={`flex w-full items-start gap-3 px-3 py-2.5 text-left text-sm hover:bg-icta-gray-50 ${weight.row}`}
+        onClick={onOpen}
+      >
+        <span
+          className={`mt-0.5 shrink-0 rounded px-1.5 py-0.5 text-xs uppercase ${weight.badge}`}
+        >
+          {finding.status === "manual_review" ? "review" : finding.status}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className={weight.name}>{finding.check_name}</span>
+          <span className="mt-0.5 block text-xs text-icta-gray-600">
+            clause {finding.clause_reference} ·{" "}
+            <span className={weight.severityLabel}>{finding.severity}</span>
+          </span>
+        </span>
+      </button>
+    </li>
+  );
 }
 
 export function ScanResults({
@@ -63,6 +93,7 @@ export function ScanResults({
 }: ScanResultsProps) {
   const stats = useMemo(() => summarizeFindings(findings), [findings]);
   const grouped = useMemo(() => groupFindingsByCategory(findings), [findings]);
+  const topIssues = useMemo(() => topFailFindings(findings, 3), [findings]);
   const scoreByCategory = useMemo(() => {
     const map = new Map<string, number>();
     for (const c of categoryScores) map.set(c.category, c.score);
@@ -73,6 +104,13 @@ export function ScanResults({
   const [panelTitle, setPanelTitle] = useState("");
   const [panelSubtitle, setPanelSubtitle] = useState<string | undefined>();
   const [panelFindings, setPanelFindings] = useState<Finding[]>([]);
+
+  function openFindings(list: Finding[], title: string, subtitle?: string) {
+    setPanelTitle(title);
+    setPanelSubtitle(subtitle);
+    setPanelFindings(sortFindingsByPriority(list));
+    setPanelOpen(true);
+  }
 
   function openPanel(filter: StatFilter, category?: string) {
     let list = findings;
@@ -100,10 +138,7 @@ export function ScanResults({
       subtitle = `${list.length} total`;
     }
 
-    setPanelTitle(title);
-    setPanelSubtitle(subtitle);
-    setPanelFindings(list);
-    setPanelOpen(true);
+    openFindings(list, title, subtitle);
   }
 
   if (findings.length === 0) {
@@ -160,9 +195,49 @@ export function ScanResults({
           />
           .
         </p>
+      </section>
 
-        {categoryScores.length > 0 && (
-          <div className="mt-4 overflow-x-auto">
+      {/* Top issues — omit entirely when no failures */}
+      {topIssues.length > 0 && (
+        <section>
+          <h2 className="mb-3 text-lg font-semibold text-icta-black">
+            Top issues
+          </h2>
+          <ul className="space-y-2">
+            {topIssues.map((f) => {
+              const weight = findingVisualWeight(f.status, f.severity);
+              return (
+                <li key={`top-${f.category}-${f.check_name}-${f.clause_reference}`}>
+                  <button
+                    type="button"
+                    className={`w-full px-3 py-3 text-left hover:bg-icta-gray-50 ${weight.row}`}
+                    onClick={() =>
+                      openFindings(
+                        [f],
+                        f.check_name,
+                        `${labelCategory(f.category)} · clause ${f.clause_reference}`,
+                      )
+                    }
+                  >
+                    <div className={`text-sm ${weight.name}`}>{f.check_name}</div>
+                    <div className="mt-0.5 text-xs text-icta-gray-600">
+                      {labelCategory(f.category)} ·{" "}
+                      <span className={weight.severityLabel}>{f.severity}</span>
+                    </div>
+                    <p className="mt-1 text-sm text-icta-gray-600">
+                      {findingSummaryLine(f)}
+                    </p>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
+
+      {categoryScores.length > 0 && (
+        <section>
+          <div className="overflow-x-auto">
             <table className="w-full min-w-[280px] text-left text-sm">
               <thead>
                 <tr className="border-b border-icta-gray-200 text-icta-gray-600">
@@ -195,8 +270,8 @@ export function ScanResults({
               </tbody>
             </table>
           </div>
-        )}
-      </section>
+        </section>
+      )}
 
       {/* Grouped findings */}
       <section className="space-y-6">
@@ -224,14 +299,13 @@ export function ScanResults({
                     <button
                       type="button"
                       className="text-icta-red underline decoration-from-font underline-offset-2"
-                      onClick={() => {
-                        setPanelTitle(`${group.label} — failures`);
-                        setPanelSubtitle(`${fails} failed`);
-                        setPanelFindings(
+                      onClick={() =>
+                        openFindings(
                           group.findings.filter((f) => f.status === "fail"),
-                        );
-                        setPanelOpen(true);
-                      }}
+                          `${group.label} — failures`,
+                          `${fails} failed`,
+                        )
+                      }
                     >
                       {fails} failed
                     </button>
@@ -242,34 +316,17 @@ export function ScanResults({
               </div>
               <ul className="divide-y divide-icta-gray-100 border border-icta-gray-200">
                 {group.findings.map((f) => (
-                  <li key={`${f.check_name}-${f.clause_reference}`}>
-                    <button
-                      type="button"
-                      className="flex w-full items-start gap-3 px-3 py-2.5 text-left text-sm hover:bg-icta-gray-50"
-                      onClick={() => {
-                        setPanelTitle(f.check_name);
-                        setPanelSubtitle(
-                          `${labelCategory(f.category)} · clause ${f.clause_reference}`,
-                        );
-                        setPanelFindings([f]);
-                        setPanelOpen(true);
-                      }}
-                    >
-                      <span
-                        className={`mt-0.5 shrink-0 rounded px-1.5 py-0.5 text-xs font-semibold uppercase ${statusBadge(f.status)}`}
-                      >
-                        {f.status === "manual_review" ? "review" : f.status}
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="font-medium text-icta-black">
-                          {f.check_name}
-                        </span>
-                        <span className="mt-0.5 block text-xs text-icta-gray-600">
-                          clause {f.clause_reference} · {f.severity}
-                        </span>
-                      </span>
-                    </button>
-                  </li>
+                  <FindingListItem
+                    key={`${f.check_name}-${f.clause_reference}`}
+                    finding={f}
+                    onOpen={() =>
+                      openFindings(
+                        [f],
+                        f.check_name,
+                        `${labelCategory(f.category)} · clause ${f.clause_reference}`,
+                      )
+                    }
+                  />
                 ))}
               </ul>
             </div>

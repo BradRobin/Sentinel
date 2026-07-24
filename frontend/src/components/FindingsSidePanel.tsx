@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 
 import type { Finding } from "@/lib/api";
-import { labelCategory } from "@/lib/findings";
+import { findingVisualWeight, labelCategory } from "@/lib/findings";
 
 interface FindingsSidePanelProps {
   open: boolean;
@@ -11,12 +11,6 @@ interface FindingsSidePanelProps {
   subtitle?: string;
   findings: Finding[];
   onClose: () => void;
-}
-
-function statusClass(status: string): string {
-  if (status === "pass") return "text-icta-green";
-  if (status === "fail") return "text-icta-red";
-  return "text-icta-gray-600";
 }
 
 export function FindingsSidePanel({
@@ -34,6 +28,11 @@ export function FindingsSidePanel({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
+
+  const headerWeight = useMemo(() => {
+    if (findings.length !== 1) return null;
+    return findingVisualWeight(findings[0].status, findings[0].severity);
+  }, [findings]);
 
   return (
     <>
@@ -53,17 +52,42 @@ export function FindingsSidePanel({
         aria-label={title}
         aria-hidden={!open}
       >
-        <header className="flex items-start justify-between gap-4 border-b border-icta-gray-200 px-5 py-4">
-          <div>
-            <h2 className="text-lg font-semibold text-icta-black">{title}</h2>
+        <header
+          className={`flex items-start justify-between gap-4 border-b border-icta-gray-200 px-5 py-4 ${
+            headerWeight?.header ?? ""
+          }`}
+        >
+          <div className="min-w-0">
+            <h2
+              className={`text-lg text-icta-black ${
+                headerWeight?.name ?? "font-semibold"
+              }`}
+            >
+              {title}
+            </h2>
             {subtitle && (
               <p className="mt-1 text-sm text-icta-gray-600">{subtitle}</p>
+            )}
+            {findings.length === 1 && (
+              <p className="mt-1 text-xs text-icta-gray-600">
+                <span
+                  className={`mr-2 inline-block rounded px-1.5 py-0.5 uppercase ${headerWeight?.badge ?? ""}`}
+                >
+                  {findings[0].status === "manual_review"
+                    ? "review"
+                    : findings[0].status}
+                </span>
+                <span className={headerWeight?.severityLabel}>
+                  {findings[0].severity}
+                </span>{" "}
+                severity
+              </p>
             )}
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md px-2 py-1 text-sm text-icta-gray-600 hover:bg-icta-gray-50 hover:text-icta-black"
+            className="shrink-0 rounded-md px-2 py-1 text-sm text-icta-gray-600 hover:bg-icta-gray-50 hover:text-icta-black"
           >
             Close
           </button>
@@ -74,23 +98,35 @@ export function FindingsSidePanel({
             <p className="text-sm text-icta-gray-600">No findings in this view.</p>
           ) : (
             <ul className="space-y-4">
-              {findings.map((f) => (
-                <li
-                  key={`${f.category}-${f.check_name}-${f.clause_reference}`}
-                  className="border-b border-icta-gray-100 pb-4 last:border-0"
-                >
-                  <div className={`text-sm font-semibold ${statusClass(f.status)}`}>
-                    [{f.status}] {f.check_name}
-                  </div>
-                  <div className="mt-1 text-xs text-icta-gray-600">
-                    {labelCategory(f.category)} · clause {f.clause_reference} ·{" "}
-                    {f.severity} · {f.automatability_type}
-                  </div>
-                  <pre className="mt-2 overflow-x-auto rounded bg-icta-gray-50 p-2 text-xs text-icta-black">
-                    {JSON.stringify(f.detail, null, 2)}
-                  </pre>
-                </li>
-              ))}
+              {findings.map((f) => {
+                const weight = findingVisualWeight(f.status, f.severity);
+                return (
+                  <li
+                    key={`${f.category}-${f.check_name}-${f.clause_reference}`}
+                    className={`border-b border-icta-gray-100 pb-4 pl-3 last:border-0 ${weight.row}`}
+                  >
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span
+                        className={`rounded px-1.5 py-0.5 text-xs uppercase ${weight.badge}`}
+                      >
+                        {f.status === "manual_review" ? "review" : f.status}
+                      </span>
+                      <span className={`text-sm ${weight.name}`}>
+                        {f.check_name}
+                      </span>
+                    </div>
+                    <div className="mt-1 text-xs text-icta-gray-600">
+                      {labelCategory(f.category)} · clause {f.clause_reference}{" "}
+                      ·{" "}
+                      <span className={weight.severityLabel}>{f.severity}</span>{" "}
+                      · {f.automatability_type}
+                    </div>
+                    <pre className="mt-2 overflow-x-auto rounded bg-icta-gray-50 p-2 text-xs text-icta-black">
+                      {JSON.stringify(f.detail, null, 2)}
+                    </pre>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </div>

@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import Link from "next/link";
-import { FormEvent, KeyboardEvent, useState } from "react";
+import { FormEvent, KeyboardEvent, useEffect, useState } from "react";
 
 import { ScanResults } from "@/components/ScanResults";
 import { SentinelMark } from "@/components/SentinelMark";
@@ -24,8 +24,10 @@ import {
   matchKnownDomain,
   type KnownDomain,
 } from "@/lib/known-domains";
+import { getCopiedScanUrl } from "@/lib/scan-url-clipboard";
 import type { SentinelMarkState } from "@/lib/sentinel-mark-paths";
 import {
+  btnGhost,
   btnPrimary,
   btnSecondarySm,
   inputBase,
@@ -119,10 +121,45 @@ export function ScanWorkspace() {
   const [attachedNote, setAttachedNote] = useState(false);
   const [hasSubmitted, setHasSubmitted] = useState(false);
   const [suggestionDismissed, setSuggestionDismissed] = useState(false);
+  const [pendingPasteUrl, setPendingPasteUrl] = useState<string | null>(null);
 
   const busy = markState === "processing";
   const suggestion =
     !busy && !suggestionDismissed ? matchKnownDomain(url) : null;
+  const showPaste =
+    Boolean(pendingPasteUrl) &&
+    !busy &&
+    pendingPasteUrl?.trim() !== url.trim();
+
+  useEffect(() => {
+    function refreshPendingPaste() {
+      setPendingPasteUrl(getCopiedScanUrl());
+    }
+    refreshPendingPaste();
+    window.addEventListener("focus", refreshPendingPaste);
+    document.addEventListener("visibilitychange", refreshPendingPaste);
+    window.addEventListener(
+      "sentinel:scan-url-copied",
+      refreshPendingPaste as EventListener,
+    );
+    return () => {
+      window.removeEventListener("focus", refreshPendingPaste);
+      document.removeEventListener("visibilitychange", refreshPendingPaste);
+      window.removeEventListener(
+        "sentinel:scan-url-copied",
+        refreshPendingPaste as EventListener,
+      );
+    };
+  }, []);
+
+  function pasteCopiedUrl() {
+    const next = getCopiedScanUrl() ?? pendingPasteUrl;
+    if (!next) return;
+    setUrl(next);
+    setSuggestionDismissed(false);
+    setFieldError(null);
+    setPendingPasteUrl(next);
+  }
 
   const resultsReady = scan?.status === "complete";
   const overallScore = resultsReady
@@ -366,35 +403,47 @@ export function ScanWorkspace() {
 
         <form onSubmit={onSubmit} noValidate className="mb-8 space-y-3">
           <div>
-            <input
-              type="text"
-              inputMode="url"
-              autoComplete="off"
-              name="scan-url"
-              required
-              value={url}
-              onChange={(e) => {
-                setUrl(e.target.value);
-                setSuggestionDismissed(false);
-                if (fieldError) setFieldError(null);
-              }}
-              onKeyDown={onUrlKeyDown}
-              placeholder="https://example.go.ke or try ecitizen, ict…"
-              className={`${inputBase} ${fieldError ? inputError : ""}`}
-              disabled={busy}
-              aria-invalid={Boolean(fieldError)}
-              aria-autocomplete="list"
-              aria-expanded={Boolean(suggestion)}
-              aria-controls={suggestion ? "domain-suggestion" : undefined}
-              aria-describedby={
-                [
-                  fieldError ? "url-field-error" : null,
-                  suggestion ? "domain-suggestion" : null,
-                ]
-                  .filter(Boolean)
-                  .join(" ") || undefined
-              }
-            />
+            <div className="relative">
+              <input
+                type="text"
+                inputMode="url"
+                autoComplete="off"
+                name="scan-url"
+                required
+                value={url}
+                onChange={(e) => {
+                  setUrl(e.target.value);
+                  setSuggestionDismissed(false);
+                  if (fieldError) setFieldError(null);
+                }}
+                onKeyDown={onUrlKeyDown}
+                placeholder="https://example.go.ke or try ecitizen, ict…"
+                className={`${inputBase} ${showPaste ? "pr-20" : ""} ${fieldError ? inputError : ""}`}
+                disabled={busy}
+                aria-invalid={Boolean(fieldError)}
+                aria-autocomplete="list"
+                aria-expanded={Boolean(suggestion)}
+                aria-controls={suggestion ? "domain-suggestion" : undefined}
+                aria-describedby={
+                  [
+                    fieldError ? "url-field-error" : null,
+                    suggestion ? "domain-suggestion" : null,
+                  ]
+                    .filter(Boolean)
+                    .join(" ") || undefined
+                }
+              />
+              {showPaste && (
+                <button
+                  type="button"
+                  onClick={pasteCopiedUrl}
+                  className={`${btnGhost} absolute right-1 top-1/2 -translate-y-1/2`}
+                  aria-label="Paste copied registry URL"
+                >
+                  Paste
+                </button>
+              )}
+            </div>
             {suggestion && (
               <button
                 type="button"

@@ -8,9 +8,11 @@ import {
   type RegistryEntry,
   type RegistryTrend,
 } from "@/lib/api";
+import { copyScanUrl } from "@/lib/scan-url-clipboard";
 import {
   btnFilterActive,
   btnFilterIdle,
+  btnGhost,
   btnPrimary,
   inputBase,
   linkQuiet,
@@ -65,6 +67,17 @@ export function RegistryDashboard() {
   const [query, setQuery] = useState("");
   const [orgFilter, setOrgFilter] = useState<OrgFilter>("all");
   const [pending, startTransition] = useTransition();
+  const [copiedDomainId, setCopiedDomainId] = useState<string | null>(null);
+
+  async function onCopyUrl(row: RegistryEntry) {
+    await copyScanUrl(row.url);
+    setCopiedDomainId(row.domain_id);
+    window.setTimeout(() => {
+      setCopiedDomainId((current) =>
+        current === row.domain_id ? null : current,
+      );
+    }, 1600);
+  }
 
   function load(nextQuery: string, nextFilter: OrgFilter) {
     startTransition(async () => {
@@ -214,14 +227,24 @@ export function RegistryDashboard() {
                     <div className="font-medium text-icta-black">
                       {row.registered_name || row.org_name}
                     </div>
-                    <a
-                      href={row.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="break-all text-xs text-icta-gray-600 hover:text-icta-black"
-                    >
-                      {row.url}
-                    </a>
+                    <div className="mt-1 flex flex-wrap items-center gap-2">
+                      <a
+                        href={row.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="min-w-0 break-all text-xs text-icta-gray-600 hover:text-icta-black"
+                      >
+                        {row.url}
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() => void onCopyUrl(row)}
+                        className={btnGhost}
+                        aria-label={`Copy ${row.url} for scanning`}
+                      >
+                        {copiedDomainId === row.domain_id ? "Copied" : "Copy"}
+                      </button>
+                    </div>
                   </td>
                   <td className="py-3 pr-4 capitalize text-icta-gray-600">
                     {row.org_type}

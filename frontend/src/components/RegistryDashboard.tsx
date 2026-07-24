@@ -12,7 +12,7 @@ import { copyScanUrl } from "@/lib/scan-url-clipboard";
 import {
   btnFilterActive,
   btnFilterIdle,
-  btnGhost,
+  btnMuted,
   btnPrimary,
   inputBase,
   linkQuiet,
@@ -203,14 +203,17 @@ export function RegistryDashboard() {
                 <th className="py-3 pr-4 font-medium">Type</th>
                 <th className="py-3 pr-4 font-medium">Score</th>
                 <th className="py-3 pr-4 font-medium">Trend</th>
-                <th className="py-3 font-medium">Last checked</th>
+                <th className="py-3 pr-4 font-medium">Last checked</th>
+                <th className="py-3 text-right font-medium">
+                  <span className="sr-only">Copy URL</span>
+                </th>
               </tr>
             </thead>
             <tbody>
               {items.length === 0 && !pending && !error && (
                 <tr>
                   <td
-                    colSpan={5}
+                    colSpan={6}
                     className="py-10 text-center text-icta-gray-600"
                   >
                     No verified MCDAs yet. Seed the registry to populate this
@@ -227,24 +230,14 @@ export function RegistryDashboard() {
                     <div className="font-medium text-icta-black">
                       {row.registered_name || row.org_name}
                     </div>
-                    <div className="mt-1 flex flex-wrap items-center gap-2">
-                      <a
-                        href={row.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="min-w-0 break-all text-xs text-icta-gray-600 hover:text-icta-black"
-                      >
-                        {row.url}
-                      </a>
-                      <button
-                        type="button"
-                        onClick={() => void onCopyUrl(row)}
-                        className={btnGhost}
-                        aria-label={`Copy ${row.url} for scanning`}
-                      >
-                        {copiedDomainId === row.domain_id ? "Copied" : "Copy"}
-                      </button>
-                    </div>
+                    <a
+                      href={row.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-1 block break-all text-xs text-icta-gray-600 hover:text-icta-black"
+                    >
+                      {row.url}
+                    </a>
                   </td>
                   <td className="py-3 pr-4 capitalize text-icta-gray-600">
                     {row.org_type}
@@ -261,8 +254,18 @@ export function RegistryDashboard() {
                       </span>
                     ) : null}
                   </td>
-                  <td className="py-3 text-icta-gray-600">
+                  <td className="py-3 pr-4 text-icta-gray-600">
                     {formatChecked(row.last_checked_at)}
+                  </td>
+                  <td className="py-3 text-right">
+                    <button
+                      type="button"
+                      onClick={() => void onCopyUrl(row)}
+                      className={btnMuted}
+                      aria-label={`Copy ${row.url} for scanning`}
+                    >
+                      {copiedDomainId === row.domain_id ? "Copied" : "Copy"}
+                    </button>
                   </td>
                 </tr>
               ))}

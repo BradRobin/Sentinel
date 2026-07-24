@@ -22,6 +22,10 @@ export const btnSecondarySm =
 export const btnGhost =
   "inline-flex shrink-0 items-center justify-center rounded-md px-2.5 py-1.5 text-sm font-medium text-icta-gray-600 transition-colors hover:bg-icta-gray-50 hover:text-icta-black active:bg-icta-gray-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-icta-black";
 
+/** Compact muted chip — registry Copy, etc. */
+export const btnMuted =
+  "inline-flex shrink-0 items-center justify-center rounded-md border border-icta-gray-200 bg-icta-gray-50 px-2.5 py-1.5 text-sm font-medium text-icta-gray-600 transition-colors hover:border-icta-gray-200 hover:bg-icta-gray-100 hover:text-icta-black active:bg-icta-gray-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-icta-black";
+
 export const btnFilterIdle =
   "inline-flex items-center justify-center rounded-md border border-icta-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-icta-gray-600 transition-colors hover:bg-icta-gray-50 active:bg-icta-gray-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-icta-black";
 

@@ -251,12 +251,6 @@ export function RegistryDashboard() {
                   </td>
                   <td className={`py-3 pr-4 font-medium ${trendClass(row.trend)}`}>
                     {trendLabel(row.trend)}
-                    {row.score_delta !== null && row.trend !== "unknown" ? (
-                      <span className="ml-1 text-xs font-normal tabular-nums">
-                        ({row.score_delta > 0 ? "+" : ""}
-                        {row.score_delta.toFixed(1)})
-                      </span>
-                    ) : null}
                   </td>
                   <td className="py-3 pr-4 text-icta-gray-600">
                     {formatChecked(row.last_checked_at)}

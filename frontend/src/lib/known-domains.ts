@@ -1,6 +1,6 @@
 /**
- * Offline fallback list for scan-bar autocomplete.
- * Prefer the live MCDA registry (`GET /api/v1/registry/suggestions`) when available.
+ * Lightweight scan-bar autocomplete — static list of known .go.ke / .gov.ke sites.
+ * Substring / alias match while the officer types; Tab or Enter accepts and starts a scan.
  */
 
 export interface KnownDomain {
@@ -31,7 +31,7 @@ export const KNOWN_DOMAINS: readonly KnownDomain[] = [
   {
     name: "Kenya Revenue Authority",
     url: "https://www.kra.go.ke",
-    aliases: ["kra", "tax", "revenue", "iTax", "itax"],
+    aliases: ["kra", "tax", "revenue", "itax"],
   },
   {
     name: "Ministry of Health",

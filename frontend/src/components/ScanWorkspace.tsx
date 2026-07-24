@@ -1,14 +1,13 @@
 ﻿"use client";
 
 import Link from "next/link";
-import { FormEvent, KeyboardEvent, useEffect, useState } from "react";
+import { FormEvent, KeyboardEvent, useState } from "react";
 
 import { ScanResults } from "@/components/ScanResults";
 import { SentinelMark } from "@/components/SentinelMark";
 import {
   ScanApiError,
   createScan,
-  getRegistrySuggestions,
   getScan,
   type Finding,
   type ScanStatusResponse,
@@ -21,7 +20,10 @@ import {
   scanFailureMessage,
   type ScanErrorKind,
 } from "@/lib/findings";
-import { matchKnownDomain } from "@/lib/known-domains";
+import {
+  matchKnownDomain,
+  type KnownDomain,
+} from "@/lib/known-domains";
 import type { SentinelMarkState } from "@/lib/sentinel-mark-paths";
 import {
   btnPrimary,
@@ -33,12 +35,6 @@ import {
 const POLL_INTERVAL_MS = 600;
 const STALE_CATEGORY_MS = 15_000;
 const MAX_POLLS = 120;
-const SUGGEST_DEBOUNCE_MS = 180;
-
-interface DomainSuggestion {
-  name: string;
-  url: string;
-}
 
 function markStateFromStatus(status: string | null): SentinelMarkState {
   if (!status || status === "queued" || status === "running") return "processing";
@@ -123,53 +119,10 @@ export function ScanWorkspace() {
   const [attachedNote, setAttachedNote] = useState(false);
   const [hasSubmitted, setHasSubmitted] = useState(false);
   const [suggestionDismissed, setSuggestionDismissed] = useState(false);
-  const [remoteSuggestion, setRemoteSuggestion] =
-    useState<DomainSuggestion | null>(null);
 
   const busy = markState === "processing";
-  const staticHit = matchKnownDomain(url);
-  const staticSuggestion: DomainSuggestion | null = staticHit
-    ? { name: staticHit.name, url: staticHit.url }
-    : null;
   const suggestion =
-    !busy && !suggestionDismissed
-      ? remoteSuggestion ?? staticSuggestion
-      : null;
-
-  useEffect(() => {
-    if (busy || suggestionDismissed) return;
-    const q = url.trim();
-    if (q.length < 2) {
-      setRemoteSuggestion(null);
-      return;
-    }
-    let cancelled = false;
-    const timer = window.setTimeout(() => {
-      void getRegistrySuggestions(q, 1)
-        .then((items) => {
-          if (cancelled) return;
-          const top = items[0];
-          if (!top) {
-            setRemoteSuggestion(null);
-            return;
-          }
-          const normalized = q.replace(/\/+$/, "").toLowerCase();
-          const target = top.url.replace(/\/+$/, "").toLowerCase();
-          if (normalized === target) {
-            setRemoteSuggestion(null);
-            return;
-          }
-          setRemoteSuggestion({ name: top.name, url: top.url });
-        })
-        .catch(() => {
-          if (!cancelled) setRemoteSuggestion(null);
-        });
-    }, SUGGEST_DEBOUNCE_MS);
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timer);
-    };
-  }, [url, busy, suggestionDismissed]);
+    !busy && !suggestionDismissed ? matchKnownDomain(url) : null;
 
   const resultsReady = scan?.status === "complete";
   const overallScore = resultsReady
@@ -346,9 +299,8 @@ export function ScanWorkspace() {
     await startScan({ forceFresh: true });
   }
 
-  function acceptSuggestion(entry: DomainSuggestion) {
+  function acceptSuggestion(entry: KnownDomain) {
     setSuggestionDismissed(true);
-    setRemoteSuggestion(null);
     setFieldError(null);
     return startScan({ urlOverride: entry.url });
   }
@@ -534,6 +486,7 @@ export function ScanWorkspace() {
             scannedUrl={scan?.url}
             jobId={resultsReady ? scan?.job_id : null}
             narrative={narrative}
+            resultsReady={resultsReady}
           />
         )}
       </main>

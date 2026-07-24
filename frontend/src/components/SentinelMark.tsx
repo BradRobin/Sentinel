@@ -22,6 +22,7 @@ export interface SentinelMarkProps {
 
 const MORPH_DURATION_MS = 900;
 const GREEN = "var(--icta-green)";
+const ERROR_STROKE = "var(--icta-gray-600)";
 
 export function SentinelMark({
   state,
@@ -54,10 +55,10 @@ export function SentinelMark({
     }
   };
 
-  const resetRibbon = () => {
+  const resetRibbon = (strokeValue?: string) => {
     cancelMorph();
     setPathD(RIBBON_PATH);
-    setStroke(`url(#${gradientId})`);
+    setStroke(strokeValue ?? `url(#${gradientId})`);
     setPopping(false);
   };
 
@@ -98,6 +99,12 @@ export function SentinelMark({
       return;
     }
 
+    if (state === "error") {
+      // Static resting ribbon — muted tone, no spin / morph
+      resetRibbon(ERROR_STROKE);
+      return cancelMorph;
+    }
+
     resetRibbon();
     return cancelMorph;
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -119,7 +126,9 @@ export function SentinelMark({
       ? "Sentinel mark — ready"
       : state === "processing"
         ? "Sentinel mark — loading"
-        : "Sentinel mark — complete");
+        : state === "error"
+          ? "Sentinel mark — error"
+          : "Sentinel mark — complete");
 
   return (
     <div
@@ -146,6 +155,7 @@ export function SentinelMark({
             strokeWidth={9}
             strokeLinecap="round"
             strokeLinejoin="round"
+            opacity={state === "error" ? 0.55 : 1}
           />
         </g>
       </svg>

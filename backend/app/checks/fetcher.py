@@ -42,6 +42,7 @@ def fetch_url(
     *,
     allowed_tlds: list[str] | None = None,
     allow_tld_bypass: bool = False,
+    verify: bool = True,
 ) -> FetchResult:
     """Fetch a URL after SSRF validation. Redirects are not followed."""
     validated = validate_scan_url(
@@ -51,7 +52,7 @@ def fetch_url(
     with httpx.Client(
         timeout=DEFAULT_TIMEOUT,
         follow_redirects=False,
-        verify=True,
+        verify=verify,
         headers={"User-Agent": USER_AGENT},
     ) as client:
         response = client.get(validated.original)

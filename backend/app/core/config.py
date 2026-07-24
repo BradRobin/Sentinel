@@ -15,6 +15,8 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
     celery_worker_concurrency: int = 2
     scan_cache_ttl_seconds: int = 86400
+    # Soft ceiling for a single scan job (slow gov hosting); typical scans are << 10s
+    scan_max_duration_seconds: int = 40
     allowed_tld: str = ".go.ke,.gov.ke"
     allow_tld_bypass: bool = False
     supabase_url: str = ""

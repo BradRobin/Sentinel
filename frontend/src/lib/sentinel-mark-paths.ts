@@ -30,10 +30,11 @@ export function easeInOutCubic(t: number): number {
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 }
 
-export type SentinelMarkState = "idle" | "processing" | "complete";
+export type SentinelMarkState = "idle" | "processing" | "complete" | "error";
 
 export const SENTINEL_MARK_LABELS: Record<SentinelMarkState, string> = {
   idle: "Ready",
   processing: "Loading…",
   complete: "Complete",
+  error: "Error",
 };

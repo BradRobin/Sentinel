@@ -34,6 +34,7 @@ class ScanJobResponse(BaseModel):
     current_category: str | None = None
     categories_completed: list[str] = Field(default_factory=list)
     total_categories: int = 8
+    attached_to_existing: bool = False
 
 
 class ScanStatusResponse(BaseModel):
@@ -49,6 +50,7 @@ class ScanStatusResponse(BaseModel):
     total_categories: int = 8
     updated_at: str | None = None
     error_category: str | None = None
+    attached_to_existing: bool = False
 
 
 class FindingResponse(BaseModel):

@@ -239,21 +239,56 @@ export function findingVisualWeight(
 
 export type ScanErrorKind =
   | "invalid_url"
+  | "domain_not_allowed"
   | "unreachable"
+  | "blocked_by_target"
   | "timeout"
-  | "not_allowed"
+  | "internal_error"
   | "generic";
 
-export function classifyScanError(message: string): ScanErrorKind {
+/** Officer-facing copy for scan-level failures (SentinelMark error state). */
+export function scanFailureMessage(kind: ScanErrorKind): string {
+  switch (kind) {
+    case "unreachable":
+      return "This site couldn't be reached. It may be down or the address may be incorrect.";
+    case "blocked_by_target":
+      return "This site blocked the scan. This can happen with sites that restrict automated requests.";
+    case "timeout":
+      return "This scan took too long and was stopped. You can try again.";
+    case "internal_error":
+      return "Something went wrong on our end. Please try again, and let us know if it keeps happening.";
+    default:
+      return "Something went wrong. Please try again.";
+  }
+}
+
+export function isFormValidationError(kind: ScanErrorKind): boolean {
+  return kind === "invalid_url" || kind === "domain_not_allowed";
+}
+
+export function classifyScanError(
+  message: string,
+  category?: string | null,
+): ScanErrorKind {
+  if (category === "invalid_url") return "invalid_url";
+  if (category === "domain_not_allowed" || category === "not_allowed") {
+    return "domain_not_allowed";
+  }
+  if (category === "unreachable") return "unreachable";
+  if (category === "blocked_by_target") return "blocked_by_target";
+  if (category === "timeout") return "timeout";
+  if (category === "internal_error") return "internal_error";
+
   const m = message.toLowerCase();
   if (m.includes("timed out") || m.includes("timeout")) return "timeout";
   if (
     m.includes("not allowed") ||
     m.includes("restricted to") ||
-    m.includes(".go.ke")
+    m.includes("only .go.ke")
   ) {
-    return "not_allowed";
+    return "domain_not_allowed";
   }
+  if (m.includes("blocked")) return "blocked_by_target";
   if (
     m.includes("unable to resolve") ||
     m.includes("failed to reach") ||
@@ -272,35 +307,41 @@ export function classifyScanError(message: string): ScanErrorKind {
   ) {
     return "invalid_url";
   }
+  if (m.includes("our end") || m.includes("unexpected")) return "internal_error";
   return "generic";
+}
+
+export function formValidationMessage(kind: ScanErrorKind): string {
+  switch (kind) {
+    case "domain_not_allowed":
+      return "Only .go.ke and .gov.ke domains can be scanned.";
+    case "invalid_url":
+      return "Enter a full URL starting with https://, for example https://www.ict.go.ke";
+    default:
+      return "Please check the URL and try again.";
+  }
 }
 
 export function errorTitle(kind: ScanErrorKind): string {
   switch (kind) {
     case "invalid_url":
       return "Invalid URL";
+    case "domain_not_allowed":
+      return "Domain not allowed";
     case "unreachable":
       return "Site unreachable";
+    case "blocked_by_target":
+      return "Scan blocked";
     case "timeout":
       return "Scan timed out";
-    case "not_allowed":
-      return "Domain not allowed";
+    case "internal_error":
+      return "Something went wrong";
     default:
       return "Something went wrong";
   }
 }
 
 export function errorHint(kind: ScanErrorKind): string {
-  switch (kind) {
-    case "invalid_url":
-      return "Enter a full URL starting with https://, for example https://www.ict.go.ke";
-    case "unreachable":
-      return "We could not reach the API or the site. Check that Docker is running and the hostname resolves.";
-    case "timeout":
-      return "The scan took too long. Try again, or use Force fresh scan if the worker is busy.";
-    case "not_allowed":
-      return "Scans are limited to .go.ke and .gov.ke domains by default.";
-    default:
-      return "Review the details below and try again.";
-  }
+  if (isFormValidationError(kind)) return formValidationMessage(kind);
+  return scanFailureMessage(kind);
 }

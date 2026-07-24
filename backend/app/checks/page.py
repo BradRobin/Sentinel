@@ -15,6 +15,12 @@ from app.checks.fetcher import (
     origin_https_url,
 )
 from app.core.ssrf import SSRFError
+from app.services.scan_errors import (
+    ScanAbortError,
+    classify_fetch_failure,
+    is_tls_failure,
+    looks_blocked,
+)
 
 
 @dataclass
@@ -55,6 +61,48 @@ def _normalize_scan_url(url: str) -> str:
     return url
 
 
+def _fetch_with_optional_insecure(
+    target: str,
+    *,
+    allowed_tlds: list[str] | None,
+    allow_tld_bypass: bool,
+    snap: PageSnapshot,
+) -> FetchResult:
+    """
+    Fetch page content. TLS/cert failures degrade (retry insecure) so other
+    categories can still run; DNS/connect failures abort the whole scan.
+    """
+    try:
+        return fetch_url(
+            target,
+            allowed_tlds=allowed_tlds,
+            allow_tld_bypass=allow_tld_bypass,
+            verify=True,
+        )
+    except httpx.HTTPError as exc:
+        if is_tls_failure(exc):
+            snap.cert_valid = False
+            if not snap.cert_error:
+                snap.cert_error = "TLS handshake or certificate verification failed"
+            # Soft-continue: still collect HTML for non-TLS checks
+            try:
+                return fetch_url(
+                    target,
+                    allowed_tlds=allowed_tlds,
+                    allow_tld_bypass=allow_tld_bypass,
+                    verify=False,
+                )
+            except httpx.HTTPError as inner:
+                category = classify_fetch_failure(inner)
+                if category == "timeout":
+                    raise ScanAbortError("timeout") from inner
+                raise ScanAbortError("unreachable") from inner
+        category = classify_fetch_failure(exc)
+        if category == "timeout":
+            raise ScanAbortError("timeout") from exc
+        raise ScanAbortError("unreachable") from exc
+
+
 def load_page_snapshot(
     url: str,
     *,
@@ -66,6 +114,9 @@ def load_page_snapshot(
     Fetch the landing page once (SSRF-validated). Optionally probe sensitive paths.
 
     Redirects are not auto-followed; a single Location hop is followed after re-validation.
+
+    Total unreachability / blocking raises ``ScanAbortError``. TLS problems alone
+    do not abort — content is fetched insecurely so checks can still run.
     """
     target = _normalize_scan_url(url)
     parsed = urlparse(target)
@@ -78,26 +129,39 @@ def load_page_snapshot(
     snap.cert_error = cert.error
 
     try:
-        result = fetch_url(
-            target, allowed_tlds=allowed_tlds, allow_tld_bypass=allow_tld_bypass
+        result = _fetch_with_optional_insecure(
+            target,
+            allowed_tlds=allowed_tlds,
+            allow_tld_bypass=allow_tld_bypass,
+            snap=snap,
         )
-        # Follow one redirect hop if Location is same-site and SSRF-safe
-        if result.status_code in (301, 302, 303, 307, 308):
-            location = result.headers.get("location")
-            if location:
-                next_url = urljoin(result.final_url, location)
-                try:
-                    result = fetch_url(
-                        next_url,
-                        allowed_tlds=allowed_tlds,
-                        allow_tld_bypass=allow_tld_bypass,
-                    )
-                except (SSRFError, httpx.HTTPError):
-                    pass
-        snap.fetch = result
-    except (SSRFError, httpx.HTTPError) as exc:
-        snap.error = str(exc)
-        return snap
+    except SSRFError as exc:
+        msg = str(exc).lower()
+        if "unable to resolve" in msg or "no dns" in msg:
+            raise ScanAbortError("unreachable") from exc
+        raise ScanAbortError("unreachable") from exc
+
+    # Follow one redirect hop if Location is same-site and SSRF-safe
+    if result.status_code in (301, 302, 303, 307, 308):
+        location = result.headers.get("location")
+        if location:
+            next_url = urljoin(result.final_url, location)
+            try:
+                result = _fetch_with_optional_insecure(
+                    next_url,
+                    allowed_tlds=allowed_tlds,
+                    allow_tld_bypass=allow_tld_bypass,
+                    snap=snap,
+                )
+            except ScanAbortError:
+                raise
+            except (SSRFError, httpx.HTTPError):
+                pass
+
+    if looks_blocked(result.status_code, result.text, result.headers):
+        raise ScanAbortError("blocked_by_target")
+
+    snap.fetch = result
 
     for path in probe_paths or []:
         snap.path_probes[path] = fetch_path(

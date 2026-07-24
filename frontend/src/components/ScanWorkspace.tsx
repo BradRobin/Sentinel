@@ -6,6 +6,7 @@ import { FormEvent, useState } from "react";
 import { ScanResults } from "@/components/ScanResults";
 import { SentinelMark } from "@/components/SentinelMark";
 import {
+  ScanApiError,
   createScan,
   getScan,
   type Finding,
@@ -14,8 +15,9 @@ import {
 import {
   checkingLabel,
   classifyScanError,
-  errorHint,
-  errorTitle,
+  formValidationMessage,
+  isFormValidationError,
+  scanFailureMessage,
   type ScanErrorKind,
 } from "@/lib/findings";
 import type { SentinelMarkState } from "@/lib/sentinel-mark-paths";
@@ -27,6 +29,7 @@ const MAX_POLLS = 120;
 function markStateFromStatus(status: string | null): SentinelMarkState {
   if (!status || status === "queued" || status === "running") return "processing";
   if (status === "complete") return "complete";
+  if (status === "failed") return "error";
   return "idle";
 }
 
@@ -41,7 +44,6 @@ function processingLabel(
   if (status.status !== "running") return fallbackQueued;
 
   const category = status.current_category ?? null;
-  // Gap between queued → worker start / fetch: stay on Queued… until first category
   if (!category) return fallbackQueued;
 
   if (now - lastCategoryAt >= STALE_CATEGORY_MS) {
@@ -51,9 +53,27 @@ function processingLabel(
   return checkingLabel(category) ?? "Running compliance checks…";
 }
 
-interface ErrorState {
+function clientValidateUrl(raw: string): ScanErrorKind | null {
+  const trimmed = raw.trim();
+  if (!trimmed) return "invalid_url";
+  let parsed: URL;
+  try {
+    parsed = new URL(trimmed);
+  } catch {
+    return "invalid_url";
+  }
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    return "invalid_url";
+  }
+  const host = parsed.hostname.toLowerCase();
+  if (!host.endsWith(".go.ke") && !host.endsWith(".gov.ke")) {
+    return "domain_not_allowed";
+  }
+  return null;
+}
+
+interface ScanLevelError {
   kind: ScanErrorKind;
-  message: string;
 }
 
 function EmptyIdle() {
@@ -71,26 +91,34 @@ export function ScanWorkspace() {
   const [url, setUrl] = useState("https://www.ict.go.ke");
   const [force, setForce] = useState(false);
   const [markState, setMarkState] = useState<SentinelMarkState>("idle");
-  const [error, setError] = useState<ErrorState | null>(null);
+  const [fieldError, setFieldError] = useState<ScanErrorKind | null>(null);
+  const [scanError, setScanError] = useState<ScanLevelError | null>(null);
   const [scan, setScan] = useState<ScanStatusResponse | null>(null);
   const [findings, setFindings] = useState<Finding[]>([]);
   const [progressLabel, setProgressLabel] = useState<string | null>(null);
+  const [attachedNote, setAttachedNote] = useState(false);
   const [hasSubmitted, setHasSubmitted] = useState(false);
 
   const overallScore =
     scan?.result?.overall_score ?? scan?.result?.scores?.overall_score ?? null;
   const categoryScores = scan?.result?.scores?.categories ?? [];
   const showEmptyIdle =
-    !hasSubmitted && !error && findings.length === 0 && markState === "idle";
+    !hasSubmitted &&
+    !fieldError &&
+    !scanError &&
+    findings.length === 0 &&
+    markState === "idle";
   const showEmptyComplete =
     hasSubmitted &&
     markState === "complete" &&
-    !error &&
+    !scanError &&
     findings.length === 0;
 
-  function setErrorFromMessage(message: string) {
-    const kind = classifyScanError(message);
-    setError({ kind, message });
+  function setScanLevelFailure(kind: ScanErrorKind) {
+    setFieldError(null);
+    setScanError({ kind });
+    setMarkState("error");
+    setProgressLabel(null);
   }
 
   async function pollUntilDone(jobId: string) {
@@ -116,13 +144,19 @@ export function ScanWorkspace() {
         return;
       }
       if (status.status === "failed") {
-        const detail = status.error ?? "Scan failed";
-        const withCategory = status.error_category
-          ? `${detail} (${status.error_category})`
-          : detail;
-        setErrorFromMessage(withCategory);
-        setProgressLabel(null);
-        setMarkState("idle");
+        // duplicate_in_progress should never surface as an error UI
+        if (status.error_category === "duplicate_in_progress") {
+          setProgressLabel("A scan for this URL is already in progress…");
+          await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
+          continue;
+        }
+        const kind = classifyScanError(
+          status.error ?? "",
+          status.error_category,
+        );
+        setScanLevelFailure(
+          isFormValidationError(kind) ? "internal_error" : kind,
+        );
         return;
       }
 
@@ -131,30 +165,32 @@ export function ScanWorkspace() {
       );
       await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
     }
-    setErrorFromMessage("Scan timed out");
-    setMarkState("idle");
-    setProgressLabel(null);
+    setScanLevelFailure("timeout");
   }
 
-  async function onSubmit(e: FormEvent) {
-    e.preventDefault();
+  async function startScan(options?: { forceFresh?: boolean }) {
+    const forceFresh = options?.forceFresh ?? force;
     setHasSubmitted(true);
-    setError(null);
+    setFieldError(null);
+    setScanError(null);
     setScan(null);
     setFindings([]);
-    setProgressLabel("Queued…");
-    setMarkState("processing");
+    setAttachedNote(false);
 
     const trimmed = url.trim();
-    if (!trimmed) {
-      setErrorFromMessage("URL is required");
+    const localKind = clientValidateUrl(trimmed);
+    if (localKind && isFormValidationError(localKind)) {
+      setFieldError(localKind);
       setMarkState("idle");
       setProgressLabel(null);
       return;
     }
 
+    setProgressLabel("Queued…");
+    setMarkState("processing");
+
     try {
-      const job = await createScan(trimmed, { force });
+      const job = await createScan(trimmed, { force: forceFresh });
       setScan({
         ...job,
         url: job.url,
@@ -165,25 +201,54 @@ export function ScanWorkspace() {
         current_category: job.current_category ?? null,
         categories_completed: job.categories_completed ?? [],
         total_categories: job.total_categories ?? 8,
+        attached_to_existing: job.attached_to_existing ?? false,
       });
 
-      // Cache hit: skip processing flash — go straight to results
+      if (job.attached_to_existing) {
+        setAttachedNote(true);
+      }
+
       if (job.status === "complete" && job.cache_hit) {
         const full = await getScan(job.job_id);
         setScan(full);
         setFindings(full.result?.findings ?? []);
         setMarkState("complete");
         setProgressLabel(null);
+        setAttachedNote(false);
         return;
       }
 
       await pollUntilDone(job.job_id);
     } catch (err) {
-      setMarkState("idle");
-      setProgressLabel(null);
-      setErrorFromMessage(err instanceof Error ? err.message : "Unknown error");
+      const category =
+        err instanceof ScanApiError ? err.errorCategory : null;
+      const message = err instanceof Error ? err.message : "Unknown error";
+      const kind = classifyScanError(message, category);
+
+      if (isFormValidationError(kind)) {
+        setFieldError(kind);
+        setMarkState("idle");
+        setProgressLabel(null);
+        setScanError(null);
+        return;
+      }
+
+      // DNS unreachable etc. rejected at submission — show scan-level error mark
+      setScanLevelFailure(kind === "generic" ? "internal_error" : kind);
     }
   }
+
+  async function onSubmit(e: FormEvent) {
+    e.preventDefault();
+    await startScan();
+  }
+
+  async function onRetry() {
+    setForce(true);
+    await startScan({ forceFresh: true });
+  }
+
+  const busy = markState === "processing";
 
   return (
     <div className="flex flex-1 flex-col">
@@ -197,15 +262,24 @@ export function ScanWorkspace() {
 
         <div className="mb-8 flex flex-col items-center gap-3">
           <SentinelMark state={markState} size={120} />
-          <p className="text-sm text-icta-gray-600">
+          <p className="text-center text-sm text-icta-gray-600">
             {markState === "processing" &&
-              (progressLabel || "Queued…")}
+              (attachedNote
+                ? progressLabel
+                  ? `${progressLabel} (already in progress)`
+                  : "A scan for this URL is already in progress…"
+                : progressLabel || "Queued…")}
             {markState === "complete" &&
               (scan?.cache_hit
                 ? "Served from cache (fresh within 24h)"
                 : "Scan complete")}
-            {markState === "idle" && !hasSubmitted && "Enter a .go.ke URL to scan"}
-            {markState === "idle" && hasSubmitted && error && errorTitle(error.kind)}
+            {markState === "error" &&
+              scanError &&
+              scanFailureMessage(scanError.kind)}
+            {markState === "idle" &&
+              !hasSubmitted &&
+              "Enter a .go.ke URL to scan"}
+            {markState === "idle" && hasSubmitted && fieldError && "Check the URL"}
           </p>
         </div>
 
@@ -215,45 +289,68 @@ export function ScanWorkspace() {
         </p>
 
         <form onSubmit={onSubmit} className="mb-8 space-y-3">
-          <input
-            type="url"
-            required
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            placeholder="https://example.go.ke"
-            className="w-full rounded-md border border-icta-gray-200 px-3 py-2 text-sm"
-            disabled={markState === "processing"}
-          />
+          <div>
+            <input
+              type="url"
+              required
+              value={url}
+              onChange={(e) => {
+                setUrl(e.target.value);
+                if (fieldError) setFieldError(null);
+              }}
+              placeholder="https://example.go.ke"
+              className={`w-full rounded-md border px-3 py-2 text-sm ${
+                fieldError
+                  ? "border-icta-red focus:outline-icta-red"
+                  : "border-icta-gray-200"
+              }`}
+              disabled={busy}
+              aria-invalid={Boolean(fieldError)}
+              aria-describedby={fieldError ? "url-field-error" : undefined}
+            />
+            {fieldError && (
+              <p
+                id="url-field-error"
+                className="mt-1.5 text-sm text-icta-red"
+                role="alert"
+              >
+                {formValidationMessage(fieldError)}
+              </p>
+            )}
+          </div>
           <label className="flex items-center gap-2 text-sm text-icta-gray-600">
             <input
               type="checkbox"
               checked={force}
               onChange={(e) => setForce(e.target.checked)}
-              disabled={markState === "processing"}
+              disabled={busy}
             />
             Force fresh scan (bypass cache)
           </label>
           <button
             type="submit"
-            disabled={markState === "processing"}
+            disabled={busy}
             className="rounded-md bg-icta-red px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
           >
             Start scan
           </button>
         </form>
 
-        {error && (
+        {scanError && markState === "error" && (
           <div
             className="mb-8 rounded-md border border-icta-red/20 bg-icta-red/5 px-4 py-4"
             role="alert"
           >
-            <p className="font-semibold text-icta-red">{errorTitle(error.kind)}</p>
-            <p className="mt-1 text-sm text-icta-gray-600">
-              {errorHint(error.kind)}
+            <p className="text-sm text-icta-gray-600">
+              {scanFailureMessage(scanError.kind)}
             </p>
-            <pre className="mt-3 overflow-x-auto whitespace-pre-wrap text-xs text-icta-red/90">
-              {error.message}
-            </pre>
+            <button
+              type="button"
+              onClick={onRetry}
+              className="mt-4 rounded-md border border-icta-black px-3 py-1.5 text-sm font-semibold text-icta-black hover:bg-icta-gray-50"
+            >
+              Try again
+            </button>
           </div>
         )}
 

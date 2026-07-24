@@ -37,7 +37,9 @@ class TestScanEndpoint:
                 json={"url": "https://example.com"},
             )
             assert response.status_code == 400
-            assert "not allowed" in response.json()["detail"]
+            detail = response.json()["detail"]
+            assert detail["error_category"] == "domain_not_allowed"
+            assert "go.ke" in detail["message"].lower()
 
     def test_create_scan_rejects_private_ip(self):
         with patch("app.core.ssrf.socket.getaddrinfo") as mock_dns:
@@ -47,11 +49,25 @@ class TestScanEndpoint:
                 json={"url": "https://internal.go.ke"},
             )
             assert response.status_code == 400
-            assert "blocked range" in response.json()["detail"]
+            detail = response.json()["detail"]
+            assert detail["error_category"] == "domain_not_allowed"
+
+    def test_create_scan_rejects_invalid_scheme(self):
+        response = client.post(
+            "/api/v1/scans",
+            json={"url": "ftp://www.ict.go.ke"},
+        )
+        assert response.status_code == 400
+        detail = response.json()["detail"]
+        assert detail["error_category"] == "invalid_url"
 
     def test_create_scan_accepts_valid_go_ke(self):
         with patch("app.core.ssrf.socket.getaddrinfo") as mock_dns, patch(
             "app.api.v1.scans.get_cached_scan", return_value=None
+        ), patch(
+            "app.api.v1.scans.get_active_scan_job_id", return_value=None
+        ), patch(
+            "app.api.v1.scans.claim_scan_lock", return_value=True
         ), patch(
             "app.api.v1.scans.create_scan_record", return_value="scan-uuid-1"
         ), patch("app.api.v1.scans.run_scan.delay") as mock_delay, patch(
@@ -67,8 +83,41 @@ class TestScanEndpoint:
             assert data["status"] == "queued"
             assert data["job_id"] == "scan-uuid-1"
             assert data["cache_hit"] is False
+            assert data["attached_to_existing"] is False
             mock_delay.assert_called_once_with("scan-uuid-1", "https://www.ict.go.ke")
             mock_set.assert_called_once()
+
+    def test_create_scan_attaches_to_in_progress(self):
+        with patch("app.core.ssrf.socket.getaddrinfo") as mock_dns, patch(
+            "app.api.v1.scans.get_cached_scan", return_value=None
+        ), patch(
+            "app.api.v1.scans.get_active_scan_job_id", return_value="existing-job"
+        ), patch(
+            "app.api.v1.scans.get_job_status",
+            return_value={
+                "job_id": "existing-job",
+                "status": "running",
+                "url": "https://www.ict.go.ke",
+                "progress": "Checking security…",
+                "current_category": "security",
+                "categories_completed": ["domain_identity"],
+                "total_categories": 8,
+            },
+        ), patch("app.api.v1.scans.create_scan_record") as mock_create, patch(
+            "app.api.v1.scans.run_scan.delay"
+        ) as mock_delay:
+            mock_dns.return_value = [(2, 1, 6, "", ("102.68.142.1", 0))]
+            response = client.post(
+                "/api/v1/scans",
+                json={"url": "https://www.ict.go.ke"},
+            )
+            assert response.status_code == 202
+            data = response.json()
+            assert data["job_id"] == "existing-job"
+            assert data["attached_to_existing"] is True
+            assert data["status"] == "running"
+            mock_create.assert_not_called()
+            mock_delay.assert_not_called()
 
     def test_create_scan_cache_hit_returns_immediately(self):
         cached = {
@@ -101,6 +150,10 @@ class TestScanEndpoint:
         with patch("app.core.ssrf.socket.getaddrinfo") as mock_dns, patch(
             "app.api.v1.scans.invalidate_cached_scan"
         ) as mock_inv, patch(
+            "app.api.v1.scans.get_active_scan_job_id", return_value=None
+        ), patch(
+            "app.api.v1.scans.claim_scan_lock", return_value=True
+        ), patch(
             "app.api.v1.scans.create_scan_record", return_value="fresh-1"
         ), patch("app.api.v1.scans.run_scan.delay") as mock_delay, patch(
             "app.api.v1.scans.set_job_status"

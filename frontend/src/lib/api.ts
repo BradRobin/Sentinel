@@ -2,6 +2,14 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8001";
 
 function formatApiDetail(detail: unknown): string {
   if (typeof detail === "string") return detail;
+  if (
+    typeof detail === "object" &&
+    detail &&
+    "message" in detail &&
+    typeof (detail as { message: unknown }).message === "string"
+  ) {
+    return (detail as { message: string }).message;
+  }
   if (Array.isArray(detail)) {
     return detail
       .map((item) =>
@@ -12,6 +20,27 @@ function formatApiDetail(detail: unknown): string {
       .join("; ");
   }
   return "Request failed";
+}
+
+function extractErrorCategory(detail: unknown): string | null {
+  if (
+    typeof detail === "object" &&
+    detail &&
+    "error_category" in detail &&
+    typeof (detail as { error_category: unknown }).error_category === "string"
+  ) {
+    return (detail as { error_category: string }).error_category;
+  }
+  return null;
+}
+
+export class ScanApiError extends Error {
+  errorCategory: string | null;
+  constructor(message: string, errorCategory: string | null = null) {
+    super(message);
+    this.name = "ScanApiError";
+    this.errorCategory = errorCategory;
+  }
 }
 
 export interface HealthResponse {
@@ -30,6 +59,7 @@ export interface ScanJobResponse {
   current_category?: string | null;
   categories_completed?: string[];
   total_categories?: number;
+  attached_to_existing?: boolean;
 }
 
 export interface Finding {
@@ -76,6 +106,7 @@ export interface ScanStatusResponse {
   total_categories?: number;
   updated_at?: string | null;
   error_category?: string | null;
+  attached_to_existing?: boolean;
 }
 
 export interface QuarterScoreSnapshot {
@@ -116,16 +147,17 @@ export async function createScan(
       body: JSON.stringify({ url, force: options?.force ?? false }),
     });
   } catch {
-    throw new Error(
-      `Failed to reach Sentinel API at ${API_URL}. Check docker compose is up and CORS allows this page origin (localhost and 127.0.0.1).`,
+    throw new ScanApiError(
+      "Failed to reach the Sentinel API. Check that Docker is running.",
+      "unreachable",
     );
   }
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    const detail = formatApiDetail((body as { detail?: unknown }).detail);
-    throw new Error(
-      `${detail} (POST ${API_URL}/api/v1/scans — is the Sentinel API running on port 8001?)`,
-    );
+    const detail = (body as { detail?: unknown }).detail;
+    const category = extractErrorCategory(detail);
+    const message = formatApiDetail(detail);
+    throw new ScanApiError(message, category);
   }
   return res.json();
 }
@@ -136,8 +168,8 @@ export async function getScan(jobId: string): Promise<ScanStatusResponse> {
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    const detail = formatApiDetail((body as { detail?: unknown }).detail);
-    throw new Error(`${detail} (GET ${API_URL}/api/v1/scans/${jobId})`);
+    const detail = (body as { detail?: unknown }).detail;
+    throw new ScanApiError(formatApiDetail(detail), extractErrorCategory(detail));
   }
   return res.json();
 }

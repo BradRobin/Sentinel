@@ -169,6 +169,226 @@ export function findingSummaryLine(finding: Finding): string {
   return `Clause ${finding.clause_reference}`;
 }
 
+/** Keys rendered as prose callouts in the side-panel detail view. */
+const DETAIL_MESSAGE_KEYS = [
+  "error",
+  "fetch_error",
+  "certificate_error",
+  "reason",
+  "message",
+  "summary",
+  "note",
+] as const;
+
+/** Meta flags already reflected by finding status / badges — omit from detail. */
+const DETAIL_SKIP_KEYS = new Set(["requires_manual_review"]);
+
+const DETAIL_KEY_LABELS: Record<string, string> = {
+  error: "Error",
+  fetch_error: "Fetch error",
+  certificate_error: "Certificate error",
+  reason: "Reason",
+  message: "Message",
+  summary: "Summary",
+  note: "Note",
+  missing: "Missing",
+  exposed: "Exposed paths",
+  issues: "Issues",
+  probed: "Paths probed",
+  samples: "Sample images",
+  unlabeled: "Unlabeled inputs",
+  oversized: "Oversized images",
+  decorative_with_nonempty_alt: "Decorative images with alt text",
+  autoplay_elements: "Autoplay elements",
+  duplicate_urls: "Duplicate URLs",
+  fonts_detected: "Fonts detected",
+  unapproved: "Unapproved fonts",
+  allowed_suffixes: "Allowed suffixes",
+  present: "Headers present",
+  sample_headers: "Sample headers",
+  robots_txt: "robots.txt",
+  sitemap_xml: "sitemap.xml",
+  standard_band_ms: "Standard band (ms)",
+  https_enforced: "HTTPS enforced",
+  certificate_valid: "Certificate valid",
+  certificate_expires_at: "Certificate expires",
+  skip_navigation_detected: "Skip navigation detected",
+  linked_or_mentioned: "Linked or mentioned",
+  cookies_detected: "Cookies detected",
+  consent_ui: "Consent UI",
+  utf8_declared: "UTF-8 declared",
+  declared_charset: "Declared charset",
+  content_type: "Content type",
+  has_doctype: "Has doctype",
+  has_title: "Has title",
+  has_description: "Has description",
+  indexable_signals: "Indexable signals",
+  robots_meta: "Robots meta",
+  x_robots_tag: "X-Robots-Tag",
+  robots_disallow_all: "Robots disallow all",
+  excessive_inline: "Excessive inline styles",
+  external_stylesheets: "External stylesheets",
+  style_blocks: "Style blocks",
+  inline_style_attrs: "Inline style attributes",
+  images_total: "Images total",
+  missing_alt_count: "Missing alt count",
+  tables_total: "Tables total",
+  tables_missing_th: "Tables missing headers",
+  images_found: "Images found",
+  images_checked: "Images checked",
+  threshold_bytes: "Size threshold",
+  elapsed_ms: "Elapsed",
+  max_ms: "Maximum allowed",
+  max_allowed: "Maximum allowed",
+  http_status: "HTTP status",
+  registrable_part: "Registrable part",
+};
+
+export function labelDetailKey(key: string): string {
+  if (DETAIL_KEY_LABELS[key]) return DETAIL_KEY_LABELS[key];
+  const spaced = key.replaceAll("_", " ");
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+}
+
+function formatBytes(n: number): string {
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+  return `${(n / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function formatMs(n: number): string {
+  if (n >= 1000) {
+    const sec = Math.round((n / 1000) * 10) / 10;
+    return `${sec}s (${n} ms)`;
+  }
+  return `${n} ms`;
+}
+
+export function formatDetailScalar(key: string, value: unknown): string {
+  if (value === null || value === undefined) return "—";
+  if (typeof value === "boolean") return value ? "Yes" : "No";
+  if (typeof value === "number") {
+    if (
+      key === "bytes" ||
+      key === "threshold_bytes" ||
+      key.endsWith("_bytes")
+    ) {
+      return formatBytes(value);
+    }
+    if (key === "elapsed_ms" || key === "max_ms" || key.endsWith("_ms")) {
+      return formatMs(value);
+    }
+    return String(value);
+  }
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return trimmed || "—";
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => formatDetailListItem(item)).join(", ");
+  }
+  return String(value);
+}
+
+/** Compact one-line representation of a list item (string or object). */
+export function formatDetailListItem(item: unknown): string {
+  if (item === null || item === undefined) return "—";
+  if (typeof item === "string" || typeof item === "number" || typeof item === "boolean") {
+    return String(item);
+  }
+  if (typeof item !== "object") return String(item);
+
+  const o = item as Record<string, unknown>;
+
+  if (typeof o.path === "string") {
+    const parts = [o.path];
+    if (o.status_code != null) parts.push(`HTTP ${o.status_code}`);
+    if (typeof o.bytes === "number") parts.push(formatBytes(o.bytes));
+    return parts.join(" · ");
+  }
+
+  if (typeof o.url === "string") {
+    const parts = [o.url];
+    if (typeof o.bytes === "number") parts.push(formatBytes(o.bytes));
+    return parts.join(" · ");
+  }
+
+  if (typeof o.src === "string") {
+    const parts = [o.src];
+    if (typeof o.alt === "string" && o.alt) parts.push(`alt: “${o.alt}”`);
+    return parts.join(" · ");
+  }
+
+  if ("name" in o || "type" in o || "id" in o) {
+    const parts: string[] = [];
+    if (o.name != null && o.name !== "") parts.push(`name: ${o.name}`);
+    if (o.type != null && o.type !== "") parts.push(`type: ${o.type}`);
+    if (o.id != null && o.id !== "") parts.push(`id: ${o.id}`);
+    if (parts.length) return parts.join(" · ");
+  }
+
+  return Object.entries(o)
+    .map(([k, v]) => `${labelDetailKey(k)}: ${formatDetailScalar(k, v)}`)
+    .join(" · ");
+}
+
+export interface PartitionedFindingDetail {
+  messages: { key: string; value: string }[];
+  lists: { key: string; items: unknown[] }[];
+  objects: { key: string; value: Record<string, unknown> }[];
+  scalars: { key: string; value: unknown }[];
+}
+
+/**
+ * Split detail jsonb into display buckets: prose messages, lists,
+ * nested objects, and scalar rows. Unknown shapes fall through to scalars.
+ */
+export function partitionFindingDetail(
+  detail: Record<string, unknown> | null | undefined,
+): PartitionedFindingDetail {
+  const d = detail ?? {};
+  const used = new Set<string>();
+  const messages: PartitionedFindingDetail["messages"] = [];
+  const lists: PartitionedFindingDetail["lists"] = [];
+  const objects: PartitionedFindingDetail["objects"] = [];
+  const scalars: PartitionedFindingDetail["scalars"] = [];
+
+  for (const key of DETAIL_MESSAGE_KEYS) {
+    const v = d[key];
+    if (typeof v === "string" && v.trim()) {
+      messages.push({ key, value: v.trim() });
+      used.add(key);
+    }
+  }
+
+  for (const [key, value] of Object.entries(d)) {
+    if (used.has(key) || DETAIL_SKIP_KEYS.has(key)) continue;
+
+    if (Array.isArray(value)) {
+      lists.push({ key, items: value });
+      used.add(key);
+      continue;
+    }
+
+    if (value !== null && typeof value === "object") {
+      objects.push({ key, value: value as Record<string, unknown> });
+      used.add(key);
+      continue;
+    }
+
+    // Skip empty strings already covered; still show other scalars
+    if (typeof value === "string" && !value.trim()) {
+      used.add(key);
+      continue;
+    }
+
+    scalars.push({ key, value });
+    used.add(key);
+  }
+
+  return { messages, lists, objects, scalars };
+}
+
 export interface FindingVisualWeight {
   /** Left border + optional tint — non-color severity cue */
   row: string;

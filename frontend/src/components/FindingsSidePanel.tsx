@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo } from "react";
 
+import { FindingDetailView } from "@/components/FindingDetailView";
 import type { Finding } from "@/lib/api";
 import { findingVisualWeight, labelCategory } from "@/lib/findings";
 
@@ -121,9 +122,7 @@ export function FindingsSidePanel({
                       <span className={weight.severityLabel}>{f.severity}</span>{" "}
                       · {f.automatability_type}
                     </div>
-                    <pre className="mt-2 overflow-x-auto rounded bg-icta-gray-50 p-2 text-xs text-icta-black">
-                      {JSON.stringify(f.detail, null, 2)}
-                    </pre>
+                    <FindingDetailView detail={f.detail ?? {}} />
                   </li>
                 );
               })}

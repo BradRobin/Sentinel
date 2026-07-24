@@ -199,6 +199,7 @@ export function RegistryDashboard() {
           <table className="w-full min-w-[40rem] text-left text-sm">
             <thead>
               <tr className="border-b border-icta-gray-200 text-xs uppercase tracking-wide text-icta-gray-600">
+                <th className="w-10 py-3 pr-3 font-medium tabular-nums">#</th>
                 <th className="py-3 pr-4 font-medium">Organization</th>
                 <th className="py-3 pr-4 font-medium">Type</th>
                 <th className="py-3 pr-4 font-medium">Score</th>
@@ -213,7 +214,7 @@ export function RegistryDashboard() {
               {items.length === 0 && !pending && !error && (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={7}
                     className="py-10 text-center text-icta-gray-600"
                   >
                     No verified MCDAs yet. Seed the registry to populate this
@@ -221,11 +222,14 @@ export function RegistryDashboard() {
                   </td>
                 </tr>
               )}
-              {items.map((row) => (
+              {items.map((row, index) => (
                 <tr
                   key={row.domain_id}
                   className="border-b border-icta-gray-100 align-top"
                 >
+                  <td className="py-3 pr-3 tabular-nums text-icta-gray-600">
+                    {index + 1}
+                  </td>
                   <td className="py-3 pr-4">
                     <div className="font-medium text-icta-black">
                       {row.registered_name || row.org_name}

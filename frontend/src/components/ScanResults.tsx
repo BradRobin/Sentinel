@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 
 import { ComparisonSidePanel } from "@/components/ComparisonSidePanel";
 import { FindingsSidePanel } from "@/components/FindingsSidePanel";
-import { CategoryScoreBars, StatusDonut } from "@/components/ScoreCharts";
 import {
   getScanComparison,
   type CategoryScore,
@@ -202,14 +201,26 @@ export function ScanResults({
   return (
     <div className="space-y-8">
       <section>
-        {overallScore !== null && overallScore !== undefined && (
+        {resultsReady && overallScore !== null && overallScore !== undefined ? (
           <div className="mb-3 text-4xl font-bold tracking-tight text-icta-black">
             {Number(overallScore).toFixed(1)}%
             <span className="ml-2 text-base font-medium text-icta-gray-600">
               compliance
             </span>
           </div>
-        )}
+        ) : !resultsReady ? (
+          <div
+            className="mb-3 rounded-md border border-dashed border-icta-gray-200 px-3 py-4"
+            aria-live="polite"
+          >
+            <p className="text-sm font-medium text-icta-gray-600">
+              Overall score pending…
+            </p>
+            <p className="mt-1 text-xs text-icta-gray-600">
+              Weighted score and summary appear when all checks finish.
+            </p>
+          </div>
+        ) : null}
 
         {showDeclineHeadline && comparison?.previous && comparison?.current && (
           <p className="mb-3 text-base text-icta-black">
@@ -229,7 +240,8 @@ export function ScanResults({
         <p className="text-base leading-relaxed text-icta-black">
           Scan of{" "}
           <span className="font-medium">{scannedUrl ?? "this site"}</span>
-          {cacheHit ? " (cached)" : ""} found{" "}
+          {cacheHit ? " (cached)" : ""}
+          {!resultsReady ? " so far" : ""} found{" "}
           <InlineStat
             count={stats.fail}
             label={stats.fail === 1 ? "failure" : "failures"}
@@ -260,14 +272,7 @@ export function ScanResults({
           .
         </p>
 
-        <div className="mt-5">
-          <StatusDonut
-            findings={findings}
-            onSelect={(filter) => openPanel(filter)}
-          />
-        </div>
-
-        {jobId && comparison !== null && (
+        {resultsReady && jobId && comparison !== null && (
           <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1">
             <button
               type="button"
@@ -290,14 +295,21 @@ export function ScanResults({
         )}
       </section>
 
-      {narrative ? (
+      {resultsReady && narrative ? (
         <section aria-label="Scan summary">
           <h2 className="mb-2 text-lg font-semibold text-icta-black">Summary</h2>
           <p className="text-base leading-relaxed text-icta-black">{narrative}</p>
         </section>
+      ) : !resultsReady ? (
+        <section aria-label="Scan summary pending" aria-busy="true">
+          <h2 className="mb-2 text-lg font-semibold text-icta-black">Summary</h2>
+          <p className="text-sm text-icta-gray-600">
+            Summary will appear after scoring finishes.
+          </p>
+        </section>
       ) : null}
 
-      {topIssues.length > 0 && (
+      {resultsReady && topIssues.length > 0 ? (
         <section>
           <h2 className="mb-3 text-lg font-semibold text-icta-black">
             Top issues
@@ -332,21 +344,63 @@ export function ScanResults({
             })}
           </ul>
         </section>
-      )}
+      ) : !resultsReady ? (
+        <section aria-busy="true">
+          <h2 className="mb-3 text-lg font-semibold text-icta-black">
+            Top issues
+          </h2>
+          <p className="text-sm text-icta-gray-600">
+            Top issues will be ranked once all categories complete.
+          </p>
+        </section>
+      ) : null}
 
-      {categoryScores.length > 0 && (
+      {resultsReady && categoryScores.length > 0 && (
         <section>
-          <CategoryScoreBars
-            categoryScores={categoryScores}
-            findings={findings}
-            onCategoryClick={(category) => openPanel("all", category)}
-          />
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[280px] text-left text-sm">
+              <thead>
+                <tr className="border-b border-icta-gray-200 text-icta-gray-600">
+                  <th className="py-2 pr-4 font-medium">Category</th>
+                  <th className="py-2 font-medium">Score</th>
+                </tr>
+              </thead>
+              <tbody>
+                {categoryScores.map((c) => (
+                  <tr key={c.category} className="border-b border-icta-gray-100">
+                    <td className="py-2 pr-4">
+                      <button
+                        type="button"
+                        className="text-left text-icta-black underline decoration-from-font underline-offset-2 hover:opacity-80"
+                        onClick={() => openPanel("all", c.category)}
+                      >
+                        {labelCategory(c.category)}
+                      </button>
+                    </td>
+                    <td className="py-2 font-mono text-icta-black">
+                      {Number(c.score).toFixed(1)}%
+                      {c.weight != null ? (
+                        <span className="ml-2 text-icta-gray-600">
+                          wt {c.weight}
+                        </span>
+                      ) : null}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </section>
       )}
 
       <section className="space-y-6">
         <h2 className="text-lg font-semibold text-icta-black">
           Findings by category
+          {!resultsReady ? (
+            <span className="ml-2 text-sm font-normal text-icta-gray-600">
+              (updating)
+            </span>
+          ) : null}
         </h2>
         {grouped.map((group) => {
           const catScore = scoreByCategory.get(group.category);

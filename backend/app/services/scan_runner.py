@@ -44,7 +44,8 @@ CATEGORY_LABELS: dict[str, str] = {
     "seo": "Checking SEO and visibility…",
 }
 
-ProgressCallback = Callable[[str | None, list[str]], None]
+# current_category, categories_completed, findings_so_far (scored categories only)
+ProgressCallback = Callable[[str | None, list[str], list[Finding]], None]
 
 
 def run_all_checks(
@@ -57,16 +58,17 @@ def run_all_checks(
     """
     Run checks in scoring order.
 
-    ``on_progress(current_category, categories_completed)`` is invoked
-    immediately *before* each scored category starts, and again after it
-    finishes (so ``categories_completed`` advances while the category key
-    is still current). Fetch / monitoring / manual_review are not part of
-    the scored progress sequence.
+    ``on_progress(current_category, categories_completed, findings_so_far)``
+    is invoked immediately *before* each scored category starts, and again
+    after it finishes (so ``categories_completed`` advances while the
+    category key is still current). ``findings_so_far`` includes only
+    findings from completed scored categories. Fetch / monitoring /
+    manual_review are not part of the scored progress sequence.
     """
 
-    def report(current: str | None, completed: list[str]) -> None:
+    def report(current: str | None, completed: list[str], so_far: list[Finding]) -> None:
         if on_progress:
-            on_progress(current, list(completed))
+            on_progress(current, list(completed), list(so_far))
 
     # Fetch phase: no current_category yet (UI stays on Queued…)
     snap = load_page_snapshot(
@@ -107,10 +109,10 @@ def run_all_checks(
     ]
 
     for category, runner in runners:
-        report(category, completed)
+        report(category, completed, findings)
         findings.extend(runner())
         completed.append(category)
-        report(category, completed)
+        report(category, completed, findings)
 
     # Excluded from scored progress sequence
     findings.extend(run_monitoring_checks(snap))

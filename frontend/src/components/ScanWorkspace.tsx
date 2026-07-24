@@ -43,6 +43,11 @@ function processingLabel(
   if (!status || status.status === "queued") return fallbackQueued;
   if (status.status !== "running") return fallbackQueued;
 
+  // Post-checks phase: scoring / narrative (no current_category)
+  if (status.progress && !status.current_category) {
+    return status.progress;
+  }
+
   const category = status.current_category ?? null;
   if (!category) return fallbackQueued;
 
@@ -99,9 +104,12 @@ export function ScanWorkspace() {
   const [attachedNote, setAttachedNote] = useState(false);
   const [hasSubmitted, setHasSubmitted] = useState(false);
 
-  const overallScore =
-    scan?.result?.overall_score ?? scan?.result?.scores?.overall_score ?? null;
-  const categoryScores = scan?.result?.scores?.categories ?? [];
+  const resultsReady = scan?.status === "complete";
+  const overallScore = resultsReady
+    ? (scan?.result?.overall_score ?? scan?.result?.scores?.overall_score ?? null)
+    : null;
+  const categoryScores = resultsReady ? (scan?.result?.scores?.categories ?? []) : [];
+  const narrative = resultsReady ? (scan?.result?.narrative ?? null) : null;
   const showEmptyIdle =
     !hasSubmitted &&
     !fieldError &&
@@ -137,6 +145,11 @@ export function ScanWorkspace() {
 
       setScan(status);
       setMarkState(markStateFromStatus(status.status));
+
+      const nextFindings = status.result?.findings;
+      if (nextFindings && nextFindings.length > 0) {
+        setFindings(nextFindings);
+      }
 
       if (status.status === "complete") {
         setFindings(status.result?.findings ?? []);
@@ -362,10 +375,11 @@ export function ScanWorkspace() {
           </div>
         )}
 
-        {scan && markState === "complete" && findings.length > 0 && (
+        {scan && findings.length > 0 && (
           <div className="mb-4 text-xs text-icta-gray-600">
             Job {scan.job_id}
             {scan.cache_hit ? " · cache" : ""}
+            {!resultsReady ? " · results updating…" : ""}
           </div>
         )}
 
@@ -380,8 +394,9 @@ export function ScanWorkspace() {
             categoryScores={categoryScores}
             cacheHit={scan?.cache_hit}
             scannedUrl={scan?.url}
-            jobId={scan?.job_id}
-            narrative={scan?.result?.narrative ?? null}
+            jobId={resultsReady ? scan?.job_id : null}
+            narrative={narrative}
+            resultsReady={resultsReady}
           />
         )}
       </main>

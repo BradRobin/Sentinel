@@ -98,6 +98,8 @@ export interface ScanStatusResponse {
     scores?: ScoresPayload;
     overall_score?: number | null;
     narrative?: string | null;
+    /** True while categories are still running; false/absent when fully scored. */
+    partial?: boolean;
   } | null;
   error: string | null;
   cache_hit?: boolean;

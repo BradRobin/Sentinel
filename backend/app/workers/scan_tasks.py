@@ -211,7 +211,21 @@ def run_scan(self, scan_id: str, url: str) -> dict[str, Any]:
     current_category: str | None = None
     categories_completed: list[str] = []
 
-    def on_progress(category: str | None, completed: list[str]) -> None:
+    def _partial_result(findings_so_far: list) -> dict[str, Any] | None:
+        if not findings_so_far:
+            return None
+        findings_payload = [f.model_dump(mode="json") for f in findings_so_far]
+        return {
+            "findings": findings_payload,
+            "finding_count": len(findings_payload),
+            "partial": True,
+        }
+
+    def on_progress(
+        category: str | None,
+        completed: list[str],
+        findings_so_far: list | None = None,
+    ) -> None:
         nonlocal current_category, categories_completed
         current_category = category
         categories_completed = list(completed)
@@ -225,6 +239,7 @@ def run_scan(self, scan_id: str, url: str) -> dict[str, Any]:
                 current_category=category,
                 categories_completed=categories_completed,
                 progress=label,
+                result=_partial_result(findings_so_far or []),
             ),
         )
 
@@ -256,6 +271,20 @@ def run_scan(self, scan_id: str, url: str) -> dict[str, Any]:
                 future.cancel()
                 raise ScanAbortError("timeout") from exc
 
+        # Publish full findings while scoring + narrative still run
+        set_job_status(
+            scan_id,
+            _base_payload(
+                scan_id,
+                url,
+                status="running",
+                current_category=None,
+                categories_completed=list(categories_completed),
+                progress="Scoring and preparing summary…",
+                result=_partial_result(findings),
+            ),
+        )
+
         save_findings(scan_id, findings)
         score_result = compute_scores(findings)
         save_scores(scan_id, score_result)
@@ -280,6 +309,7 @@ def run_scan(self, scan_id: str, url: str) -> dict[str, Any]:
             "scores": scores_payload,
             "overall_score": round(score_result.overall_score, 2),
             "narrative": narrative,
+            "partial": False,
         }
         payload = _base_payload(
             scan_id,

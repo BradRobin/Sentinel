@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { FormEvent, useState } from "react";
 
+import { ScanResults } from "@/components/ScanResults";
 import { SentinelMark } from "@/components/SentinelMark";
 import {
   createScan,
@@ -10,6 +11,12 @@ import {
   type Finding,
   type ScanStatusResponse,
 } from "@/lib/api";
+import {
+  classifyScanError,
+  errorHint,
+  errorTitle,
+  type ScanErrorKind,
+} from "@/lib/findings";
 import type { SentinelMarkState } from "@/lib/sentinel-mark-paths";
 
 function markStateFromStatus(status: string | null): SentinelMarkState {
@@ -18,18 +25,47 @@ function markStateFromStatus(status: string | null): SentinelMarkState {
   return "idle";
 }
 
+interface ErrorState {
+  kind: ScanErrorKind;
+  message: string;
+}
+
+function EmptyIdle() {
+  return (
+    <div className="rounded-md border border-dashed border-icta-gray-200 px-4 py-10 text-center">
+      <p className="text-sm font-medium text-icta-black">No scan yet</p>
+      <p className="mt-1 text-sm text-icta-gray-600">
+        Enter a public .go.ke or .gov.ke URL above to run compliance checks.
+      </p>
+    </div>
+  );
+}
+
 export function ScanWorkspace() {
   const [url, setUrl] = useState("https://www.ict.go.ke");
   const [force, setForce] = useState(false);
   const [markState, setMarkState] = useState<SentinelMarkState>("idle");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<ErrorState | null>(null);
   const [scan, setScan] = useState<ScanStatusResponse | null>(null);
   const [findings, setFindings] = useState<Finding[]>([]);
   const [progress, setProgress] = useState<string | null>(null);
+  const [hasSubmitted, setHasSubmitted] = useState(false);
 
   const overallScore =
     scan?.result?.overall_score ?? scan?.result?.scores?.overall_score ?? null;
   const categoryScores = scan?.result?.scores?.categories ?? [];
+  const showEmptyIdle =
+    !hasSubmitted && !error && findings.length === 0 && markState === "idle";
+  const showEmptyComplete =
+    hasSubmitted &&
+    markState === "complete" &&
+    !error &&
+    findings.length === 0;
+
+  function setErrorFromMessage(message: string) {
+    const kind = classifyScanError(message);
+    setError({ kind, message });
+  }
 
   async function pollUntilDone(jobId: string) {
     for (let i = 0; i < 90; i++) {
@@ -44,27 +80,37 @@ export function ScanWorkspace() {
         return;
       }
       if (status.status === "failed") {
-        setError(status.error ?? "Scan failed");
+        setErrorFromMessage(status.error ?? "Scan failed");
         setProgress(null);
+        setMarkState("idle");
         return;
       }
       await new Promise((r) => setTimeout(r, 800));
     }
-    setError("Scan timed out");
+    setErrorFromMessage("Scan timed out");
     setMarkState("idle");
     setProgress(null);
   }
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
+    setHasSubmitted(true);
     setError(null);
     setScan(null);
     setFindings([]);
     setProgress("Queued…");
     setMarkState("processing");
 
+    const trimmed = url.trim();
+    if (!trimmed) {
+      setErrorFromMessage("URL is required");
+      setMarkState("idle");
+      setProgress(null);
+      return;
+    }
+
     try {
-      const job = await createScan(url.trim(), { force });
+      const job = await createScan(trimmed, { force });
       setScan({
         ...job,
         url: job.url,
@@ -75,7 +121,6 @@ export function ScanWorkspace() {
       });
 
       if (job.status === "complete" && job.cache_hit) {
-        // Cache hit — fetch full payload (findings) via GET
         const full = await getScan(job.job_id);
         setScan(full);
         setFindings(full.result?.findings ?? []);
@@ -88,13 +133,13 @@ export function ScanWorkspace() {
     } catch (err) {
       setMarkState("idle");
       setProgress(null);
-      setError(err instanceof Error ? err.message : "Unknown error");
+      setErrorFromMessage(err instanceof Error ? err.message : "Unknown error");
     }
   }
 
   return (
     <div className="flex flex-1 flex-col">
-      <main className="mx-auto w-full max-w-2xl flex-1 px-6 py-16">
+      <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-16">
         <Link
           href="/"
           className="mb-8 inline-block text-sm text-icta-gray-600 hover:text-icta-black"
@@ -105,18 +150,20 @@ export function ScanWorkspace() {
         <div className="mb-8 flex flex-col items-center gap-3">
           <SentinelMark state={markState} size={120} />
           <p className="text-sm text-icta-gray-600">
-            {markState === "processing" && (progress || "Running compliance checks…")}
+            {markState === "processing" &&
+              (progress || "Running compliance checks…")}
             {markState === "complete" &&
               (scan?.cache_hit
                 ? "Served from cache (fresh within 24h)"
                 : "Scan complete")}
-            {markState === "idle" && !scan && "Enter a .go.ke URL to scan"}
+            {markState === "idle" && !hasSubmitted && "Enter a .go.ke URL to scan"}
+            {markState === "idle" && hasSubmitted && error && errorTitle(error.kind)}
           </p>
         </div>
 
         <h1 className="mb-2 text-2xl font-bold text-icta-black">Scan</h1>
         <p className="mb-6 text-sm text-icta-gray-600">
-          Full ICTA.6.002:2019 §6.4 checklist preview — results cached for 24 hours
+          ICTA.6.002:2019 §6.4 compliance checks — results cached for 24 hours
         </p>
 
         <form onSubmit={onSubmit} className="mb-8 space-y-3">
@@ -127,12 +174,14 @@ export function ScanWorkspace() {
             onChange={(e) => setUrl(e.target.value)}
             placeholder="https://example.go.ke"
             className="w-full rounded-md border border-icta-gray-200 px-3 py-2 text-sm"
+            disabled={markState === "processing"}
           />
           <label className="flex items-center gap-2 text-sm text-icta-gray-600">
             <input
               type="checkbox"
               checked={force}
               onChange={(e) => setForce(e.target.checked)}
+              disabled={markState === "processing"}
             />
             Force fresh scan (bypass cache)
           </label>
@@ -146,67 +195,47 @@ export function ScanWorkspace() {
         </form>
 
         {error && (
-          <pre className="mb-6 whitespace-pre-wrap rounded-md bg-icta-red/10 p-3 text-sm text-icta-red">
-            {error}
-          </pre>
+          <div
+            className="mb-8 rounded-md border border-icta-red/20 bg-icta-red/5 px-4 py-4"
+            role="alert"
+          >
+            <p className="font-semibold text-icta-red">{errorTitle(error.kind)}</p>
+            <p className="mt-1 text-sm text-icta-gray-600">
+              {errorHint(error.kind)}
+            </p>
+            <pre className="mt-3 overflow-x-auto whitespace-pre-wrap text-xs text-icta-red/90">
+              {error.message}
+            </pre>
+          </div>
         )}
 
-        {scan && (
-          <p className="mb-4 text-sm text-icta-gray-600">
-            Job: {scan.job_id} · Status: {scan.status}
-            {scan.cache_hit ? " · cache hit" : ""}
-            {scan.url ? ` · ${scan.url}` : ""}
-          </p>
+        {showEmptyIdle && <EmptyIdle />}
+
+        {showEmptyComplete && (
+          <div className="rounded-md border border-dashed border-icta-gray-200 px-4 py-8 text-center text-sm text-icta-gray-600">
+            Scan finished, but no findings were returned.
+          </div>
         )}
 
-        {overallScore !== null && overallScore !== undefined && (
-          <div className="mb-8 rounded-md border border-icta-gray-200 p-4">
-            <div className="mb-1 text-sm font-medium uppercase tracking-wide text-icta-gray-600">
-              Compliance score
-            </div>
-            <div className="mb-4 text-4xl font-bold text-icta-black">
-              {Number(overallScore).toFixed(1)}%
-            </div>
-            {categoryScores.length > 0 && (
-              <ul className="space-y-1 text-sm text-icta-gray-600">
-                {categoryScores.map((c) => (
-                  <li key={c.category} className="flex justify-between gap-4">
-                    <span>{c.category.replaceAll("_", " ")}</span>
-                    <span className="font-mono text-icta-black">
-                      {Number(c.score).toFixed(1)}%
-                      {c.weight != null ? ` · wt ${c.weight}` : ""}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
+        {scan && markState === "complete" && findings.length > 0 && (
+          <div className="mb-4 text-xs text-icta-gray-600">
+            Job {scan.job_id}
+            {scan.cache_hit ? " · cache" : ""}
           </div>
         )}
 
         {findings.length > 0 && (
-          <div>
-            <h2 className="mb-3 text-lg font-semibold">
-              Findings ({findings.length})
-            </h2>
-            <ul className="space-y-3">
-              {findings.map((f) => (
-                <li
-                  key={`${f.check_name}-${f.clause_reference}`}
-                  className="rounded-md border border-icta-gray-200 p-3 text-sm"
-                >
-                  <div className="font-medium">
-                    [{f.status}] {f.check_name} — clause {f.clause_reference}
-                  </div>
-                  <div className="text-icta-gray-600">
-                    {f.category} · {f.severity} · {f.automatability_type}
-                  </div>
-                  <pre className="mt-2 overflow-x-auto text-xs">
-                    {JSON.stringify(f.detail, null, 2)}
-                  </pre>
-                </li>
-              ))}
-            </ul>
-          </div>
+          <ScanResults
+            findings={findings}
+            overallScore={
+              overallScore !== null && overallScore !== undefined
+                ? Number(overallScore)
+                : null
+            }
+            categoryScores={categoryScores}
+            cacheHit={scan?.cache_hit}
+            scannedUrl={scan?.url}
+          />
         )}
       </main>
     </div>

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { ComparisonSidePanel } from "@/components/ComparisonSidePanel";
 import { FindingsSidePanel } from "@/components/FindingsSidePanel";
+import { CategoryScoreBars, StatusDonut } from "@/components/ScoreCharts";
 import {
   getScanComparison,
   type CategoryScore,
@@ -32,6 +33,8 @@ interface ScanResultsProps {
   scannedUrl?: string | null;
   jobId?: string | null;
   narrative?: string | null;
+  /** False while categories are still streaming; gates score / top issues / narrative. */
+  resultsReady?: boolean;
 }
 
 function InlineStat({
@@ -103,10 +106,14 @@ export function ScanResults({
   scannedUrl,
   jobId,
   narrative,
+  resultsReady = true,
 }: ScanResultsProps) {
   const stats = useMemo(() => summarizeFindings(findings), [findings]);
   const grouped = useMemo(() => groupFindingsByCategory(findings), [findings]);
-  const topIssues = useMemo(() => topFailFindings(findings, 3), [findings]);
+  const topIssues = useMemo(
+    () => (resultsReady ? topFailFindings(findings, 3) : []),
+    [findings, resultsReady],
+  );
   const scoreByCategory = useMemo(() => {
     const map = new Map<string, number>();
     for (const c of categoryScores) map.set(c.category, c.score);
@@ -122,7 +129,7 @@ export function ScanResults({
   const [comparisonOpen, setComparisonOpen] = useState(false);
 
   useEffect(() => {
-    if (!jobId) {
+    if (!jobId || !resultsReady) {
       setComparison(null);
       return;
     }
@@ -137,7 +144,7 @@ export function ScanResults({
     return () => {
       cancelled = true;
     };
-  }, [jobId]);
+  }, [jobId, resultsReady]);
 
   const hasHistory = comparison?.has_history === true;
   const overallDelta = comparison?.delta?.overall ?? null;
@@ -253,6 +260,13 @@ export function ScanResults({
           .
         </p>
 
+        <div className="mt-5">
+          <StatusDonut
+            findings={findings}
+            onSelect={(filter) => openPanel(filter)}
+          />
+        </div>
+
         {jobId && comparison !== null && (
           <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1">
             <button
@@ -322,39 +336,11 @@ export function ScanResults({
 
       {categoryScores.length > 0 && (
         <section>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[280px] text-left text-sm">
-              <thead>
-                <tr className="border-b border-icta-gray-200 text-icta-gray-600">
-                  <th className="py-2 pr-4 font-medium">Category</th>
-                  <th className="py-2 font-medium">Score</th>
-                </tr>
-              </thead>
-              <tbody>
-                {categoryScores.map((c) => (
-                  <tr key={c.category} className="border-b border-icta-gray-100">
-                    <td className="py-2 pr-4">
-                      <button
-                        type="button"
-                        className="text-left text-icta-black underline decoration-from-font underline-offset-2 hover:opacity-80"
-                        onClick={() => openPanel("all", c.category)}
-                      >
-                        {labelCategory(c.category)}
-                      </button>
-                    </td>
-                    <td className="py-2 font-mono text-icta-black">
-                      {Number(c.score).toFixed(1)}%
-                      {c.weight != null ? (
-                        <span className="ml-2 text-icta-gray-600">
-                          wt {c.weight}
-                        </span>
-                      ) : null}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <CategoryScoreBars
+            categoryScores={categoryScores}
+            findings={findings}
+            onCategoryClick={(category) => openPanel("all", category)}
+          />
         </section>
       )}
 

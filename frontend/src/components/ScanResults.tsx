@@ -7,8 +7,11 @@ import { ClauseLink, StandardDocLink } from "@/components/ClauseLink";
 import { FindingsSidePanel } from "@/components/FindingsSidePanel";
 import { CategoryScoreBars, StatusDonut } from "@/components/ScoreCharts";
 import {
+  COMPARISON_PERIOD_OPTIONS,
   getScanComparison,
+  getScanComparisonAvailability,
   type CategoryScore,
+  type ComparisonPeriod,
   type ComparisonResponse,
   type Finding,
 } from "@/lib/api";
@@ -22,7 +25,7 @@ import {
   topFailFindings,
   type StatFilter,
 } from "@/lib/findings";
-import { btnSecondarySm } from "@/lib/ui";
+import { btnSecondarySm, inputBase } from "@/lib/ui";
 import {
   findNarrativeStatLinks,
   type NarrativeStatKind,
@@ -70,7 +73,7 @@ const narrativeLinkClass =
 function linkStandardsInText(text: string, keyPrefix: string): ReactNode[] {
   if (!text) return [];
   const pattern =
-    /\bICTA\.6\.00[23]:\d{4}(?:\s*(?:Section|§)\s*6\.[45])?|\bSection\s+6\.4\b|\b(?:clause\s+)?(6\.4\.\d+(?:\.[ivx]+)?)\b/gi;
+    /\bICTA\.6\.003:\d{4}(?:\s*(?:Section|§)\s*6\.5)?|\bSection\s+6\.5\b|\b(?:clause\s+)?(6\.5\.\d+(?:\.[ivx]+)?)\b/gi;
   const parts: ReactNode[] = [];
   let cursor = 0;
   let i = 0;
@@ -234,33 +237,93 @@ export function ScanResults({
 
   const [comparison, setComparison] = useState<ComparisonResponse | null>(null);
   const [comparisonOpen, setComparisonOpen] = useState(false);
+  const [comparePeriod, setComparePeriod] =
+    useState<ComparisonPeriod>("quarter");
+  const [availablePeriods, setAvailablePeriods] = useState<string[]>([]);
+  const [periodLabels, setPeriodLabels] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (!jobId || !resultsReady) {
       setComparison(null);
+      setAvailablePeriods([]);
       return;
     }
     let cancelled = false;
-    getScanComparison(jobId)
+    getScanComparisonAvailability(jobId)
       .then((data) => {
-        if (!cancelled) setComparison(data);
+        if (cancelled) return;
+        const available = data.available_periods ?? [];
+        setAvailablePeriods(available);
+        setPeriodLabels(data.period_labels ?? {});
+        setComparePeriod((current) =>
+          available.includes(current)
+            ? current
+            : available.includes("quarter")
+              ? "quarter"
+              : ((available[0] as ComparisonPeriod | undefined) ?? "quarter"),
+        );
       })
       .catch(() => {
-        if (!cancelled) setComparison({ has_history: false });
+        if (!cancelled) {
+          setAvailablePeriods([]);
+          setPeriodLabels({});
+        }
       });
     return () => {
       cancelled = true;
     };
   }, [jobId, resultsReady]);
 
+  useEffect(() => {
+    if (!jobId || !resultsReady) {
+      setComparison(null);
+      return;
+    }
+    if (availablePeriods.length === 0) {
+      setComparison({
+        has_history: false,
+        requested_period: comparePeriod,
+        available_periods: [],
+      });
+      return;
+    }
+    if (!availablePeriods.includes(comparePeriod)) {
+      return;
+    }
+    let cancelled = false;
+    getScanComparison(jobId, comparePeriod)
+      .then((data) => {
+        if (!cancelled) setComparison(data);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setComparison({
+            has_history: false,
+            requested_period: comparePeriod,
+            available_periods: availablePeriods,
+          });
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [jobId, resultsReady, comparePeriod, availablePeriods]);
+
+  const comparedSnapshot = comparison?.compared_to ?? comparison?.previous;
   const hasHistory = comparison?.has_history === true;
   const overallDelta = comparison?.delta?.overall ?? null;
+  const periodLabel =
+    comparison?.period_label ||
+    periodLabels[comparePeriod] ||
+    COMPARISON_PERIOD_OPTIONS.find((o) => o.value === comparePeriod)?.label ||
+    "the selected period";
   const showDeclineHeadline =
     hasHistory &&
     overallDelta != null &&
     overallDelta <= DECLINE_HEADLINE_THRESHOLD &&
-    comparison?.previous &&
+    comparedSnapshot &&
     comparison?.current;
+  const anyHistoryAvailable = availablePeriods.length > 0;
 
   function openFindings(list: Finding[], title: string, subtitle?: string) {
     setPanelTitle(title);
@@ -330,7 +393,7 @@ export function ScanResults({
           </div>
         ) : null}
 
-        {showDeclineHeadline && comparison?.previous && comparison?.current && (
+        {showDeclineHeadline && comparedSnapshot && comparison?.current && (
           <p className="mb-3 text-base text-icta-black">
             <button
               type="button"
@@ -338,9 +401,9 @@ export function ScanResults({
               className="text-left underline decoration-from-font underline-offset-2 hover:opacity-80"
             >
               Compliance dropped from{" "}
-              {comparison.previous.overall_score.toFixed(0)}% to{" "}
+              {comparedSnapshot.overall_score.toFixed(0)}% to{" "}
               {comparison.current.overall_score.toFixed(0)}% since{" "}
-              {comparison.previous.quarter}
+              {periodLabel}
             </button>
           </p>
         )}
@@ -384,18 +447,49 @@ export function ScanResults({
         </div>
 
         {resultsReady && jobId && comparison !== null && (
-          <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1">
+          <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-3">
+            <label className="flex flex-wrap items-center gap-2 text-sm text-icta-black">
+              <span className="text-icta-gray-600">Compare to</span>
+              <select
+                value={comparePeriod}
+                disabled={!anyHistoryAvailable}
+                onChange={(e) =>
+                  setComparePeriod(e.target.value as ComparisonPeriod)
+                }
+                className={`${inputBase} w-auto min-w-[10rem] py-1.5`}
+                aria-label="Comparison period"
+              >
+                {COMPARISON_PERIOD_OPTIONS.map((option) => {
+                  const enabled = availablePeriods.includes(option.value);
+                  return (
+                    <option
+                      key={option.value}
+                      value={option.value}
+                      disabled={!enabled}
+                    >
+                      {option.label}
+                      {!enabled ? " (no data yet)" : ""}
+                    </option>
+                  );
+                })}
+              </select>
+            </label>
             <button
               type="button"
               disabled={!hasHistory}
               onClick={() => setComparisonOpen(true)}
               className={btnSecondarySm}
             >
-              Compare to last quarter
+              View comparison
             </button>
-            {!hasHistory && (
+            {!anyHistoryAvailable && (
               <span className="text-sm text-icta-gray-600">
-                No historical data yet — check back next quarter.
+                No earlier snapshots yet — scan again after some time to compare.
+              </span>
+            )}
+            {anyHistoryAvailable && !hasHistory && (
+              <span className="text-sm text-icta-gray-600">
+                No snapshot available for {periodLabel} yet.
               </span>
             )}
           </div>
@@ -565,11 +659,12 @@ export function ScanResults({
         onClose={() => setPanelOpen(false)}
       />
 
-      <ComparisonSidePanel
-        open={comparisonOpen}
-        comparison={comparison}
-        onClose={() => setComparisonOpen(false)}
-      />
+        <ComparisonSidePanel
+          open={comparisonOpen}
+          comparison={comparison}
+          periodLabel={periodLabel}
+          onClose={() => setComparisonOpen(false)}
+        />
     </div>
   );
 }

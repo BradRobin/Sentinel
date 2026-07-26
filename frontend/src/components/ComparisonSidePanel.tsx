@@ -26,6 +26,7 @@ const SCORED_CATEGORIES = [
 interface ComparisonSidePanelProps {
   open: boolean;
   comparison: ComparisonResponse | null;
+  periodLabel?: string;
   onClose: () => void;
 }
 
@@ -34,6 +35,17 @@ function formatSigned(n: number): string {
   if (rounded > 0) return `+${rounded.toFixed(1)}`;
   if (rounded < 0) return rounded.toFixed(1);
   return "0.0";
+}
+
+function formatSnapshotDate(isoDate: string | undefined | null): string {
+  if (!isoDate) return "an earlier scan";
+  const d = new Date(`${isoDate}T12:00:00Z`);
+  if (Number.isNaN(d.getTime())) return isoDate;
+  return d.toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
 }
 
 function DeltaBadge({ delta }: { delta: number }) {
@@ -62,6 +74,7 @@ function DeltaBadge({ delta }: { delta: number }) {
 export function ComparisonSidePanel({
   open,
   comparison,
+  periodLabel = "the selected period",
   onClose,
 }: ComparisonSidePanelProps) {
   useEffect(() => {
@@ -73,22 +86,30 @@ export function ComparisonSidePanel({
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
+  const compared = comparison?.compared_to ?? comparison?.previous;
+
   const rows = useMemo(() => {
-    if (!comparison?.has_history || !comparison.delta || !comparison.current || !comparison.previous) {
+    if (
+      !comparison?.has_history ||
+      !comparison.delta ||
+      !comparison.current ||
+      !compared
+    ) {
       return [];
     }
-    const { current, previous, delta } = comparison;
+    const { current, delta } = comparison;
     return [...SCORED_CATEGORIES]
       .map((key) => ({
         key,
         label: labelCategory(key),
         current: current.category_breakdown[key] ?? 0,
-        previous: previous.category_breakdown[key] ?? 0,
+        previous: compared.category_breakdown[key] ?? 0,
         delta: delta.category_breakdown[key] ?? 0,
       }))
-      // Largest declines first (most negative delta)
       .sort((a, b) => a.delta - b.delta);
-  }, [comparison]);
+  }, [comparison, compared]);
+
+  const title = `Compare to ${periodLabel}`;
 
   return (
     <>
@@ -105,17 +126,16 @@ export function ComparisonSidePanel({
         }`}
         role="dialog"
         aria-modal="true"
-        aria-label="Compare to last quarter"
+        aria-label={title}
         aria-hidden={!open}
       >
         <header className={panelHeader}>
           <div>
-            <h2 className="text-lg font-semibold text-icta-black">
-              Compare to last quarter
-            </h2>
-            {comparison?.has_history && comparison.current && comparison.previous && (
+            <h2 className="text-lg font-semibold text-icta-black">{title}</h2>
+            {comparison?.has_history && comparison.current && compared && (
               <p className="mt-1 text-sm text-icta-gray-600">
-                {comparison.previous.quarter} → {comparison.current.quarter}
+                Compared to your scan from{" "}
+                {formatSnapshotDate(compared.date)}
               </p>
             )}
           </div>
@@ -130,9 +150,13 @@ export function ComparisonSidePanel({
         </header>
 
         <div className="flex-1 overflow-y-auto px-5 py-4">
-          {!comparison?.has_history || !comparison.delta || !comparison.current || !comparison.previous ? (
+          {!comparison?.has_history ||
+          !comparison.delta ||
+          !comparison.current ||
+          !compared ? (
             <p className="text-sm text-icta-gray-600">
-              No historical data yet — check back next quarter.
+              No snapshot available for {periodLabel} yet. Try a shorter look-back,
+              or scan again later.
             </p>
           ) : (
             <div className="space-y-6">
@@ -147,8 +171,11 @@ export function ComparisonSidePanel({
                   <DeltaBadge delta={comparison.delta.overall} />
                 </div>
                 <p className="mt-1 text-sm text-icta-gray-600">
-                  Was {comparison.previous.overall_score.toFixed(1)}% in{" "}
-                  {comparison.previous.quarter}
+                  Was {compared.overall_score.toFixed(1)}% on{" "}
+                  {formatSnapshotDate(compared.date)}
+                  {comparison.current.date
+                    ? ` · current scan ${formatSnapshotDate(comparison.current.date)}`
+                    : ""}
                 </p>
               </div>
 

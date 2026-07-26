@@ -70,10 +70,17 @@ class HealthResponse(BaseModel):
     db: str
 
 
-class QuarterScoreSnapshot(BaseModel):
-    quarter: str
+class ScoreSnapshot(BaseModel):
+    """A historical score point used for period comparison."""
+
+    date: str
     overall_score: float
     category_breakdown: dict[str, float]
+    quarter: str | None = None
+
+
+# Back-compat alias
+QuarterScoreSnapshot = ScoreSnapshot
 
 
 class ComparisonDelta(BaseModel):
@@ -83,6 +90,16 @@ class ComparisonDelta(BaseModel):
 
 class ComparisonResponse(BaseModel):
     has_history: bool
-    current: QuarterScoreSnapshot | None = None
-    previous: QuarterScoreSnapshot | None = None
+    requested_period: str | None = None
+    period_label: str | None = None
+    available_periods: list[str] = Field(default_factory=list)
+    current: ScoreSnapshot | None = None
+    compared_to: ScoreSnapshot | None = None
+    previous: ScoreSnapshot | None = None  # alias of compared_to
     delta: ComparisonDelta | None = None
+
+
+class ComparisonAvailabilityResponse(BaseModel):
+    available_periods: list[str]
+    current_date: str | None = None
+    period_labels: dict[str, str] = Field(default_factory=dict)

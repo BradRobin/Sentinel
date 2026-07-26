@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1.health import router as health_router
+from app.api.v1.domains import router as domains_router
 from app.api.v1.registry import router as registry_router
 from app.api.v1.scans import router as scans_router
 from app.core.config import settings
@@ -30,7 +31,7 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
 
 app = FastAPI(
     title="ICTA Sentinel API",
-    description="Government website compliance checker — ICTA.6.002:2019 Section 6.4",
+    description="Government website compliance checker — ICTA.6.003:2023 §6.5",
     version=settings.app_version,
     lifespan=lifespan,
 )
@@ -56,4 +57,5 @@ app.add_middleware(
 app.include_router(health_router)
 app.include_router(health_router, prefix="/api/v1")
 app.include_router(scans_router, prefix="/api/v1")
+app.include_router(domains_router, prefix="/api/v1")
 app.include_router(registry_router, prefix="/api/v1")

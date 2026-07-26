@@ -122,6 +122,23 @@ def ensure_schema(conn: psycopg.Connection) -> None:
         )
         print("Schema: domain_score_updates already present")
 
+    has_snapshot = conn.execute(
+        """
+        SELECT EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_schema = 'public'
+              AND table_name = 'historical_scores'
+              AND column_name = 'snapshot_at'
+        )
+        """
+    ).fetchone()[0]
+    if not has_snapshot:
+        apply_sql_file(
+            conn, migrations / "20260726160000_historical_snapshots.sql"
+        )
+    else:
+        print("Schema: historical_scores.snapshot_at already present")
+
 
 def seed_registry() -> int:
     count = 0

@@ -203,21 +203,39 @@ class TestScanEndpoint:
     def test_get_comparison_no_history(self):
         with patch(
             "app.api.v1.scans.get_comparison_for_scan",
-            return_value={"has_history": False},
+            return_value={
+                "has_history": False,
+                "requested_period": "quarter",
+                "available_periods": [],
+                "period_label": "1 quarter ago",
+            },
         ):
             response = client.get("/api/v1/scans/abc-123/comparison")
             assert response.status_code == 200
-            assert response.json() == {"has_history": False}
+            body = response.json()
+            assert body["has_history"] is False
+            assert body["requested_period"] == "quarter"
 
     def test_get_comparison_with_history(self):
         payload = {
             "has_history": True,
+            "requested_period": "month",
+            "period_label": "1 month ago",
+            "available_periods": ["week", "biweek", "month"],
             "current": {
+                "date": "2026-07-24",
                 "quarter": "2026-Q3",
                 "overall_score": 73.0,
                 "category_breakdown": {"security": 60.0},
             },
+            "compared_to": {
+                "date": "2026-06-18",
+                "quarter": "2026-Q2",
+                "overall_score": 81.0,
+                "category_breakdown": {"security": 80.0},
+            },
             "previous": {
+                "date": "2026-06-18",
                 "quarter": "2026-Q2",
                 "overall_score": 81.0,
                 "category_breakdown": {"security": 80.0},
@@ -230,17 +248,54 @@ class TestScanEndpoint:
         with patch(
             "app.api.v1.scans.get_comparison_for_scan", return_value=payload
         ):
-            response = client.get("/api/v1/scans/abc-123/comparison")
+            response = client.get(
+                "/api/v1/scans/abc-123/comparison?period=month"
+            )
             assert response.status_code == 200
             data = response.json()
             assert data["has_history"] is True
             assert data["delta"]["overall"] == -8.0
+            assert data["compared_to"]["date"] == "2026-06-18"
+
+    def test_get_comparison_rejects_bad_period(self):
+        response = client.get("/api/v1/scans/abc-123/comparison?period=decade")
+        assert response.status_code == 400
 
     def test_get_comparison_scan_not_found(self):
         with patch("app.api.v1.scans.get_comparison_for_scan", return_value=None):
             response = client.get("/api/v1/scans/missing/comparison")
             assert response.status_code == 404
 
+    def test_get_comparison_availability(self):
+        with patch(
+            "app.api.v1.scans.get_availability_for_scan",
+            return_value={
+                "available_periods": ["week", "month"],
+                "current_date": "2026-07-24",
+                "period_labels": {"week": "1 week ago", "month": "1 month ago"},
+            },
+        ):
+            response = client.get(
+                "/api/v1/scans/abc-123/comparison/availability"
+            )
+            assert response.status_code == 200
+            assert response.json()["available_periods"] == ["week", "month"]
+
+    def test_domain_comparison_endpoint(self):
+        with patch(
+            "app.api.v1.domains.get_comparison_for_domain",
+            return_value={
+                "has_history": False,
+                "requested_period": "year",
+                "available_periods": [],
+                "period_label": "1 year ago",
+            },
+        ):
+            response = client.get(
+                "/api/v1/domains/dom-1/comparison?period=year"
+            )
+            assert response.status_code == 200
+            assert response.json()["requested_period"] == "year"
 
 class TestRegistryScanEndpoint:
     def test_start_registry_scan_enqueues(self):

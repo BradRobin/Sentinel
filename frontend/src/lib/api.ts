@@ -128,20 +128,53 @@ export interface ScanStatusResponse {
   attached_to_existing?: boolean;
 }
 
-export interface QuarterScoreSnapshot {
-  quarter: string;
+export type ComparisonPeriod =
+  | "week"
+  | "biweek"
+  | "month"
+  | "quarter"
+  | "year";
+
+export const COMPARISON_PERIOD_OPTIONS: Array<{
+  value: ComparisonPeriod;
+  label: string;
+}> = [
+  { value: "week", label: "1 week ago" },
+  { value: "biweek", label: "2 weeks ago" },
+  { value: "month", label: "1 month ago" },
+  { value: "quarter", label: "1 quarter ago" },
+  { value: "year", label: "1 year ago" },
+];
+
+export interface ScoreSnapshot {
+  date: string;
   overall_score: number;
   category_breakdown: Record<string, number>;
+  quarter?: string | null;
 }
+
+/** @deprecated Prefer ScoreSnapshot */
+export type QuarterScoreSnapshot = ScoreSnapshot;
 
 export interface ComparisonResponse {
   has_history: boolean;
-  current?: QuarterScoreSnapshot | null;
-  previous?: QuarterScoreSnapshot | null;
+  requested_period?: string | null;
+  period_label?: string | null;
+  available_periods?: string[];
+  current?: ScoreSnapshot | null;
+  compared_to?: ScoreSnapshot | null;
+  /** Alias of compared_to for older payloads */
+  previous?: ScoreSnapshot | null;
   delta?: {
     overall: number;
     category_breakdown: Record<string, number>;
   } | null;
+}
+
+export interface ComparisonAvailability {
+  available_periods: string[];
+  current_date: string | null;
+  period_labels: Record<string, string>;
 }
 
 export async function fetchBackendHealth(): Promise<HealthResponse> {
@@ -193,15 +226,35 @@ export async function getScan(jobId: string): Promise<ScanStatusResponse> {
 
 export async function getScanComparison(
   jobId: string,
+  period: ComparisonPeriod = "quarter",
 ): Promise<ComparisonResponse> {
-  const res = await fetch(`${API_URL}/api/v1/scans/${jobId}/comparison`, {
-    cache: "no-store",
-  });
+  const params = new URLSearchParams({ period });
+  const res = await fetch(
+    `${API_URL}/api/v1/scans/${jobId}/comparison?${params}`,
+    { cache: "no-store" },
+  );
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     const detail = formatApiDetail((body as { detail?: unknown }).detail);
     throw new Error(
       `${detail} (GET ${API_URL}/api/v1/scans/${jobId}/comparison)`,
+    );
+  }
+  return res.json();
+}
+
+export async function getScanComparisonAvailability(
+  jobId: string,
+): Promise<ComparisonAvailability> {
+  const res = await fetch(
+    `${API_URL}/api/v1/scans/${jobId}/comparison/availability`,
+    { cache: "no-store" },
+  );
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    const detail = formatApiDetail((body as { detail?: unknown }).detail);
+    throw new Error(
+      `${detail} (GET ${API_URL}/api/v1/scans/${jobId}/comparison/availability)`,
     );
   }
   return res.json();

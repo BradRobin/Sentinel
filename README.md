@@ -1,6 +1,6 @@
 # ICTA Sentinel
 
-AI-powered government website compliance checker for the ICT Authority (ICTA), Kenya. Scans public `.go.ke` / `.gov.ke` websites against **ICTA.6.002:2019, Section 6.4** (Systems and Applications Standard — Websites Development and Management).
+AI-powered government website compliance checker for the ICT Authority (ICTA), Kenya. Scans public `.go.ke` / `.gov.ke` websites against **ICTA.6.003:2023 §6.5** (Systems and Applications Standard — Websites Development and Management).
 
 ## Architecture
 
@@ -107,6 +107,10 @@ Requires Redis running (`docker run -p 6379:6379 redis:7-alpine`).
 | GET | `/api/v1/health` | Versioned health alias |
 | POST | `/api/v1/scans` | Enqueue scan (`{ "url": "https://example.go.ke" }`) |
 | GET | `/api/v1/scans/{job_id}` | Poll job status |
+| GET | `/api/v1/scans/{job_id}/comparison?period=` | Compare latest snapshot to look-back period (`week`/`biweek`/`month`/`quarter`/`year`) |
+| GET | `/api/v1/scans/{job_id}/comparison/availability` | Which comparison periods have prior snapshots |
+| GET | `/api/v1/domains/{domain_id}/comparison?period=` | Same comparison by domain id |
+| GET | `/api/v1/domains/{domain_id}/comparison/availability` | Period availability by domain id |
 | GET | `/api/v1/registry` | MCDA registry list (scores, category breakdown, trend, last checked) |
 | POST | `/api/v1/registry/scan` | Enqueue scans for all verified MCDAs (records scores) |
 | GET | `/api/v1/registry/scan/{batch_id}` | Bulk registry scan progress |

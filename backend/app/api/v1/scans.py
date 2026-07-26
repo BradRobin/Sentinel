@@ -2,17 +2,23 @@ from __future__ import annotations
 
 import re
 
-from fastapi import APIRouter, HTTPException, Response
+from fastapi import APIRouter, HTTPException, Query, Response
 
 from app.core.config import settings
 from app.core.ssrf import SSRFError, validate_scan_url
 from app.schemas.findings import (
+    ComparisonAvailabilityResponse,
     ComparisonResponse,
     ScanCreateRequest,
     ScanJobResponse,
     ScanStatusResponse,
 )
-from app.services.historical import get_comparison_for_scan
+from app.services.historical import (
+    COMPARISON_PERIODS,
+    get_availability_for_scan,
+    get_comparison_for_scan,
+    normalize_period,
+)
 from app.services.scan_cache import get_cached_scan, invalidate_cached_scan
 from app.services.scan_errors import classify_ssrf_error, safe_reason
 from app.services.scan_repository import create_scan_record
@@ -183,14 +189,38 @@ def get_scan(job_id: str) -> ScanStatusResponse:
     response_model=ComparisonResponse,
     response_model_exclude_none=True,
 )
-def get_scan_comparison(job_id: str) -> ComparisonResponse:
+def get_scan_comparison(
+    job_id: str,
+    period: str = Query(
+        default="quarter",
+        description=(
+            "Look-back period: "
+            + ", ".join(COMPARISON_PERIODS)
+        ),
+    ),
+) -> ComparisonResponse:
     """
-    Compare this scan's domain latest quarter vs most recent prior historical entry.
+    Compare this scan's domain latest snapshot vs the closest snapshot at or
+    before ``now − period`` (relative to the latest snapshot timestamp).
+    """
+    try:
+        normalize_period(period)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    Returns ``has_history: false`` when fewer than two quarterly snapshots exist
-    (normal for first-time domains).
-    """
-    comparison = get_comparison_for_scan(job_id)
+    comparison = get_comparison_for_scan(job_id, period=period)
     if comparison is None:
         raise HTTPException(status_code=404, detail="Scan job not found")
     return ComparisonResponse(**comparison)
+
+
+@router.get(
+    "/{job_id}/comparison/availability",
+    response_model=ComparisonAvailabilityResponse,
+)
+def get_scan_comparison_availability(job_id: str) -> ComparisonAvailabilityResponse:
+    """Which look-back periods have a prior snapshot for this scan's domain."""
+    payload = get_availability_for_scan(job_id)
+    if payload is None:
+        raise HTTPException(status_code=404, detail="Scan job not found")
+    return ComparisonAvailabilityResponse(**payload)

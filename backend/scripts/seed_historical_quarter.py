@@ -251,19 +251,34 @@ def upsert_seed_row(
     overall: float,
     breakdown: dict[str, float],
 ) -> None:
+    # Place seeded snapshot mid-quarter so period lookups behave realistically.
+    year_s, q_s = quarter.split("-Q", 1)
+    year = int(year_s)
+    qnum = int(q_s)
+    month = (qnum - 1) * 3 + 2  # Feb / May / Aug / Nov
+    from datetime import datetime, timezone
+
+    snapshot_at = datetime(year, month, 15, 12, 0, 0, tzinfo=timezone.utc)
+
+    # Replace any prior seed for this domain+quarter (no scan_id).
+    conn.execute(
+        """
+        DELETE FROM historical_scores
+        WHERE domain_id = %s
+          AND quarter = %s
+          AND scan_id IS NULL
+        """,
+        (domain_id, quarter),
+    )
     conn.execute(
         """
         INSERT INTO historical_scores (
-            domain_id, quarter, overall_score, category_breakdown
+            domain_id, quarter, overall_score, category_breakdown, snapshot_at
         ) VALUES (
-            %s, %s, %s, %s::jsonb
+            %s, %s, %s, %s::jsonb, %s
         )
-        ON CONFLICT (domain_id, quarter) DO UPDATE SET
-            overall_score = EXCLUDED.overall_score,
-            category_breakdown = EXCLUDED.category_breakdown,
-            created_at = now()
         """,
-        (domain_id, quarter, overall, json.dumps(breakdown)),
+        (domain_id, quarter, overall, json.dumps(breakdown), snapshot_at),
     )
     conn.commit()
 

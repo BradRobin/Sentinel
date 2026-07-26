@@ -3,13 +3,12 @@
 import { useEffect, useId, useRef, useState } from "react";
 
 import {
-  CHECK_NUMS,
-  RIBBON_NUMS,
+  CHECK_DASH,
+  CHECK_PATH,
   RIBBON_PATH,
-  SentinelMarkState,
-  buildPath,
-  easeInOutCubic,
-  lerp,
+  WIND_INTO_ANCHOR,
+  easeOutCubic,
+  type SentinelMarkState,
 } from "@/lib/sentinel-mark-paths";
 
 export interface SentinelMarkProps {
@@ -20,8 +19,8 @@ export interface SentinelMarkProps {
   label?: string;
 }
 
-const MORPH_DURATION_MS = 900;
-const GREEN = "var(--icta-green)";
+/** Logo settle / check green from the mark prototype (#046A38). */
+const MARK_GREEN = "#046A38";
 const ERROR_STROKE = "var(--icta-gray-600)";
 
 export function SentinelMark({
@@ -32,12 +31,13 @@ export function SentinelMark({
 }: SentinelMarkProps) {
   const rawId = useId();
   const gradientId = `sentinel-tricolor-${rawId.replace(/:/g, "")}`;
-  const pathRef = useRef<SVGPathElement>(null);
+  const ribbonRef = useRef<SVGPathElement>(null);
+  const checkRef = useRef<SVGPathElement>(null);
   const rafRef = useRef<number | null>(null);
+  const checkTimeoutRef = useRef<number | null>(null);
+  const popTimeoutRef = useRef<number | null>(null);
   const prevStateRef = useRef<SentinelMarkState>(state);
   const [popping, setPopping] = useState(false);
-  const [pathD, setPathD] = useState(RIBBON_PATH);
-  const [stroke, setStroke] = useState(`url(#${gradientId})`);
   const [reducedMotion, setReducedMotion] = useState(false);
 
   useEffect(() => {
@@ -48,45 +48,136 @@ export function SentinelMark({
     return () => mq.removeEventListener("change", handler);
   }, []);
 
-  const cancelMorph = () => {
+  const clearTimers = () => {
     if (rafRef.current !== null) {
       cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
     }
+    if (checkTimeoutRef.current !== null) {
+      window.clearTimeout(checkTimeoutRef.current);
+      checkTimeoutRef.current = null;
+    }
+    if (popTimeoutRef.current !== null) {
+      window.clearTimeout(popTimeoutRef.current);
+      popTimeoutRef.current = null;
+    }
+  };
+
+  const setCheckHidden = (instant: boolean) => {
+    const check = checkRef.current;
+    if (!check) return;
+    if (instant) check.classList.add("sentinel-mark__check-path--no-transition");
+    else check.classList.remove("sentinel-mark__check-path--no-transition");
+    check.style.strokeDashoffset = String(CHECK_DASH);
+  };
+
+  const setCheckDrawn = (instant: boolean) => {
+    const check = checkRef.current;
+    if (!check) return;
+    if (instant) {
+      check.classList.add("sentinel-mark__check-path--no-transition");
+      check.style.strokeDashoffset = "0";
+      return;
+    }
+    check.classList.add("sentinel-mark__check-path--no-transition");
+    check.style.strokeDashoffset = String(CHECK_DASH);
+    void check.getBoundingClientRect();
+    check.classList.remove("sentinel-mark__check-path--no-transition");
+    check.style.strokeDashoffset = "0";
+  };
+
+  const applyRibbonSettled = () => {
+    const ribbon = ribbonRef.current;
+    if (!ribbon) return;
+    const { totalDegrees, endScale, endStrokeWidth } = WIND_INTO_ANCHOR;
+    ribbon.style.transform = `rotate(${totalDegrees}deg) scale(${endScale})`;
+    ribbon.setAttribute("stroke", MARK_GREEN);
+    ribbon.setAttribute("stroke-width", String(endStrokeWidth));
   };
 
   const resetRibbon = (strokeValue?: string) => {
-    cancelMorph();
-    setPathD(RIBBON_PATH);
-    setStroke(strokeValue ?? `url(#${gradientId})`);
+    clearTimers();
+    const ribbon = ribbonRef.current;
+    if (ribbon) {
+      ribbon.style.transform = "";
+      ribbon.setAttribute(
+        "stroke",
+        strokeValue ?? `url(#${gradientId})`,
+      );
+      ribbon.setAttribute(
+        "stroke-width",
+        String(WIND_INTO_ANCHOR.startStrokeWidth),
+      );
+    }
+    setCheckHidden(true);
     setPopping(false);
   };
 
-  const morphToCheck = (instant: boolean) => {
-    cancelMorph();
-    if (instant) {
-      setPathD(buildPath(CHECK_NUMS));
-      setStroke(GREEN);
-      return;
-    }
-
+  const windIntoAnchor = (duration: number, onDone: () => void) => {
+    const ribbon = ribbonRef.current;
+    if (!ribbon) return;
+    const {
+      totalDegrees,
+      endScale,
+      startStrokeWidth,
+      endStrokeWidth,
+    } = WIND_INTO_ANCHOR;
     const start = performance.now();
+
     const frame = (now: number) => {
-      const raw = Math.min((now - start) / MORPH_DURATION_MS, 1);
-      const t = easeInOutCubic(raw);
-      setPathD(buildPath(lerp(RIBBON_NUMS, CHECK_NUMS, t)));
-      if (raw >= 0.85) {
-        setStroke(GREEN);
+      const raw = Math.min((now - start) / duration, 1);
+      const t = easeOutCubic(raw);
+      const deg = totalDegrees * t;
+      const scale = 1 - (1 - endScale) * t;
+      const width =
+        startStrokeWidth - (startStrokeWidth - endStrokeWidth) * t;
+      ribbon.style.transform = `rotate(${deg}deg) scale(${scale})`;
+      ribbon.setAttribute("stroke-width", width.toFixed(2));
+      if (raw >= 0.8) {
+        ribbon.setAttribute("stroke", MARK_GREEN);
       }
       if (raw < 1) {
         rafRef.current = requestAnimationFrame(frame);
       } else {
         rafRef.current = null;
-        setPopping(true);
-        window.setTimeout(() => setPopping(false), 400);
+        onDone();
       }
     };
     rafRef.current = requestAnimationFrame(frame);
+  };
+
+  const playComplete = (instant: boolean) => {
+    clearTimers();
+    if (instant) {
+      applyRibbonSettled();
+      setCheckDrawn(true);
+      return;
+    }
+
+    const ribbon = ribbonRef.current;
+    if (ribbon) {
+      ribbon.style.transform = "";
+      ribbon.setAttribute("stroke", `url(#${gradientId})`);
+      ribbon.setAttribute(
+        "stroke-width",
+        String(WIND_INTO_ANCHOR.startStrokeWidth),
+      );
+    }
+    setCheckHidden(true);
+
+    windIntoAnchor(WIND_INTO_ANCHOR.durationMs, () => {
+      checkTimeoutRef.current = window.setTimeout(() => {
+        setCheckDrawn(false);
+        checkTimeoutRef.current = window.setTimeout(() => {
+          setPopping(true);
+          popTimeoutRef.current = window.setTimeout(() => {
+            setPopping(false);
+            popTimeoutRef.current = null;
+          }, 400);
+          checkTimeoutRef.current = null;
+        }, WIND_INTO_ANCHOR.checkDrawMs);
+      }, WIND_INTO_ANCHOR.checkDelayMs);
+    });
   };
 
   useEffect(() => {
@@ -95,18 +186,17 @@ export function SentinelMark({
 
     if (state === "complete") {
       const instant = reducedMotion || prev === "complete";
-      morphToCheck(instant);
-      return;
+      playComplete(instant);
+      return clearTimers;
     }
 
     if (state === "error") {
-      // Static resting ribbon — muted tone, no spin / morph
       resetRibbon(ERROR_STROKE);
-      return cancelMorph;
+      return clearTimers;
     }
 
     resetRibbon();
-    return cancelMorph;
+    return clearTimers;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state, reducedMotion, gradientId]);
 
@@ -140,24 +230,37 @@ export function SentinelMark({
       <svg viewBox="0 0 100 100" aria-hidden="true">
         <defs>
           <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="var(--icta-red)" />
-            <stop offset="50%" stopColor="var(--icta-black)" />
-            <stop offset="100%" stopColor="var(--icta-green)" />
+            <stop offset="0%" stopColor="#BB0000" />
+            <stop offset="50%" stopColor="#111111" />
+            <stop offset="100%" stopColor={MARK_GREEN} />
           </linearGradient>
         </defs>
         <g className="sentinel-mark__ribbon-group">
           <path
-            ref={pathRef}
+            ref={ribbonRef}
             className="sentinel-mark__ribbon-path"
-            d={pathD}
+            d={RIBBON_PATH}
             fill="none"
-            stroke={stroke}
-            strokeWidth={9}
+            stroke={`url(#${gradientId})`}
+            strokeWidth={WIND_INTO_ANCHOR.startStrokeWidth}
             strokeLinecap="round"
             strokeLinejoin="round"
+            vectorEffect="non-scaling-stroke"
             opacity={state === "error" ? 0.55 : 1}
           />
         </g>
+        <path
+          ref={checkRef}
+          className="sentinel-mark__check-path sentinel-mark__check-path--no-transition"
+          d={CHECK_PATH}
+          fill="none"
+          stroke={MARK_GREEN}
+          strokeWidth={7}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeDasharray={CHECK_DASH}
+          style={{ strokeDashoffset: CHECK_DASH }}
+        />
       </svg>
     </div>
   );

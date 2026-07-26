@@ -63,13 +63,29 @@ input[type="checkbox"] {
 
 .sentinel-mark__ribbon-group {
   transform-origin: 50px 50px;
-  transition: transform 0.35s ease-out;
 }
 
+.sentinel-mark__ribbon-path {
+  /* Anchor the ribbon winds into on complete */
+  transform-origin: 48px 54px;
+}
+
+.sentinel-mark__check-path {
+  stroke-dasharray: 40;
+  stroke-dashoffset: 40;
+  transition: stroke-dashoffset 0.4s ease-out;
+}
+
+.sentinel-mark__check-path--no-transition {
+  transition: none !important;
+}
+
+/* idle: slow continuous rotation around the mark's center */
 .sentinel-mark--idle .sentinel-mark__ribbon-group {
   animation: sentinel-spin 6s linear infinite;
 }
 
+/* processing: faster spin + ribbon draw loop */
 .sentinel-mark--processing .sentinel-mark__ribbon-group {
   animation: sentinel-spin 1.6s linear infinite;
 }
@@ -79,6 +95,7 @@ input[type="checkbox"] {
   animation: sentinel-draw 1.6s ease-in-out infinite;
 }
 
+/* complete: CSS spin stops; JS drives wind-down on the path */
 .sentinel-mark--complete .sentinel-mark__ribbon-group {
   animation: none;
   transform: rotate(0deg);
@@ -148,5 +165,9 @@ input[type="checkbox"] {
 
   .sentinel-mark--pop {
     animation: none;
+  }
+
+  .sentinel-mark__check-path {
+    transition: none;
   }
 }

@@ -10,7 +10,7 @@ from app.schemas.findings import Finding, FindingStatus
 _MANUAL_OR_PARTIAL: list[tuple[str, str, str, str, str, str]] = [
     (
         "domain_not_personal_name",
-        "6.4.4",
+        "6.5.8",
         "domain_identity",
         "P",
         "low",
@@ -18,7 +18,7 @@ _MANUAL_OR_PARTIAL: list[tuple[str, str, str, str, str, str]] = [
     ),
     (
         "db_isolation",
-        "6.4.22",
+        "6.5.25",
         "security",
         "M",
         "high",
@@ -26,7 +26,7 @@ _MANUAL_OR_PARTIAL: list[tuple[str, str, str, str, str, str]] = [
     ),
     (
         "no_malicious_code",
-        "6.4.22",
+        "6.5.25",
         "security",
         "P",
         "high",
@@ -34,7 +34,7 @@ _MANUAL_OR_PARTIAL: list[tuple[str, str, str, str, str, str]] = [
     ),
     (
         "cms_patched",
-        "6.4.22",
+        "6.5.25",
         "security",
         "P",
         "medium",
@@ -42,7 +42,7 @@ _MANUAL_OR_PARTIAL: list[tuple[str, str, str, str, str, str]] = [
     ),
     (
         "vuln_scanning_process",
-        "6.4.22",
+        "6.5.25",
         "security",
         "M",
         "medium",
@@ -50,7 +50,7 @@ _MANUAL_OR_PARTIAL: list[tuple[str, str, str, str, str, str]] = [
     ),
     (
         "image_link_alt",
-        "6.4.9",
+        "6.5.12",
         "accessibility",
         "P",
         "medium",
@@ -58,7 +58,7 @@ _MANUAL_OR_PARTIAL: list[tuple[str, str, str, str, str, str]] = [
     ),
     (
         "media_captions",
-        "6.4.9",
+        "6.5.12",
         "accessibility",
         "P",
         "medium",
@@ -66,7 +66,7 @@ _MANUAL_OR_PARTIAL: list[tuple[str, str, str, str, str, str]] = [
     ),
     (
         "embedded_video_alt",
-        "6.4.9",
+        "6.5.12",
         "accessibility",
         "P",
         "medium",
@@ -74,7 +74,7 @@ _MANUAL_OR_PARTIAL: list[tuple[str, str, str, str, str, str]] = [
     ),
     (
         "no_flashing",
-        "6.4.9",
+        "6.5.12",
         "accessibility",
         "P",
         "high",
@@ -82,7 +82,7 @@ _MANUAL_OR_PARTIAL: list[tuple[str, str, str, str, str, str]] = [
     ),
     (
         "responsive_mobile",
-        "6.4.20",
+        "6.5.23",
         "accessibility",
         "P",
         "medium",
@@ -90,7 +90,7 @@ _MANUAL_OR_PARTIAL: list[tuple[str, str, str, str, str, str]] = [
     ),
     (
         "server_side_scripting",
-        "6.4.11",
+        "6.5.14",
         "design_branding",
         "P",
         "low",
@@ -98,7 +98,7 @@ _MANUAL_OR_PARTIAL: list[tuple[str, str, str, str, str, str]] = [
     ),
     (
         "coat_of_arms",
-        "6.4.12",
+        "6.5.15",
         "design_branding",
         "P",
         "medium",
@@ -106,7 +106,7 @@ _MANUAL_OR_PARTIAL: list[tuple[str, str, str, str, str, str]] = [
     ),
     (
         "g4c_index_structure",
-        "6.4.13",
+        "6.5.16",
         "design_branding",
         "M",
         "medium",
@@ -114,7 +114,7 @@ _MANUAL_OR_PARTIAL: list[tuple[str, str, str, str, str, str]] = [
     ),
     (
         "images_not_distorted",
-        "6.4.16",
+        "6.5.19",
         "multimedia_performance",
         "M",
         "low",
@@ -122,7 +122,7 @@ _MANUAL_OR_PARTIAL: list[tuple[str, str, str, str, str, str]] = [
     ),
     (
         "copyright_attribution",
-        "6.4.19",
+        "6.5.22",
         "legal_content",
         "M",
         "low",
@@ -130,7 +130,7 @@ _MANUAL_OR_PARTIAL: list[tuple[str, str, str, str, str, str]] = [
     ),
     (
         "content_freshness",
-        "6.4.19",
+        "6.5.22",
         "legal_content",
         "P",
         "low",

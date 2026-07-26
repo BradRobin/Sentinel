@@ -12,11 +12,11 @@ from app.services.scoring import ScoreResult
 
 logger = logging.getLogger(__name__)
 
-# Split after .!? only when followed by whitespace — keeps 67.9% and ICTA.6.002 intact.
+# Split after .!? only when followed by whitespace — keeps 67.9% and ICTA.6.003 intact.
 _SENTENCE_END_RE = re.compile(r"(?<=[.!?])\s+")
 
 _SYSTEM = """You are an ICT Authority (Kenya) compliance officer summarizing a website scan
-against ICTA.6.002:2019 Section 6.4. Write 2–3 short sentences of plain English for a
+against ICTA.6.003:2023 §6.5. Write 2–3 short sentences of plain English for a
 government web officer. Focus on the most important failures and review items. Do not
 invent checks that are not in the data. Do not use bullet lists or markdown headings.
 Do not mention that you are an AI. Prefer the site hostname over full URLs."""

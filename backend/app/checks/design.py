@@ -1,4 +1,4 @@
-# Clauses 6.4.6, 6.4.7 — Design / fonts heuristics (A)
+# Clauses 6.5.9, 6.5.10 — Design / fonts heuristics (A)
 
 from __future__ import annotations
 
@@ -59,7 +59,7 @@ class _DesignParser(HTMLParser):
 def run_design_checks(snap: PageSnapshot) -> list[Finding]:
     findings: list[Finding] = []
     if not snap.ok:
-        for name, clause in (("external_css", "6.4.6"), ("font_limit", "6.4.7")):
+        for name, clause in (("external_css", "6.5.9"), ("font_limit", "6.5.10")):
             findings.append(
                 Finding(
                     category="design_branding",
@@ -81,7 +81,7 @@ def run_design_checks(snap: PageSnapshot) -> list[Finding]:
             Finding(
                 category="design_branding",
                 check_name="external_css",
-                clause_reference="6.4.6",
+                clause_reference="6.5.9",
                 status=FindingStatus.fail,
                 severity="low",
                 automatability_type="A",
@@ -99,7 +99,7 @@ def run_design_checks(snap: PageSnapshot) -> list[Finding]:
         Finding(
             category="design_branding",
             check_name="external_css",
-            clause_reference="6.4.6",
+            clause_reference="6.5.9",
             status=FindingStatus.pass_ if css_ok else FindingStatus.fail,
             severity="low",
             automatability_type="A",
@@ -127,7 +127,7 @@ def run_design_checks(snap: PageSnapshot) -> list[Finding]:
         Finding(
             category="design_branding",
             check_name="font_limit",
-            clause_reference="6.4.7",
+            clause_reference="6.5.10",
             status=FindingStatus.pass_ if font_ok else FindingStatus.fail,
             severity="low",
             automatability_type="A",

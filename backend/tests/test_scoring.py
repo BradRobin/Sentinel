@@ -8,7 +8,7 @@ def _f(category: str, status: FindingStatus, name: str = "check") -> Finding:
     return Finding(
         category=category,
         check_name=name,
-        clause_reference="6.4.0",
+        clause_reference="6.5.0",
         status=status,
         severity="medium",
         automatability_type="A",

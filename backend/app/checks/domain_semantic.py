@@ -1,4 +1,4 @@
-"""Clause 6.4.4 — Domain bears semantic connection to stated purpose (LLM judgment)."""
+"""Clause 6.5.7 — Domain bears semantic connection to stated purpose (LLM judgment)."""
 
 from __future__ import annotations
 
@@ -98,7 +98,7 @@ def run_domain_semantic_check(url: str, snap: PageSnapshot | None = None) -> lis
         Finding(
             category="domain_identity",
             check_name="domain_semantic_relevance",
-            clause_reference="6.4.4",
+            clause_reference="6.5.7",
             status=status,
             severity="medium",
             automatability_type="M",

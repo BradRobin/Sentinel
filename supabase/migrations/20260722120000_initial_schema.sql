@@ -1,5 +1,5 @@
 -- ICTA Sentinel initial schema (SRS Section 7)
--- Standard basis: ICTA.6.002:2019 Section 6.4
+-- Standard basis: ICTA.6.003:2023 §6.5
 
 -- Enums
 CREATE TYPE organization_type AS ENUM ('ministry', 'county', 'agency');
@@ -175,61 +175,61 @@ CREATE POLICY "scoring_weights_read_authenticated" ON scoring_weights
     FOR SELECT TO authenticated
     USING (true);
 
--- Seed: standards_reference (SRS Section 6.1–6.9 checklist)
+-- Seed: standards_reference (ICTA.6.003:2023 §6.5 checklist)
 INSERT INTO standards_reference (clause_number, title, category, automatability_type, check_name) VALUES
--- 6.1 Domain & identity (6.4.4 / 6.4.5)
-('6.4.4', 'Domain ends in .go.ke or .gov.ke', 'domain_identity', 'A', 'domain_tld'),
-('6.4.4', 'Domain ≤ 40 characters', 'domain_identity', 'A', 'domain_length'),
-('6.4.4', 'Not entirely numeric', 'domain_identity', 'A', 'domain_not_numeric'),
-('6.4.4', 'Only letters/numbers/hyphens, no leading/trailing hyphen, max one hyphen', 'domain_identity', 'A', 'domain_format'),
-('6.4.4', 'Domain bears semantic connection to stated purpose', 'domain_identity', 'M', 'domain_semantic_relevance'),
-('6.4.4', 'Not a personal name', 'domain_identity', 'P', 'domain_not_personal_name'),
-('6.4.5', 'Not a duplicate of an already-registered entity', 'domain_identity', 'A', 'domain_not_duplicate'),
--- 6.2 Security (6.4.18.i, 6.4.21, 6.4.22)
-('6.4.18.i', 'HTTPS enforced, valid certificate', 'security', 'A', 'https_valid_cert'),
-('6.4.21', 'Security headers present (HSTS, CSP, X-Frame-Options)', 'security', 'A', 'security_headers'),
-('6.4.22', 'Database isolation for web apps', 'security', 'M', 'db_isolation'),
-('6.4.22', 'No malicious code / site not compromised', 'security', 'P', 'no_malicious_code'),
-('6.4.22', 'CMS latest/patched version', 'security', 'P', 'cms_patched'),
-('6.4.22', 'Regular vulnerability scanning process exists', 'security', 'M', 'vuln_scanning_process'),
-('6.4.22', 'No exposed root/critical files (.git, .env, admin panels)', 'security', 'A', 'no_exposed_files'),
--- 6.3 Interoperability (6.4.8)
-('6.4.8', 'Validates against current HTML/XML spec', 'interoperability', 'A', 'html_validation'),
-('6.4.8', 'UTF-8 encoding', 'interoperability', 'A', 'utf8_encoding'),
--- 6.4 Accessibility (6.4.9, 6.4.20)
-('6.4.9', 'Alt tags on all images/video/audio/plug-ins', 'accessibility', 'A', 'alt_tags_present'),
-('6.4.9', 'Decorative graphics have empty alt', 'accessibility', 'A', 'decorative_empty_alt'),
-('6.4.9', 'Image-as-link alt describes destination', 'accessibility', 'P', 'image_link_alt'),
-('6.4.9', 'Video captions / audio descriptions / transcripts', 'accessibility', 'P', 'media_captions'),
-('6.4.9', 'No embedded video without linked alternative', 'accessibility', 'P', 'embedded_video_alt'),
-('6.4.9', 'Data tables have proper headers', 'accessibility', 'A', 'table_headers'),
-('6.4.9', 'No flashing images / strobe effect', 'accessibility', 'P', 'no_flashing'),
-('6.4.9', 'Form fields use LABEL, logical tab order', 'accessibility', 'A', 'form_labels'),
-('6.4.9', 'Skip Navigation link present', 'accessibility', 'A', 'skip_nav'),
-('6.4.20', 'Supports multiple user agents (responsive/mobile)', 'accessibility', 'P', 'responsive_mobile'),
--- 6.5 Design, fonts, branding (6.4.6, 6.4.7, 6.4.11, 6.4.12, 6.4.13)
-('6.4.6', 'Uses external CSS, not excessive inline styling', 'design_branding', 'A', 'external_css'),
-('6.4.7', '≤3 fonts, from approved/sans-serif list', 'design_branding', 'A', 'font_limit'),
-('6.4.11', 'Server-side scripting preferred', 'design_branding', 'P', 'server_side_scripting'),
-('6.4.12', 'Coat of arms / official banner present', 'design_branding', 'P', 'coat_of_arms'),
-('6.4.13', 'Landing page has G4C/G4B/G2G index structure', 'design_branding', 'M', 'g4c_index_structure'),
--- 6.6 Multimedia & performance (6.4.16)
-('6.4.16', 'Page load time 3–18 seconds', 'multimedia_performance', 'A', 'page_load_time'),
-('6.4.16', 'Images reasonably optimized', 'multimedia_performance', 'A', 'image_optimization'),
-('6.4.16', 'No autoplay audio/video', 'multimedia_performance', 'A', 'no_autoplay'),
-('6.4.16', 'Images not distorted', 'multimedia_performance', 'M', 'images_not_distorted'),
--- 6.7 Legal & content (6.4.18.ii–iv, 6.4.19)
-('6.4.18.ii', 'Privacy policy present and linked', 'legal_content', 'A', 'privacy_policy'),
-('6.4.18.iii', 'Cookie consent present if cookies used', 'legal_content', 'A', 'cookie_consent'),
-('6.4.18.iv', 'Disclaimer statement present', 'legal_content', 'A', 'disclaimer'),
-('6.4.19', 'Copyright/attribution visible for non-GoK content', 'legal_content', 'M', 'copyright_attribution'),
-('6.4.19', 'Content freshness (last-modified recency)', 'legal_content', 'P', 'content_freshness'),
--- 6.8 Online visibility / SEO (6.4.17)
-('6.4.17', 'Meta title, meta description present', 'seo', 'A', 'meta_tags'),
-('6.4.17', 'robots.txt and sitemap.xml present', 'seo', 'A', 'robots_sitemap'),
-('6.4.17', 'Indexed by major search engines', 'seo', 'A', 'search_engine_indexed'),
--- 6.9 Monitoring (6.4.23) — feeds trend dashboard, not per-scan score
-('6.4.23', 'Site availability / uptime', 'monitoring', 'A', 'site_availability');
+-- Domain & identity (6.5.6–6.5.8; domain rules split in 2023)
+('6.5.6', 'Domain ends in .go.ke or .gov.ke', 'domain_identity', 'A', 'domain_tld'),
+('6.5.8', 'Domain ≤ 40 characters', 'domain_identity', 'A', 'domain_length'),
+('6.5.8', 'Not entirely numeric', 'domain_identity', 'A', 'domain_not_numeric'),
+('6.5.8', 'Only letters/numbers/hyphens, no leading/trailing hyphen, max one hyphen', 'domain_identity', 'A', 'domain_format'),
+('6.5.7', 'Domain bears semantic connection to stated purpose', 'domain_identity', 'M', 'domain_semantic_relevance'),
+('6.5.8', 'Not a personal name', 'domain_identity', 'P', 'domain_not_personal_name'),
+('6.5.8', 'Not a duplicate of an already-registered entity', 'domain_identity', 'A', 'domain_not_duplicate'),
+-- Security (6.5.21.i, 6.5.24, 6.5.25)
+('6.5.21.i', 'HTTPS enforced, valid certificate', 'security', 'A', 'https_valid_cert'),
+('6.5.24', 'Security headers present (HSTS, CSP, X-Frame-Options)', 'security', 'A', 'security_headers'),
+('6.5.25', 'Database isolation for web apps', 'security', 'M', 'db_isolation'),
+('6.5.25', 'No malicious code / site not compromised', 'security', 'P', 'no_malicious_code'),
+('6.5.25', 'CMS latest/patched version', 'security', 'P', 'cms_patched'),
+('6.5.25', 'Regular vulnerability scanning process exists', 'security', 'M', 'vuln_scanning_process'),
+('6.5.25', 'No exposed root/critical files (.git, .env, admin panels)', 'security', 'A', 'no_exposed_files'),
+-- Interoperability (6.5.11)
+('6.5.11', 'Validates against current HTML/XML spec', 'interoperability', 'A', 'html_validation'),
+('6.5.11', 'UTF-8 encoding', 'interoperability', 'A', 'utf8_encoding'),
+-- Accessibility (6.5.12, 6.5.23)
+('6.5.12', 'Alt tags on all images/video/audio/plug-ins', 'accessibility', 'A', 'alt_tags_present'),
+('6.5.12', 'Decorative graphics have empty alt', 'accessibility', 'A', 'decorative_empty_alt'),
+('6.5.12', 'Image-as-link alt describes destination', 'accessibility', 'P', 'image_link_alt'),
+('6.5.12', 'Video captions / audio descriptions / transcripts', 'accessibility', 'P', 'media_captions'),
+('6.5.12', 'No embedded video without linked alternative', 'accessibility', 'P', 'embedded_video_alt'),
+('6.5.12', 'Data tables have proper headers', 'accessibility', 'A', 'table_headers'),
+('6.5.12', 'No flashing images / strobe effect', 'accessibility', 'P', 'no_flashing'),
+('6.5.12', 'Form fields use LABEL, logical tab order', 'accessibility', 'A', 'form_labels'),
+('6.5.12', 'Skip Navigation link present', 'accessibility', 'A', 'skip_nav'),
+('6.5.23', 'Supports multiple user agents (responsive/mobile)', 'accessibility', 'P', 'responsive_mobile'),
+-- Design, fonts, branding (6.5.9, 6.5.10, 6.5.14–6.5.16)
+('6.5.9', 'Uses external CSS, not excessive inline styling', 'design_branding', 'A', 'external_css'),
+('6.5.10', '≤3 fonts, from approved/sans-serif list', 'design_branding', 'A', 'font_limit'),
+('6.5.14', 'Server-side scripting preferred', 'design_branding', 'P', 'server_side_scripting'),
+('6.5.15', 'Coat of arms / official banner present', 'design_branding', 'P', 'coat_of_arms'),
+('6.5.16', 'Landing page has G4C/G4B/G2G index structure', 'design_branding', 'M', 'g4c_index_structure'),
+-- Multimedia & performance (6.5.19)
+('6.5.19', 'Page load time 3–18 seconds', 'multimedia_performance', 'A', 'page_load_time'),
+('6.5.19', 'Images reasonably optimized', 'multimedia_performance', 'A', 'image_optimization'),
+('6.5.19', 'No autoplay audio/video', 'multimedia_performance', 'A', 'no_autoplay'),
+('6.5.19', 'Images not distorted', 'multimedia_performance', 'M', 'images_not_distorted'),
+-- Legal & content (6.5.21.ii–iv, 6.5.22)
+('6.5.21.ii', 'Privacy policy present and linked', 'legal_content', 'A', 'privacy_policy'),
+('6.5.21.iii', 'Cookie consent present if cookies used', 'legal_content', 'A', 'cookie_consent'),
+('6.5.21.iv', 'Disclaimer statement present', 'legal_content', 'A', 'disclaimer'),
+('6.5.22', 'Copyright/attribution visible for non-GoK content', 'legal_content', 'M', 'copyright_attribution'),
+('6.5.22', 'Content freshness (last-modified recency)', 'legal_content', 'P', 'content_freshness'),
+-- Online visibility / SEO (6.5.20)
+('6.5.20', 'Meta title, meta description present', 'seo', 'A', 'meta_tags'),
+('6.5.20', 'robots.txt and sitemap.xml present', 'seo', 'A', 'robots_sitemap'),
+('6.5.20', 'Indexed by major search engines', 'seo', 'A', 'search_engine_indexed'),
+-- Monitoring (6.5.26) — feeds trend dashboard, not per-scan score
+('6.5.26', 'Site availability / uptime', 'monitoring', 'A', 'site_availability');
 
 -- Seed: scoring_weights (SRS Section 6 proposed defaults; monitoring excluded)
 INSERT INTO scoring_weights (category, weight) VALUES

@@ -20,7 +20,7 @@ export default function Home() {
           </h1>
           <p className="mb-2 text-lg text-icta-gray-600">
             Scan public government websites for compliance with{" "}
-            <StandardDocLink>ICTA.6.002:2019 Section 6.4</StandardDocLink>
+            <StandardDocLink>ICTA.6.003:2023 §6.5</StandardDocLink>
           </p>
           <p className="mb-8 text-sm text-icta-gray-600">
             Government website compliance checker — internal ICTA tool

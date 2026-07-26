@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "ICTA Sentinel",
   description:
-    "AI-powered government website compliance checker — ICTA.6.002:2019 Section 6.4",
+    "AI-powered government website compliance checker — ICTA.6.003:2023 §6.5",
 };
 
 export default function RootLayout({

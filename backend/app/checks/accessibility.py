@@ -1,4 +1,4 @@
-# Clauses 6.4.9 — Accessibility automatable checks from static HTML (no Playwright yet)
+# Clauses 6.5.12 — Accessibility automatable checks from static HTML (no Playwright yet)
 
 from __future__ import annotations
 
@@ -114,7 +114,7 @@ def run_accessibility_checks(snap: PageSnapshot) -> list[Finding]:
                 Finding(
                     category="accessibility",
                     check_name=name,
-                    clause_reference="6.4.9",
+                    clause_reference="6.5.12",
                     status=FindingStatus.fail,
                     severity="medium",
                     automatability_type="A",
@@ -132,7 +132,7 @@ def run_accessibility_checks(snap: PageSnapshot) -> list[Finding]:
                 Finding(
                     category="accessibility",
                     check_name=name,
-                    clause_reference="6.4.9",
+                    clause_reference="6.5.12",
                     status=FindingStatus.fail,
                     severity="medium",
                     automatability_type="A",
@@ -146,7 +146,7 @@ def run_accessibility_checks(snap: PageSnapshot) -> list[Finding]:
         Finding(
             category="accessibility",
             check_name="alt_tags_present",
-            clause_reference="6.4.9",
+            clause_reference="6.5.12",
             status=FindingStatus.pass_ if not missing_alt else FindingStatus.fail,
             severity="high",
             automatability_type="A",
@@ -172,7 +172,7 @@ def run_accessibility_checks(snap: PageSnapshot) -> list[Finding]:
         Finding(
             category="accessibility",
             check_name="decorative_empty_alt",
-            clause_reference="6.4.9",
+            clause_reference="6.5.12",
             status=FindingStatus.pass_ if not decorative_bad else FindingStatus.fail,
             severity="low",
             automatability_type="A",
@@ -185,7 +185,7 @@ def run_accessibility_checks(snap: PageSnapshot) -> list[Finding]:
         Finding(
             category="accessibility",
             check_name="table_headers",
-            clause_reference="6.4.9",
+            clause_reference="6.5.12",
             status=FindingStatus.pass_
             if not parser.tables or not tables_bad
             else FindingStatus.fail,
@@ -218,7 +218,7 @@ def run_accessibility_checks(snap: PageSnapshot) -> list[Finding]:
         Finding(
             category="accessibility",
             check_name="form_labels",
-            clause_reference="6.4.9",
+            clause_reference="6.5.12",
             status=FindingStatus.pass_ if form_ok else FindingStatus.fail,
             severity="medium",
             automatability_type="A",
@@ -241,7 +241,7 @@ def run_accessibility_checks(snap: PageSnapshot) -> list[Finding]:
         Finding(
             category="accessibility",
             check_name="skip_nav",
-            clause_reference="6.4.9",
+            clause_reference="6.5.12",
             status=FindingStatus.pass_ if skip else FindingStatus.fail,
             severity="medium",
             automatability_type="A",

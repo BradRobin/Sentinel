@@ -35,4 +35,4 @@ def test_leading_hyphen_fails_format():
 def test_clause_references_match_standards():
     findings = run_domain_checks("https://www.ict.go.ke")
     for f in findings:
-        assert f.clause_reference in ("6.4.4", "6.4.5")
+        assert f.clause_reference in ("6.5.6", "6.5.8")

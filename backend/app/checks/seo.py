@@ -1,4 +1,4 @@
-# Clause 6.4.17 — Meta title/description, robots.txt, sitemap.xml, indexability
+# Clause 6.5.20 — Meta title/description, robots.txt, sitemap.xml, indexability
 
 from __future__ import annotations
 
@@ -102,7 +102,7 @@ def run_seo_checks(
                 Finding(
                     category="seo",
                     check_name=name,
-                    clause_reference="6.4.17",
+                    clause_reference="6.5.20",
                     status=FindingStatus.fail,
                     severity="low",
                     automatability_type="A",
@@ -117,7 +117,7 @@ def run_seo_checks(
         Finding(
             category="seo",
             check_name="meta_tags",
-            clause_reference="6.4.17",
+            clause_reference="6.5.20",
             status=FindingStatus.pass_ if meta_ok else FindingStatus.fail,
             severity="low",
             automatability_type="A",
@@ -144,7 +144,7 @@ def run_seo_checks(
         Finding(
             category="seo",
             check_name="robots_sitemap",
-            clause_reference="6.4.17",
+            clause_reference="6.5.20",
             status=FindingStatus.pass_ if robots_ok and sitemap_ok else FindingStatus.fail,
             severity="low",
             automatability_type="A",
@@ -173,7 +173,7 @@ def run_seo_checks(
             Finding(
                 category="seo",
                 check_name="search_engine_indexed",
-                clause_reference="6.4.17",
+                clause_reference="6.5.20",
                 status=FindingStatus.manual_review,
                 severity="low",
                 automatability_type="P",
@@ -204,7 +204,7 @@ def run_seo_checks(
         Finding(
             category="seo",
             check_name="search_engine_indexed",
-            clause_reference="6.4.17",
+            clause_reference="6.5.20",
             status=FindingStatus.pass_ if indexable else FindingStatus.fail,
             severity="low",
             automatability_type="A",

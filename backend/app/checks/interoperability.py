@@ -1,4 +1,4 @@
-# Clause 6.4.8 — Interoperability (HTML structure + UTF-8)
+# Clause 6.5.11 — Interoperability (HTML structure + UTF-8)
 
 from __future__ import annotations
 
@@ -54,7 +54,7 @@ def run_interoperability_checks(snap: PageSnapshot) -> list[Finding]:
                 Finding(
                     category="interoperability",
                     check_name=name,
-                    clause_reference="6.4.8",
+                    clause_reference="6.5.11",
                     status=FindingStatus.fail,
                     severity="medium",
                     automatability_type="A",
@@ -72,7 +72,7 @@ def run_interoperability_checks(snap: PageSnapshot) -> list[Finding]:
             Finding(
                 category="interoperability",
                 check_name="html_validation",
-                clause_reference="6.4.8",
+                clause_reference="6.5.11",
                 status=FindingStatus.fail,
                 severity="medium",
                 automatability_type="A",
@@ -95,7 +95,7 @@ def run_interoperability_checks(snap: PageSnapshot) -> list[Finding]:
             Finding(
                 category="interoperability",
                 check_name="html_validation",
-                clause_reference="6.4.8",
+                clause_reference="6.5.11",
                 status=FindingStatus.pass_ if not issues else FindingStatus.fail,
                 severity="medium",
                 automatability_type="A",
@@ -134,7 +134,7 @@ def run_interoperability_checks(snap: PageSnapshot) -> list[Finding]:
         Finding(
             category="interoperability",
             check_name="utf8_encoding",
-            clause_reference="6.4.8",
+            clause_reference="6.5.11",
             status=FindingStatus.pass_ if explicit else FindingStatus.fail,
             severity="low",
             automatability_type="A",

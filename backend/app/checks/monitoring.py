@@ -1,4 +1,4 @@
-# Clause 6.4.23 — Site availability / uptime (feeds monitoring; A)
+# Clause 6.5.26 — Site availability / uptime (feeds monitoring; A)
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ def run_monitoring_checks(snap: PageSnapshot) -> list[Finding]:
         Finding(
             category="monitoring",
             check_name="site_availability",
-            clause_reference="6.4.23",
+            clause_reference="6.5.26",
             status=FindingStatus.pass_ if available else FindingStatus.fail,
             severity="high",
             automatability_type="A",

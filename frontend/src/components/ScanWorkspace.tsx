@@ -474,7 +474,7 @@ export function ScanWorkspace() {
 
         <h1 className="mb-2 text-2xl font-bold text-icta-black">Scan</h1>
         <p className="mb-6 text-sm text-icta-gray-600">
-          <StandardDocLink>ICTA.6.002:2019 §6.4</StandardDocLink> compliance
+          <StandardDocLink>ICTA.6.003:2023 §6.5</StandardDocLink> compliance
           checks — results cached for 24 hours
         </p>
 

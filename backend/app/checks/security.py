@@ -1,6 +1,6 @@
-# Clause 6.4.18.i — HTTPS enforced, valid certificate
-# Clause 6.4.21 — Security headers (HSTS, CSP, X-Frame-Options)
-# Clause 6.4.22 — No exposed root/critical files
+# Clause 6.5.21.i — HTTPS enforced, valid certificate
+# Clause 6.5.24 — Security headers (HSTS, CSP, X-Frame-Options)
+# Clause 6.5.25 — No exposed root/critical files
 
 from __future__ import annotations
 
@@ -109,7 +109,7 @@ def run_security_checks(snap: PageSnapshot) -> list[Finding]:
             Finding(
                 category="security",
                 check_name="https_valid_cert",
-                clause_reference="6.4.18.i",
+                clause_reference="6.5.21.i",
                 status=FindingStatus.fail,
                 severity="high",
                 automatability_type="A",
@@ -126,7 +126,7 @@ def run_security_checks(snap: PageSnapshot) -> list[Finding]:
             Finding(
                 category="security",
                 check_name="security_headers",
-                clause_reference="6.4.21",
+                clause_reference="6.5.24",
                 status=FindingStatus.fail,
                 severity="medium",
                 automatability_type="A",
@@ -139,7 +139,7 @@ def run_security_checks(snap: PageSnapshot) -> list[Finding]:
             Finding(
                 category="security",
                 check_name="https_valid_cert",
-                clause_reference="6.4.18.i",
+                clause_reference="6.5.21.i",
                 status=FindingStatus.pass_ if cert_ok else FindingStatus.fail,
                 severity="high",
                 automatability_type="A",
@@ -170,7 +170,7 @@ def run_security_checks(snap: PageSnapshot) -> list[Finding]:
             Finding(
                 category="security",
                 check_name="security_headers",
-                clause_reference="6.4.21",
+                clause_reference="6.5.24",
                 status=FindingStatus.pass_ if not missing else FindingStatus.fail,
                 severity="medium",
                 automatability_type="A",
@@ -184,7 +184,7 @@ def run_security_checks(snap: PageSnapshot) -> list[Finding]:
             )
         )
 
-    # 6.4.22 — distinguish confirmed content leaks from redirect-only admin hits
+    # 6.5.25 — distinguish confirmed content leaks from redirect-only admin hits
     content_exposed: list[dict] = []
     redirect_exposed: list[dict] = []
     for path, result in snap.path_probes.items():
@@ -233,7 +233,7 @@ def run_security_checks(snap: PageSnapshot) -> list[Finding]:
         Finding(
             category="security",
             check_name="no_exposed_files",
-            clause_reference="6.4.22",
+            clause_reference="6.5.25",
             status=status,
             severity=severity,
             automatability_type="A",

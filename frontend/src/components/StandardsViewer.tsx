@@ -45,7 +45,6 @@ export function StandardsViewer() {
   }, [pageParam, target]);
 
   const highlightText = target?.highlight ?? null;
-  const docClause = target?.docClause ?? null;
 
   function onBack() {
     // Prefer the scan workspace so results can resume from session storage.
@@ -72,25 +71,13 @@ export function StandardsViewer() {
               {clause ? (
                 <>
                   {" "}
-                  · Sentinel clause{" "}
+                  · clause{" "}
                   <span className="font-medium text-icta-black">{clause}</span>
-                </>
-              ) : null}
-              {docClause ? (
-                <>
-                  {" "}
-                  · document §
-                  <span className="font-medium text-icta-black">{docClause}</span>
                 </>
               ) : null}
               {" "}
               · page {page}
             </p>
-            {clause ? (
-              <p className="mt-1 text-xs text-icta-gray-600">
-                Sentinel cites ICTA.6.002:2019 §6.4 IDs.
-              </p>
-            ) : null}
           </div>
           <div className="flex flex-wrap gap-2">
             <a

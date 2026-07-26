@@ -10,7 +10,7 @@ def _finding(category: str, name: str) -> Finding:
     return Finding(
         category=category,
         check_name=name,
-        clause_reference="6.4.0",
+        clause_reference="6.5.0",
         status=FindingStatus.pass_,
         severity="low",
         automatability_type="A",

@@ -1,4 +1,4 @@
-"""LLM judgment for domain ↔ stated-purpose semantic relevance (clause 6.4.4)."""
+"""LLM judgment for domain ↔ stated-purpose semantic relevance (clause 6.5.7)."""
 
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ JudgmentStatus = Literal["pass", "fail", "flag"]
 
 _SYSTEM = """You assess whether a Kenyan government website domain name bears a semantic
 connection to the MCDA's (Ministry, County, Department, or Agency) stated purpose,
-per ICTA.6.002:2019 clause 6.4.4.
+per ICTA.6.003:2023 clause 6.5.7.
 
 Respond with ONLY a JSON object (no markdown) of this shape:
 {"status":"pass"|"fail"|"flag","justification":"<one or two short sentences>"}

@@ -1,4 +1,4 @@
-# Clauses 6.4.4 / 6.4.5 — Domain format and identity rules
+# Clauses 6.5.6–6.5.8 — Domain name, relevance, and format rules
 
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ def _registrable_host(hostname: str) -> str:
 
 
 def _check_duplicate(url: str) -> Finding:
-    """6.4.5 — Not a duplicate of an already-registered entity (internal registry)."""
+    """6.5.8 — Not a duplicate of an already-registered entity (internal registry)."""
     from app.services.scan_repository import normalize_domain_url
 
     domain_url = normalize_domain_url(url)
@@ -53,7 +53,7 @@ def _check_duplicate(url: str) -> Finding:
         return Finding(
             category="domain_identity",
             check_name="domain_not_duplicate",
-            clause_reference="6.4.5",
+            clause_reference="6.5.8",
             status=FindingStatus.manual_review,
             severity="medium",
             automatability_type="A",
@@ -63,7 +63,7 @@ def _check_duplicate(url: str) -> Finding:
     return Finding(
         category="domain_identity",
         check_name="domain_not_duplicate",
-        clause_reference="6.4.5",
+        clause_reference="6.5.8",
         status=FindingStatus.pass_ if not duplicates else FindingStatus.fail,
         severity="medium",
         automatability_type="A",
@@ -82,7 +82,7 @@ def run_domain_checks(url: str) -> list[Finding]:
         Finding(
             category="domain_identity",
             check_name="domain_tld",
-            clause_reference="6.4.4",
+            clause_reference="6.5.6",
             status=FindingStatus.pass_ if tld_ok else FindingStatus.fail,
             severity="high",
             automatability_type="A",
@@ -95,7 +95,7 @@ def run_domain_checks(url: str) -> list[Finding]:
         Finding(
             category="domain_identity",
             check_name="domain_length",
-            clause_reference="6.4.4",
+            clause_reference="6.5.8",
             status=FindingStatus.pass_ if length_ok else FindingStatus.fail,
             severity="medium",
             automatability_type="A",
@@ -108,7 +108,7 @@ def run_domain_checks(url: str) -> list[Finding]:
         Finding(
             category="domain_identity",
             check_name="domain_not_numeric",
-            clause_reference="6.4.4",
+            clause_reference="6.5.8",
             status=FindingStatus.pass_ if not_numeric else FindingStatus.fail,
             severity="medium",
             automatability_type="A",
@@ -134,7 +134,7 @@ def run_domain_checks(url: str) -> list[Finding]:
         Finding(
             category="domain_identity",
             check_name="domain_format",
-            clause_reference="6.4.4",
+            clause_reference="6.5.8",
             status=FindingStatus.pass_ if format_ok else FindingStatus.fail,
             severity="medium",
             automatability_type="A",

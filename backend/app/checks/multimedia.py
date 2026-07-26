@@ -1,4 +1,4 @@
-# Clause 6.4.16 — Multimedia & performance (A)
+# Clause 6.5.19 — Multimedia & performance (A)
 
 from __future__ import annotations
 
@@ -51,7 +51,7 @@ def run_multimedia_checks(
                 Finding(
                     category="multimedia_performance",
                     check_name=name,
-                    clause_reference="6.4.16",
+                    clause_reference="6.5.19",
                     status=FindingStatus.fail,
                     severity="medium",
                     automatability_type="A",
@@ -67,7 +67,7 @@ def run_multimedia_checks(
         Finding(
             category="multimedia_performance",
             check_name="page_load_time",
-            clause_reference="6.4.16",
+            clause_reference="6.5.19",
             status=FindingStatus.pass_ if load_ok else FindingStatus.fail,
             severity="medium",
             automatability_type="A",
@@ -127,7 +127,7 @@ def run_multimedia_checks(
         Finding(
             category="multimedia_performance",
             check_name="image_optimization",
-            clause_reference="6.4.16",
+            clause_reference="6.5.19",
             status=FindingStatus.pass_ if img_ok else FindingStatus.fail,
             severity="low",
             automatability_type="A",
@@ -145,7 +145,7 @@ def run_multimedia_checks(
         Finding(
             category="multimedia_performance",
             check_name="no_autoplay",
-            clause_reference="6.4.16",
+            clause_reference="6.5.19",
             status=FindingStatus.pass_ if autoplay_ok else FindingStatus.fail,
             severity="medium",
             automatability_type="A",

@@ -178,8 +178,17 @@ def _base_payload(
 
 
 @celery_app.task(name="app.workers.scan_tasks.run_scan", bind=True)
-def run_scan(self, scan_id: str, url: str) -> dict[str, Any]:
-    """Run full check suite with category progress; persist and cache results."""
+def run_scan(
+    self,
+    scan_id: str,
+    url: str,
+    skip_narrative: bool = False,
+) -> dict[str, Any]:
+    """Run full check suite with category progress; persist and cache results.
+
+    ``skip_narrative`` skips the Gemini prose summary (used for registry bulk /
+    scheduled rescans where only scores matter).
+    """
     redis_client = get_redis()
     lock_key = _lock_key(url)
     allowed_tlds = [t.strip() for t in settings.allowed_tld.split(",") if t.strip()]
@@ -272,7 +281,7 @@ def run_scan(self, scan_id: str, url: str) -> dict[str, Any]:
                 future.cancel()
                 raise ScanAbortError("timeout") from exc
 
-        # Publish full findings while scoring + narrative still run
+        # Publish full findings while scoring (+ optional narrative) still run
         set_job_status(
             scan_id,
             _base_payload(
@@ -281,7 +290,11 @@ def run_scan(self, scan_id: str, url: str) -> dict[str, Any]:
                 status="running",
                 current_category=None,
                 categories_completed=list(categories_completed),
-                progress="Scoring and preparing summary…",
+                progress=(
+                    "Scoring…"
+                    if skip_narrative
+                    else "Scoring and preparing summary…"
+                ),
                 result=_partial_result(findings),
             ),
         )
@@ -297,14 +310,18 @@ def run_scan(self, scan_id: str, url: str) -> dict[str, Any]:
                 "Registry score update failed for scan %s: %s", scan_id, exc
             )
 
-        # Narrative runs after the timed check suite so LLM latency cannot abort scoring.
+        # Narrative is for interactive single-site scans only — registry bulk
+        # / weekly rescans only need scores recorded on the dashboard.
         narrative: str | None = None
-        try:
-            narrative = generate_scan_narrative(url, findings, score_result)
-            if narrative:
-                save_narrative(scan_id, narrative)
-        except Exception as exc:
-            logger.warning("Narrative generation failed for scan %s: %s", scan_id, exc)
+        if not skip_narrative:
+            try:
+                narrative = generate_scan_narrative(url, findings, score_result)
+                if narrative:
+                    save_narrative(scan_id, narrative)
+            except Exception as exc:
+                logger.warning(
+                    "Narrative generation failed for scan %s: %s", scan_id, exc
+                )
 
         update_scan_status(scan_id, "complete")
 

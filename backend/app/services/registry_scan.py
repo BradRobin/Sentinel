@@ -125,7 +125,7 @@ def enqueue_registry_scans(
                     "attached_to_existing": False,
                 },
             )
-            run_scan.delay(scan_id, url)
+            run_scan.delay(scan_id, url, skip_narrative=True)
             queued += 1
             jobs.append(
                 {

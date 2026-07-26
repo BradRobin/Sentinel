@@ -2,9 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
-import * as maplibregl from "maplibre-gl";
-import type { Map as MapLibreMap, MapLayerMouseEvent } from "maplibre-gl";
-import "maplibre-gl/dist/maplibre-gl.css";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 
 import { getRegistry, type RegistryEntry } from "@/lib/api";
 import {
@@ -19,20 +18,16 @@ import {
 import { copyScanUrl } from "@/lib/scan-url-clipboard";
 import { btnSecondarySm, linkQuiet } from "@/lib/ui";
 
-const SOURCE_ID = "kenya-counties";
-const FILL_LAYER = "kenya-counties-fill";
-const LINE_LAYER = "kenya-counties-line";
-const HOVER_LAYER = "kenya-counties-hover";
-
 interface TooltipState {
   x: number;
   y: number;
   props: CountyMapFeatureProps;
 }
 
-function readFeatureProps(
-  props: Record<string, unknown> | null | undefined,
+function featureProps(
+  feature: GeoJSON.Feature,
 ): CountyMapFeatureProps | null {
+  const props = feature.properties as Record<string, unknown> | null;
   if (!props) return null;
   const scoreRaw = props.score;
   const score =
@@ -54,78 +49,26 @@ function readFeatureProps(
   };
 }
 
-function boundsFromGeoJSON(geojson: KenyaCountiesGeoJSON): maplibregl.LngLatBounds {
-  const bounds = new maplibregl.LngLatBounds();
-  const walk = (coords: unknown): void => {
-    if (!Array.isArray(coords)) return;
-    if (typeof coords[0] === "number" && typeof coords[1] === "number") {
-      bounds.extend(coords as [number, number]);
-      return;
-    }
-    for (const c of coords) walk(c);
+function countyStyle(feature?: GeoJSON.Feature): L.PathOptions {
+  return {
+    fillColor: String(feature?.properties?.fillColor ?? "#e5e7eb"),
+    fillOpacity: 0.92,
+    color: "#111111",
+    weight: 0.8,
+    opacity: 0.55,
   };
-  for (const feature of geojson.features) {
-    const geom = feature.geometry as { coordinates?: unknown } | null;
-    if (geom?.coordinates) walk(geom.coordinates);
-  }
-  return bounds;
-}
-
-function ensureCountyLayers(map: MapLibreMap, data: KenyaCountiesGeoJSON) {
-  const payload = data as never;
-  const existing = map.getSource(SOURCE_ID) as maplibregl.GeoJSONSource | undefined;
-  if (existing) {
-    existing.setData(payload);
-  } else {
-    map.addSource(SOURCE_ID, { type: "geojson", data: payload });
-    map.addLayer({
-      id: FILL_LAYER,
-      type: "fill",
-      source: SOURCE_ID,
-      paint: {
-        "fill-color": ["coalesce", ["get", "fillColor"], "#e5e7eb"],
-        "fill-opacity": 0.9,
-      },
-    });
-    map.addLayer({
-      id: LINE_LAYER,
-      type: "line",
-      source: SOURCE_ID,
-      paint: {
-        "line-color": "#111111",
-        "line-width": 0.8,
-        "line-opacity": 0.5,
-      },
-    });
-    map.addLayer({
-      id: HOVER_LAYER,
-      type: "line",
-      source: SOURCE_ID,
-      paint: {
-        "line-color": "#000000",
-        "line-width": 2.4,
-      },
-      filter: ["==", ["get", "shapeName"], ""],
-    });
-  }
-
-  const bounds = boundsFromGeoJSON(data);
-  if (!bounds.isEmpty()) {
-    map.fitBounds(bounds, { padding: 40, duration: 0, maxZoom: 6.2 });
-  }
-  map.resize();
 }
 
 export function KenyaMapDashboard() {
   const containerRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<MapLibreMap | null>(null);
-  const enrichedRef = useRef<KenyaCountiesGeoJSON | null>(null);
-  const handlersBoundRef = useRef(false);
+  const mapRef = useRef<L.Map | null>(null);
+  const layerRef = useRef<L.GeoJSON | null>(null);
 
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [counties, setCounties] = useState<RegistryEntry[]>([]);
   const [geojson, setGeojson] = useState<KenyaCountiesGeoJSON | null>(null);
+  const [mapReady, setMapReady] = useState(false);
   const [tooltip, setTooltip] = useState<TooltipState | null>(null);
   const [selected, setSelected] = useState<CountyMapFeatureProps | null>(null);
 
@@ -133,8 +76,6 @@ export function KenyaMapDashboard() {
     if (!geojson) return null;
     return enrichCountiesGeoJSON(geojson, counties);
   }, [geojson, counties]);
-
-  enrichedRef.current = enriched;
 
   const scoredCount = useMemo(
     () => counties.filter((c) => c.latest_score != null).length,
@@ -161,7 +102,6 @@ export function KenyaMapDashboard() {
         const geo = (await geoRes.json()) as KenyaCountiesGeoJSON & {
           crs?: unknown;
         };
-        // MapLibre can choke on the legacy GeoJSON crs member
         delete geo.crs;
         setCounties(registry.items);
         setGeojson(geo);
@@ -171,137 +111,100 @@ export function KenyaMapDashboard() {
     });
   }, []);
 
+  // Create map once (re-created cleanly under React Strict Mode)
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
 
-    let cancelled = false;
-    handlersBoundRef.current = false;
-
-    const map = new maplibregl.Map({
-      container: el,
-      style: {
-        version: 8,
-        sources: {},
-        layers: [
-          {
-            id: "background",
-            type: "background",
-            paint: { "background-color": "#f3f4f6" },
-          },
-        ],
-      },
-      center: [37.9, 0.35],
-      zoom: 5.4,
-      minZoom: 4.5,
-      maxZoom: 9,
-      attributionControl: { compact: true },
+    const map = L.map(el, {
+      zoomControl: true,
+      attributionControl: true,
+      minZoom: 5,
+      maxZoom: 10,
     });
-
-    mapRef.current = map;
-    map.addControl(
-      new maplibregl.NavigationControl({ showCompass: false }),
-      "top-right",
+    map.setView([0.35, 37.9], 6);
+    map.attributionControl.setPrefix("");
+    map.attributionControl.addAttribution(
+      '<a href="https://www.geoboundaries.org/" target="_blank" rel="noreferrer">geoBoundaries</a>',
     );
+    mapRef.current = map;
+    setMapReady(true);
 
-    const bindHandlers = () => {
-      if (handlersBoundRef.current) return;
-      handlersBoundRef.current = true;
-
-      map.on("mousemove", FILL_LAYER, (e: MapLayerMouseEvent) => {
-        const props = readFeatureProps(
-          e.features?.[0]?.properties as Record<string, unknown> | undefined,
-        );
-        if (!props) {
-          setTooltip(null);
-          return;
-        }
-        map.getCanvas().style.cursor = "pointer";
-        map.setFilter(HOVER_LAYER, [
-          "==",
-          ["get", "shapeName"],
-          props.shapeName,
-        ]);
-        setTooltip({ x: e.point.x, y: e.point.y, props });
-      });
-
-      map.on("mouseleave", FILL_LAYER, () => {
-        map.getCanvas().style.cursor = "";
-        map.setFilter(HOVER_LAYER, ["==", ["get", "shapeName"], ""]);
-        setTooltip(null);
-      });
-
-      map.on("click", FILL_LAYER, (e: MapLayerMouseEvent) => {
-        const props = readFeatureProps(
-          e.features?.[0]?.properties as Record<string, unknown> | undefined,
-        );
-        if (props) setSelected(props);
-      });
-    };
-
-    const applyData = () => {
-      if (cancelled || mapRef.current !== map) return;
-      const data = enrichedRef.current;
-      if (!data) return;
-      try {
-        ensureCountyLayers(map, data);
-        bindHandlers();
-      } catch (err) {
-        setError(
-          err instanceof Error ? err.message : "Failed to render county map",
-        );
-      }
-    };
-
-    const onLoad = () => {
-      if (cancelled || mapRef.current !== map) return;
-      map.resize();
-      applyData();
-    };
-
-    map.on("load", onLoad);
-    map.on("error", (e) => {
-      const msg = e.error?.message || "Map failed to render";
-      setError(msg);
-    });
-
-    // If style is already loaded (fast path), apply immediately
-    if (map.isStyleLoaded()) onLoad();
-
-    const ro = new ResizeObserver(() => {
-      if (!cancelled && mapRef.current === map) map.resize();
-    });
+    const ro = new ResizeObserver(() => map.invalidateSize());
     ro.observe(el);
+    requestAnimationFrame(() => map.invalidateSize());
 
     return () => {
-      cancelled = true;
       ro.disconnect();
-      map.off("load", onLoad);
+      setMapReady(false);
+      layerRef.current = null;
       map.remove();
       if (mapRef.current === map) mapRef.current = null;
-      handlersBoundRef.current = false;
     };
   }, []);
 
+  // Paint / update choropleth when map is ready and data is available
   useEffect(() => {
     const map = mapRef.current;
-    const data = enriched;
-    if (!map || !data) return;
+    if (!mapReady || !map || !enriched) return;
 
-    const apply = () => {
-      if (mapRef.current !== map) return;
-      try {
-        ensureCountyLayers(map, data);
-      } catch (err) {
-        setError(
-          err instanceof Error ? err.message : "Failed to render county map",
-        );
-      }
-    };
+    if (layerRef.current) {
+      map.removeLayer(layerRef.current);
+      layerRef.current = null;
+    }
 
-    if (map.isStyleLoaded()) apply();
-    else map.once("load", apply);
-  }, [enriched]);
+    const layer = L.geoJSON(enriched as GeoJSON.GeoJsonObject, {
+      style: countyStyle,
+      onEachFeature: (feature, lyr) => {
+        lyr.on({
+          mouseover: (e) => {
+            const path = e.target as L.Path;
+            path.setStyle({ weight: 2.2, color: "#000000", opacity: 1 });
+            if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
+              path.bringToFront();
+            }
+            const props = featureProps(feature);
+            if (!props || !containerRef.current) return;
+            const rect = containerRef.current.getBoundingClientRect();
+            const oe = e.originalEvent as MouseEvent;
+            setTooltip({
+              x: oe.clientX - rect.left,
+              y: oe.clientY - rect.top,
+              props,
+            });
+          },
+          mouseout: (e) => {
+            layer.resetStyle(e.target);
+            setTooltip(null);
+          },
+          mousemove: (e) => {
+            const props = featureProps(feature);
+            if (!props || !containerRef.current) return;
+            const rect = containerRef.current.getBoundingClientRect();
+            const oe = e.originalEvent as MouseEvent;
+            setTooltip({
+              x: oe.clientX - rect.left,
+              y: oe.clientY - rect.top,
+              props,
+            });
+          },
+          click: () => {
+            const props = featureProps(feature);
+            if (props) setSelected(props);
+          },
+        });
+      },
+    });
+
+    layer.addTo(map);
+    layerRef.current = layer;
+
+    const bounds = layer.getBounds();
+    if (bounds.isValid()) {
+      map.fitBounds(bounds, { padding: [28, 28], maxZoom: 7 });
+    }
+    map.invalidateSize();
+  }, [enriched, mapReady]);
 
   return (
     <div className="flex flex-1 flex-col">
@@ -361,15 +264,15 @@ export function KenyaMapDashboard() {
         )}
 
         <div className="grid flex-1 gap-6 lg:grid-cols-[minmax(0,1fr)_16rem]">
-          <div className="relative overflow-hidden rounded-md border border-icta-gray-200 bg-icta-gray-100">
+          <div className="relative overflow-hidden rounded-md border border-icta-gray-200">
             <div
               ref={containerRef}
-              className="h-[28rem] w-full lg:h-[36rem]"
+              className="kenya-leaflet-map h-[28rem] w-full lg:h-[36rem]"
             />
 
             {tooltip && (
               <div
-                className="pointer-events-none absolute z-10 max-w-[16rem] rounded-md border border-icta-gray-200 bg-white px-3 py-2 text-xs shadow-md"
+                className="pointer-events-none absolute z-[1000] max-w-[16rem] rounded-md border border-icta-gray-200 bg-white px-3 py-2 text-xs shadow-md"
                 style={{
                   left: Math.min(
                     tooltip.x + 14,

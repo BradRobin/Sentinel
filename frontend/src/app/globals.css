@@ -171,3 +171,14 @@ input[type="checkbox"] {
     transition: none;
   }
 }
+
+/* Kenya compliance map (Leaflet) */
+.kenya-leaflet-map.leaflet-container {
+  background: #f3f4f6;
+  font: inherit;
+}
+
+.kenya-leaflet-map .leaflet-control-attribution {
+  font-size: 10px;
+  background: rgb(255 255 255 / 0.85);
+}

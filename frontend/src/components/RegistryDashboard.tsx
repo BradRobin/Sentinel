@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState, useTransition } from "react";
 
+import { SentinelMark } from "@/components/SentinelMark";
 import {
   getRegistry,
   getRegistryScanBatch,
@@ -12,9 +13,11 @@ import {
   type RegistryTrend,
 } from "@/lib/api";
 import { copyScanUrl } from "@/lib/scan-url-clipboard";
+import type { SentinelMarkState } from "@/lib/sentinel-mark-paths";
 import {
   btnFilterActive,
   btnFilterIdle,
+  btnGhost,
   btnMuted,
   btnPrimary,
   btnSecondary,
@@ -68,6 +71,46 @@ type OrgFilter = "all" | "ministry" | "agency" | "county";
 const BATCH_POLL_MS = 2500;
 const BATCH_STORAGE_KEY = "sentinel.registry.scanBatchId";
 
+function batchMarkState(
+  scanning: boolean,
+  status: RegistryScanBatchStatus | null,
+  hasError: boolean,
+): SentinelMarkState {
+  if (hasError && !scanning) return "error";
+  if (!status) return scanning ? "processing" : "idle";
+  if (status.done) {
+    const failed = status.counts.failed;
+    const complete = status.counts.complete;
+    if (failed > 0 && complete === 0) return "error";
+    return "complete";
+  }
+  return "processing";
+}
+
+function StatusChip({
+  label,
+  value,
+  tone = "neutral",
+}: {
+  label: string;
+  value: number;
+  tone?: "neutral" | "running" | "ok" | "bad";
+}) {
+  const toneClass =
+    tone === "running"
+      ? "text-icta-black"
+      : tone === "ok"
+        ? "text-icta-green"
+        : tone === "bad"
+          ? "text-icta-red"
+          : "text-icta-gray-600";
+  return (
+    <span className={`tabular-nums ${toneClass}`}>
+      <span className="font-semibold">{value}</span> {label}
+    </span>
+  );
+}
+
 export function RegistryDashboard() {
   const [items, setItems] = useState<RegistryEntry[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -81,6 +124,7 @@ export function RegistryDashboard() {
   const [batchStatus, setBatchStatus] = useState<RegistryScanBatchStatus | null>(
     null,
   );
+  const [showFinishedBanner, setShowFinishedBanner] = useState(false);
   const lastRefreshComplete = useRef(0);
   const queryRef = useRef(query);
   const orgFilterRef = useRef(orgFilter);
@@ -139,17 +183,14 @@ export function RegistryDashboard() {
         setBatchStatus(status);
         setScanError(null);
 
-        const finished =
-          status.counts.complete + status.counts.failed;
-        if (
-          finished > lastRefreshComplete.current ||
-          status.done
-        ) {
+        const finished = status.counts.complete + status.counts.failed;
+        if (finished > lastRefreshComplete.current || status.done) {
           lastRefreshComplete.current = finished;
           load(queryRef.current, orgFilterRef.current);
         }
 
         if (status.done) {
+          setShowFinishedBanner(true);
           try {
             window.sessionStorage.removeItem(BATCH_STORAGE_KEY);
           } catch {
@@ -184,6 +225,7 @@ export function RegistryDashboard() {
   async function onScanAll() {
     setScanStarting(true);
     setScanError(null);
+    setShowFinishedBanner(false);
     try {
       const result = await startRegistryScan();
       lastRefreshComplete.current = 0;
@@ -203,140 +245,232 @@ export function RegistryDashboard() {
     }
   }
 
+  function dismissScanBanner() {
+    setShowFinishedBanner(false);
+    setBatchStatus(null);
+    setScanError(null);
+  }
+
   const scored = items.filter((i) => i.latest_score !== null).length;
   const scanning = Boolean(batchId) || scanStarting;
+  const showScanPanel =
+    scanning || showFinishedBanner || Boolean(batchStatus && !batchStatus.done);
   const counts = batchStatus?.counts;
-  const finished =
-    (counts?.complete ?? 0) + (counts?.failed ?? 0);
+  const finished = (counts?.complete ?? 0) + (counts?.failed ?? 0);
   const total = batchStatus?.domain_count ?? 0;
   const progressPct =
     total > 0 ? Math.min(100, Math.round((finished / total) * 100)) : 0;
+  const scanDone = Boolean(batchStatus?.done) || showFinishedBanner;
+  const markState = batchMarkState(scanning, batchStatus, Boolean(scanError));
+  const barClass = scanDone
+    ? counts && counts.failed > 0 && counts.complete === 0
+      ? "bg-icta-gray-600"
+      : "bg-icta-green"
+    : "bg-icta-black";
 
   return (
     <div className="flex flex-1 flex-col">
-      <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-16">
-        <Link
-          href="/"
-          className={`mb-8 inline-block ${linkQuiet}`}
-        >
+      <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-12 sm:py-16">
+        <Link href="/" className={`mb-8 inline-block ${linkQuiet}`}>
           ← Back
         </Link>
 
-        <h1 className="mb-2 text-2xl font-bold text-icta-black">
-          MCDA registry
-        </h1>
-        <p className="mb-6 max-w-2xl text-sm text-icta-gray-600">
-          Known ministries, counties, and agencies with the latest compliance
-          score from weekly scheduled scans. Trend compares the two most recent
-          updates.
-        </p>
-
-        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div className="flex flex-1 flex-col gap-2 sm:max-w-md">
-            <label
-              htmlFor="registry-search"
-              className="text-xs font-medium text-icta-gray-600"
-            >
-              Search
-            </label>
-            <input
-              id="registry-search"
-              type="search"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") load(query, orgFilter);
-              }}
-              placeholder="Name, alias, or URL…"
-              className={inputBase}
-            />
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            {(
-              [
-                ["all", "All"],
-                ["ministry", "Ministries"],
-                ["agency", "Agencies"],
-                ["county", "Counties"],
-              ] as const
-            ).map(([value, label]) => (
-              <button
-                key={value}
-                type="button"
-                onClick={() => {
-                  setOrgFilter(value);
-                  load(query, value);
-                }}
-                className={
-                  orgFilter === value ? btnFilterActive : btnFilterIdle
-                }
-              >
-                {label}
-              </button>
-            ))}
-            <button
-              type="button"
-              onClick={() => load(query, orgFilter)}
-              className={btnPrimary}
-            >
-              Refresh
-            </button>
-          </div>
-        </div>
-
-        <div className="mb-4 flex flex-col gap-3 border-b border-icta-gray-200 pb-4 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-xs text-icta-gray-600">
-            {pending ? "Loading…" : `${items.length} MCDAs`}
-            {!pending && scored > 0 ? ` · ${scored} with scores` : ""}
+        <header className="mb-8">
+          <h1 className="mb-2 text-2xl font-bold tracking-tight text-icta-black sm:text-3xl">
+            MCDA registry
+          </h1>
+          <p className="max-w-2xl text-sm leading-relaxed text-icta-gray-600">
+            Ministries, counties, and agencies with compliance scores from
+            weekly scans. Trend compares the two most recent updates. Use{" "}
+            <span className="text-icta-black">Scan all</span> to re-check every
+            listed site.
           </p>
-          <button
-            type="button"
-            onClick={() => void onScanAll()}
-            disabled={scanning || items.length === 0}
-            className={btnSecondary}
-          >
-            {scanning ? "Scanning all MCDAs…" : "Scan all MCDAs"}
-          </button>
-        </div>
+        </header>
 
-        {(scanning || batchStatus) && (
-          <div
-            className="mb-6 rounded-md border border-icta-gray-200 bg-icta-gray-50 px-4 py-3 text-sm text-icta-black"
-            role="status"
-            aria-live="polite"
-          >
-            <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <p className="font-medium">
-                {batchStatus?.done
-                  ? "Registry scan finished"
-                  : "Scanning registry MCDAs"}
-              </p>
-              {total > 0 && (
-                <p className="text-xs text-icta-gray-600 tabular-nums">
-                  {finished}/{total} finished ({progressPct}%)
-                </p>
-              )}
-            </div>
-            <div
-              className="mt-2 h-1.5 overflow-hidden rounded-full bg-icta-gray-200"
-              aria-hidden
-            >
-              <div
-                className="h-full bg-icta-red transition-[width] duration-500 ease-out"
-                style={{ width: `${progressPct}%` }}
+        <div className="mb-5 flex flex-col gap-4">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+            <div className="flex min-w-0 flex-1 flex-col gap-2 lg:max-w-md">
+              <label
+                htmlFor="registry-search"
+                className="text-xs font-medium text-icta-gray-600"
+              >
+                Search
+              </label>
+              <input
+                id="registry-search"
+                type="search"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") load(query, orgFilter);
+                }}
+                placeholder="Name, alias, or URL…"
+                className={inputBase}
               />
             </div>
-            {counts && (
-              <p className="mt-2 text-xs text-icta-gray-600">
-                {counts.running} running · {counts.queued} queued ·{" "}
-                {counts.complete} complete
-                {counts.failed > 0 ? ` · ${counts.failed} failed` : ""}
-              </p>
-            )}
-            <p className="mt-1 text-xs text-icta-gray-600">
-              Scores update in the table as each scan completes.
+
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => void onScanAll()}
+                disabled={scanning || items.length === 0}
+                className={btnPrimary}
+              >
+                {scanning ? "Scanning…" : "Scan all MCDAs"}
+              </button>
+              <button
+                type="button"
+                onClick={() => load(query, orgFilter)}
+                disabled={pending}
+                className={btnSecondary}
+              >
+                {pending ? "Refreshing…" : "Refresh list"}
+              </button>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-3 border-b border-icta-gray-200 pb-4 sm:flex-row sm:items-center sm:justify-between">
+            <div
+              className="flex flex-wrap gap-1.5"
+              role="group"
+              aria-label="Organization type"
+            >
+              {(
+                [
+                  ["all", "All"],
+                  ["ministry", "Ministries"],
+                  ["agency", "Agencies"],
+                  ["county", "Counties"],
+                ] as const
+              ).map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => {
+                    setOrgFilter(value);
+                    load(query, value);
+                  }}
+                  className={
+                    orgFilter === value ? btnFilterActive : btnFilterIdle
+                  }
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs tabular-nums text-icta-gray-600">
+              {pending ? "Loading…" : `${items.length} MCDAs`}
+              {!pending && scored > 0 ? ` · ${scored} with scores` : ""}
             </p>
           </div>
+        </div>
+
+        {showScanPanel && (
+          <section
+            className="mb-6 overflow-hidden rounded-md border border-icta-gray-200 bg-white"
+            role="status"
+            aria-live="polite"
+            aria-label={
+              scanDone ? "Registry scan finished" : "Scanning registry MCDAs"
+            }
+          >
+            <div className="flex gap-4 px-4 py-4 sm:px-5">
+              <div className="shrink-0 pt-0.5">
+                <SentinelMark
+                  state={markState}
+                  size={44}
+                  label={
+                    markState === "processing"
+                      ? "Sentinel scanning registry"
+                      : markState === "complete"
+                        ? "Registry scan complete"
+                        : markState === "error"
+                          ? "Registry scan error"
+                          : "Sentinel"
+                  }
+                />
+              </div>
+
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div>
+                    <p className="font-semibold text-icta-black">
+                      {scanDone
+                        ? markState === "error"
+                          ? "Registry scan finished with errors"
+                          : "Registry scan finished"
+                        : "Scanning registry MCDAs"}
+                    </p>
+                    <p className="mt-0.5 text-xs text-icta-gray-600">
+                      {scanDone
+                        ? "Latest scores are in the table below."
+                        : "Scores update in the table as each scan completes."}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {total > 0 && (
+                      <p className="text-xs font-medium tabular-nums text-icta-black">
+                        {finished}/{total}
+                        <span className="font-normal text-icta-gray-600">
+                          {" "}
+                          · {progressPct}%
+                        </span>
+                      </p>
+                    )}
+                    {scanDone && (
+                      <button
+                        type="button"
+                        onClick={dismissScanBanner}
+                        className={btnGhost}
+                        aria-label="Dismiss scan status"
+                      >
+                        Dismiss
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <div
+                  className="mt-3 h-2 overflow-hidden rounded-full bg-icta-gray-100"
+                  aria-hidden
+                >
+                  <div
+                    className={`h-full rounded-full transition-[width] duration-500 ease-out motion-reduce:transition-none ${barClass}`}
+                    style={{
+                      width: `${scanDone ? 100 : Math.max(progressPct, scanning && progressPct === 0 ? 4 : progressPct)}%`,
+                    }}
+                  />
+                </div>
+
+                {counts && (
+                  <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs">
+                    {!scanDone && (
+                      <>
+                        <StatusChip
+                          label="running"
+                          value={counts.running}
+                          tone="running"
+                        />
+                        <StatusChip label="queued" value={counts.queued} />
+                      </>
+                    )}
+                    <StatusChip
+                      label="complete"
+                      value={counts.complete}
+                      tone="ok"
+                    />
+                    {counts.failed > 0 && (
+                      <StatusChip
+                        label="failed"
+                        value={counts.failed}
+                        tone="bad"
+                      />
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </section>
         )}
 
         {scanError && (
@@ -362,7 +496,7 @@ export function RegistryDashboard() {
           </div>
         )}
 
-        <div className="overflow-x-auto border-t border-icta-gray-200">
+        <div className="overflow-x-auto">
           <table className="w-full min-w-[40rem] text-left text-sm">
             <thead>
               <tr className="border-b border-icta-gray-200 text-xs uppercase tracking-wide text-icta-gray-600">
@@ -392,7 +526,7 @@ export function RegistryDashboard() {
               {items.map((row, index) => (
                 <tr
                   key={row.domain_id}
-                  className="border-b border-icta-gray-100 align-top"
+                  className="border-b border-icta-gray-100 align-top transition-colors hover:bg-icta-gray-50/80"
                 >
                   <td className="py-3 pr-3 tabular-nums text-icta-gray-600">
                     {index + 1}
@@ -405,7 +539,7 @@ export function RegistryDashboard() {
                       href={row.url}
                       target="_blank"
                       rel="noreferrer"
-                      className="mt-1 block break-all text-xs text-icta-gray-600 hover:text-icta-black"
+                      className="mt-1 block break-all text-xs text-icta-link underline-offset-2 hover:underline"
                     >
                       {row.url}
                     </a>
@@ -416,7 +550,9 @@ export function RegistryDashboard() {
                   <td className="py-3 pr-4 font-medium tabular-nums text-icta-black">
                     {formatScore(row.latest_score)}
                   </td>
-                  <td className={`py-3 pr-4 font-medium ${trendClass(row.trend)}`}>
+                  <td
+                    className={`py-3 pr-4 font-medium ${trendClass(row.trend)}`}
+                  >
                     {trendLabel(row.trend)}
                   </td>
                   <td className="py-3 pr-4 text-icta-gray-600">

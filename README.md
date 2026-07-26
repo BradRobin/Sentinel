@@ -108,6 +108,8 @@ Requires Redis running (`docker run -p 6379:6379 redis:7-alpine`).
 | POST | `/api/v1/scans` | Enqueue scan (`{ "url": "https://example.go.ke" }`) |
 | GET | `/api/v1/scans/{job_id}` | Poll job status |
 | GET | `/api/v1/registry` | MCDA registry list (scores, trend, last checked) |
+| POST | `/api/v1/registry/scan` | Enqueue scans for all verified MCDAs (records scores) |
+| GET | `/api/v1/registry/scan/{batch_id}` | Bulk registry scan progress |
 | GET | `/api/v1/registry/suggestions?q=` | Autocomplete suggestions from registry |
 
 SSRF protection is enforced on every scan request: DNS resolution, private/metadata IP rejection, `.go.ke`/`.gov.ke` allowlist.

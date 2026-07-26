@@ -240,3 +240,86 @@ class TestScanEndpoint:
         with patch("app.api.v1.scans.get_comparison_for_scan", return_value=None):
             response = client.get("/api/v1/scans/missing/comparison")
             assert response.status_code == 404
+
+
+class TestRegistryScanEndpoint:
+    def test_start_registry_scan_enqueues(self):
+        summary = {
+            "batch_id": "batch-1",
+            "domain_count": 2,
+            "queued": 2,
+            "attached_in_flight": 0,
+            "skipped_lock": 0,
+            "concurrency": 2,
+            "triggered_type": "manual",
+            "jobs": [
+                {
+                    "job_id": "j1",
+                    "url": "https://www.ict.go.ke",
+                    "domain_id": "d1",
+                    "action": "queued",
+                },
+                {
+                    "job_id": "j2",
+                    "url": "https://www.ca.go.ke",
+                    "domain_id": "d2",
+                    "action": "queued",
+                },
+            ],
+        }
+        with patch(
+            "app.api.v1.registry.get_active_registry_batch_id", return_value=None
+        ), patch(
+            "app.api.v1.registry.list_verified_domains_for_scan",
+            return_value=[{"domain_id": "d1", "url": "https://www.ict.go.ke"}],
+        ), patch(
+            "app.api.v1.registry.enqueue_registry_scans", return_value=summary
+        ):
+            response = client.post("/api/v1/registry/scan")
+            assert response.status_code == 202
+            data = response.json()
+            assert data["batch_id"] == "batch-1"
+            assert data["queued"] == 2
+            assert data["resumed"] is False
+            assert len(data["jobs"]) == 2
+
+    def test_start_registry_scan_requires_domains(self):
+        with patch(
+            "app.api.v1.registry.get_active_registry_batch_id", return_value=None
+        ), patch(
+            "app.api.v1.registry.list_verified_domains_for_scan", return_value=[]
+        ):
+            response = client.post("/api/v1/registry/scan")
+            assert response.status_code == 400
+
+    def test_get_registry_scan_batch(self):
+        payload = {
+            "batch_id": "batch-1",
+            "triggered_type": "manual",
+            "domain_count": 1,
+            "done": False,
+            "counts": {
+                "queued": 0,
+                "running": 1,
+                "complete": 0,
+                "failed": 0,
+                "unknown": 0,
+            },
+            "jobs": [
+                {
+                    "job_id": "j1",
+                    "url": "https://www.ict.go.ke",
+                    "domain_id": "d1",
+                    "action": "queued",
+                    "status": "running",
+                    "progress": "Security…",
+                    "error": None,
+                }
+            ],
+        }
+        with patch(
+            "app.api.v1.registry.get_registry_scan_batch", return_value=payload
+        ):
+            response = client.get("/api/v1/registry/scan/batch-1")
+            assert response.status_code == 200
+            assert response.json()["counts"]["running"] == 1

@@ -1,11 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 
 import {
   getRegistry,
+  getRegistryScanBatch,
+  startRegistryScan,
   type RegistryEntry,
+  type RegistryScanBatchStatus,
   type RegistryTrend,
 } from "@/lib/api";
 import { copyScanUrl } from "@/lib/scan-url-clipboard";
@@ -14,6 +17,7 @@ import {
   btnFilterIdle,
   btnMuted,
   btnPrimary,
+  btnSecondary,
   inputBase,
   linkQuiet,
 } from "@/lib/ui";
@@ -61,6 +65,9 @@ function formatScore(score: number | null): string {
 
 type OrgFilter = "all" | "ministry" | "agency" | "county";
 
+const BATCH_POLL_MS = 2500;
+const BATCH_STORAGE_KEY = "sentinel.registry.scanBatchId";
+
 export function RegistryDashboard() {
   const [items, setItems] = useState<RegistryEntry[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -68,6 +75,17 @@ export function RegistryDashboard() {
   const [orgFilter, setOrgFilter] = useState<OrgFilter>("all");
   const [pending, startTransition] = useTransition();
   const [copiedDomainId, setCopiedDomainId] = useState<string | null>(null);
+  const [scanStarting, setScanStarting] = useState(false);
+  const [scanError, setScanError] = useState<string | null>(null);
+  const [batchId, setBatchId] = useState<string | null>(null);
+  const [batchStatus, setBatchStatus] = useState<RegistryScanBatchStatus | null>(
+    null,
+  );
+  const lastRefreshComplete = useRef(0);
+  const queryRef = useRef(query);
+  const orgFilterRef = useRef(orgFilter);
+  queryRef.current = query;
+  orgFilterRef.current = orgFilter;
 
   async function onCopyUrl(row: RegistryEntry) {
     await copyScanUrl(row.url);
@@ -100,9 +118,99 @@ export function RegistryDashboard() {
 
   useEffect(() => {
     load("", "all");
+    try {
+      const saved = window.sessionStorage.getItem(BATCH_STORAGE_KEY);
+      if (saved) setBatchId(saved);
+    } catch {
+      // ignore storage errors
+    }
   }, []);
 
+  useEffect(() => {
+    if (!batchId) return;
+
+    let cancelled = false;
+    let timer: number | undefined;
+
+    async function tick() {
+      try {
+        const status = await getRegistryScanBatch(batchId!);
+        if (cancelled) return;
+        setBatchStatus(status);
+        setScanError(null);
+
+        const finished =
+          status.counts.complete + status.counts.failed;
+        if (
+          finished > lastRefreshComplete.current ||
+          status.done
+        ) {
+          lastRefreshComplete.current = finished;
+          load(queryRef.current, orgFilterRef.current);
+        }
+
+        if (status.done) {
+          try {
+            window.sessionStorage.removeItem(BATCH_STORAGE_KEY);
+          } catch {
+            // ignore
+          }
+          setBatchId(null);
+          return;
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setScanError(
+            err instanceof Error
+              ? err.message
+              : "Failed to poll registry scan status",
+          );
+        }
+      }
+      if (!cancelled) {
+        timer = window.setTimeout(() => {
+          void tick();
+        }, BATCH_POLL_MS);
+      }
+    }
+
+    void tick();
+    return () => {
+      cancelled = true;
+      if (timer !== undefined) window.clearTimeout(timer);
+    };
+  }, [batchId]);
+
+  async function onScanAll() {
+    setScanStarting(true);
+    setScanError(null);
+    try {
+      const result = await startRegistryScan();
+      lastRefreshComplete.current = 0;
+      setBatchId(result.batch_id);
+      setBatchStatus(null);
+      try {
+        window.sessionStorage.setItem(BATCH_STORAGE_KEY, result.batch_id);
+      } catch {
+        // ignore
+      }
+    } catch (err) {
+      setScanError(
+        err instanceof Error ? err.message : "Failed to start registry scan",
+      );
+    } finally {
+      setScanStarting(false);
+    }
+  }
+
   const scored = items.filter((i) => i.latest_score !== null).length;
+  const scanning = Boolean(batchId) || scanStarting;
+  const counts = batchStatus?.counts;
+  const finished =
+    (counts?.complete ?? 0) + (counts?.failed ?? 0);
+  const total = batchStatus?.domain_count ?? 0;
+  const progressPct =
+    total > 0 ? Math.min(100, Math.round((finished / total) * 100)) : 0;
 
   return (
     <div className="flex flex-1 flex-col">
@@ -176,10 +284,69 @@ export function RegistryDashboard() {
           </div>
         </div>
 
-        <p className="mb-4 text-xs text-icta-gray-600">
-          {pending ? "Loading…" : `${items.length} MCDAs`}
-          {!pending && scored > 0 ? ` · ${scored} with scores` : ""}
-        </p>
+        <div className="mb-4 flex flex-col gap-3 border-b border-icta-gray-200 pb-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs text-icta-gray-600">
+            {pending ? "Loading…" : `${items.length} MCDAs`}
+            {!pending && scored > 0 ? ` · ${scored} with scores` : ""}
+          </p>
+          <button
+            type="button"
+            onClick={() => void onScanAll()}
+            disabled={scanning || items.length === 0}
+            className={btnSecondary}
+          >
+            {scanning ? "Scanning all MCDAs…" : "Scan all MCDAs"}
+          </button>
+        </div>
+
+        {(scanning || batchStatus) && (
+          <div
+            className="mb-6 rounded-md border border-icta-gray-200 bg-icta-gray-50 px-4 py-3 text-sm text-icta-black"
+            role="status"
+            aria-live="polite"
+          >
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <p className="font-medium">
+                {batchStatus?.done
+                  ? "Registry scan finished"
+                  : "Scanning registry MCDAs"}
+              </p>
+              {total > 0 && (
+                <p className="text-xs text-icta-gray-600 tabular-nums">
+                  {finished}/{total} finished ({progressPct}%)
+                </p>
+              )}
+            </div>
+            <div
+              className="mt-2 h-1.5 overflow-hidden rounded-full bg-icta-gray-200"
+              aria-hidden
+            >
+              <div
+                className="h-full bg-icta-red transition-[width] duration-500 ease-out"
+                style={{ width: `${progressPct}%` }}
+              />
+            </div>
+            {counts && (
+              <p className="mt-2 text-xs text-icta-gray-600">
+                {counts.running} running · {counts.queued} queued ·{" "}
+                {counts.complete} complete
+                {counts.failed > 0 ? ` · ${counts.failed} failed` : ""}
+              </p>
+            )}
+            <p className="mt-1 text-xs text-icta-gray-600">
+              Scores update in the table as each scan completes.
+            </p>
+          </div>
+        )}
+
+        {scanError && (
+          <div
+            className="mb-6 rounded-md border border-icta-red/20 bg-icta-red/5 px-4 py-3 text-sm text-icta-red"
+            role="alert"
+          >
+            {scanError}
+          </div>
+        )}
 
         {error && (
           <div

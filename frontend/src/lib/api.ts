@@ -238,6 +238,46 @@ export interface RegistrySuggestion {
   aliases: string[];
 }
 
+export interface RegistryScanEnqueueResponse {
+  batch_id: string;
+  domain_count: number;
+  queued: number;
+  attached_in_flight: number;
+  skipped_lock: number;
+  concurrency: number;
+  triggered_type: "manual" | "scheduled";
+  jobs: Array<{
+    job_id: string;
+    url: string;
+    domain_id: string;
+    action: "queued" | "attached";
+  }>;
+  resumed: boolean;
+}
+
+export interface RegistryScanBatchStatus {
+  batch_id: string;
+  triggered_type: "manual" | "scheduled" | null;
+  domain_count: number;
+  done: boolean;
+  counts: {
+    queued: number;
+    running: number;
+    complete: number;
+    failed: number;
+    unknown: number;
+  };
+  jobs: Array<{
+    job_id: string;
+    url: string | null;
+    domain_id: string | null;
+    action: string | null;
+    status: "queued" | "running" | "complete" | "failed" | "unknown";
+    progress: string | null;
+    error: string | null;
+  }>;
+}
+
 export async function getRegistry(options?: {
   orgType?: string;
   q?: string;
@@ -254,6 +294,40 @@ export async function getRegistry(options?: {
   );
   if (!res.ok) {
     throw new Error(`Registry list failed: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function startRegistryScan(): Promise<RegistryScanEnqueueResponse> {
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}/api/v1/registry/scan`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+    });
+  } catch {
+    throw new Error(
+      "Failed to reach the Sentinel API. Check that Docker is running.",
+    );
+  }
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    const detail = formatApiDetail((body as { detail?: unknown }).detail);
+    throw new Error(detail || `Registry scan failed: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function getRegistryScanBatch(
+  batchId: string,
+): Promise<RegistryScanBatchStatus> {
+  const res = await fetch(`${API_URL}/api/v1/registry/scan/${batchId}`, {
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    const detail = formatApiDetail((body as { detail?: unknown }).detail);
+    throw new Error(detail || `Registry scan status failed: ${res.status}`);
   }
   return res.json();
 }

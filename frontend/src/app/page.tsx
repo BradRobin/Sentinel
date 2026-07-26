@@ -35,6 +35,9 @@ export default function Home() {
             <Link href="/registry" className={btnSecondaryLg}>
               MCDA registry
             </Link>
+            <Link href="/map" className={btnSecondaryLg}>
+              Kenya map
+            </Link>
             <Link href="/health" className={btnSecondaryLg}>
               System health
             </Link>

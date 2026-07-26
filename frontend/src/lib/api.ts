@@ -220,6 +220,7 @@ export interface RegistryEntry {
   aliases: string[];
   latest_score: number | null;
   previous_score: number | null;
+  category_breakdown?: Record<string, number>;
   last_checked_at: string | null;
   last_source: string | null;
   trend: RegistryTrend;

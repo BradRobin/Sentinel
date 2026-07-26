@@ -13,6 +13,12 @@ import {
   type RegistryTrend,
 } from "@/lib/api";
 import { copyScanUrl } from "@/lib/scan-url-clipboard";
+import {
+  LEADERBOARD_METRIC_OPTIONS,
+  metricLabel,
+  rankRegistryEntries,
+  type LeaderboardMetric,
+} from "@/lib/registry-leaderboard";
 import type { SentinelMarkState } from "@/lib/sentinel-mark-paths";
 import {
   btnFilterActive,
@@ -67,6 +73,7 @@ function formatScore(score: number | null): string {
 }
 
 type OrgFilter = "all" | "ministry" | "agency" | "county";
+type DashboardView = "registry" | "leaderboard";
 
 const BATCH_POLL_MS = 2500;
 const BATCH_STORAGE_KEY = "sentinel.registry.scanBatchId";
@@ -116,6 +123,9 @@ export function RegistryDashboard() {
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [orgFilter, setOrgFilter] = useState<OrgFilter>("all");
+  const [view, setView] = useState<DashboardView>("registry");
+  const [leaderboardMetric, setLeaderboardMetric] =
+    useState<LeaderboardMetric>("overall");
   const [pending, startTransition] = useTransition();
   const [copiedDomainId, setCopiedDomainId] = useState<string | null>(null);
   const [scanStarting, setScanStarting] = useState(false);
@@ -268,6 +278,13 @@ export function RegistryDashboard() {
       : "bg-icta-green"
     : "bg-icta-black";
 
+  const leaderboardRows = rankRegistryEntries(items, leaderboardMetric);
+  const activeMetric =
+    LEADERBOARD_METRIC_OPTIONS.find((m) => m.value === leaderboardMetric) ??
+    LEADERBOARD_METRIC_OPTIONS[0];
+  const scoreColumnLabel =
+    view === "leaderboard" ? metricLabel(leaderboardMetric) : "Score";
+
   return (
     <div className="flex flex-1 flex-col">
       <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-12 sm:py-16">
@@ -281,11 +298,36 @@ export function RegistryDashboard() {
           </h1>
           <p className="max-w-2xl text-sm leading-relaxed text-icta-gray-600">
             Ministries, counties, and agencies with compliance scores from
-            weekly scans. Trend compares the two most recent updates. Use{" "}
+            weekly scans. Switch to the leaderboard to rank the most compliant
+            sites overall or by category. Use{" "}
             <span className="text-icta-black">Scan all</span> to re-check every
             listed site.
           </p>
         </header>
+
+        <div
+          className="mb-5 flex flex-wrap gap-1.5"
+          role="tablist"
+          aria-label="Registry views"
+        >
+          {(
+            [
+              ["registry", "Registry"],
+              ["leaderboard", "Leaderboard"],
+            ] as const
+          ).map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              role="tab"
+              aria-selected={view === value}
+              onClick={() => setView(value)}
+              className={view === value ? btnFilterActive : btnFilterIdle}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
 
         <div className="mb-5 flex flex-col gap-4">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
@@ -363,6 +405,39 @@ export function RegistryDashboard() {
               {!pending && scored > 0 ? ` · ${scored} with scores` : ""}
             </p>
           </div>
+
+          {view === "leaderboard" && (
+            <div className="flex flex-col gap-2">
+              <p className="text-sm font-medium text-icta-black">
+                {activeMetric.headline}
+              </p>
+              <div
+                className="flex flex-wrap gap-1.5"
+                role="group"
+                aria-label="Leaderboard ranking"
+              >
+                {LEADERBOARD_METRIC_OPTIONS.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => setLeaderboardMetric(option.value)}
+                    className={
+                      leaderboardMetric === option.value
+                        ? btnFilterActive
+                        : btnFilterIdle
+                    }
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-icta-gray-600">
+                {leaderboardRows.length > 0
+                  ? `Showing ${leaderboardRows.length} scored site${leaderboardRows.length === 1 ? "" : "s"}`
+                  : "No scored sites yet — run Scan all to populate rankings."}
+              </p>
+            </div>
+          )}
         </div>
 
         {showScanPanel && (
@@ -503,73 +578,144 @@ export function RegistryDashboard() {
                 <th className="w-10 py-3 pr-3 font-medium tabular-nums">#</th>
                 <th className="py-3 pr-4 font-medium">Organization</th>
                 <th className="py-3 pr-4 font-medium">Type</th>
-                <th className="py-3 pr-4 font-medium">Score</th>
-                <th className="py-3 pr-4 font-medium">Trend</th>
-                <th className="py-3 pr-4 font-medium">Last checked</th>
+                <th className="py-3 pr-4 font-medium">{scoreColumnLabel}</th>
+                {view === "leaderboard" && leaderboardMetric !== "overall" && (
+                  <th className="py-3 pr-4 font-medium">Overall</th>
+                )}
+                {view === "registry" && (
+                  <>
+                    <th className="py-3 pr-4 font-medium">Trend</th>
+                    <th className="py-3 pr-4 font-medium">Last checked</th>
+                  </>
+                )}
                 <th className="py-3 text-right font-medium">
                   <span className="sr-only">Copy URL</span>
                 </th>
               </tr>
             </thead>
             <tbody>
-              {items.length === 0 && !pending && !error && (
-                <tr>
-                  <td
-                    colSpan={7}
-                    className="py-10 text-center text-icta-gray-600"
-                  >
-                    No verified MCDAs yet. Seed the registry to populate this
-                    list.
-                  </td>
-                </tr>
-              )}
-              {items.map((row, index) => (
-                <tr
-                  key={row.domain_id}
-                  className="border-b border-icta-gray-100 align-top transition-colors hover:bg-icta-gray-50/80"
-                >
-                  <td className="py-3 pr-3 tabular-nums text-icta-gray-600">
-                    {index + 1}
-                  </td>
-                  <td className="py-3 pr-4">
-                    <div className="font-medium text-icta-black">
-                      {row.registered_name || row.org_name}
-                    </div>
-                    <a
-                      href={row.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="mt-1 block break-all text-xs text-icta-link underline-offset-2 hover:underline"
+              {view === "registry" &&
+                items.length === 0 &&
+                !pending &&
+                !error && (
+                  <tr>
+                    <td
+                      colSpan={7}
+                      className="py-10 text-center text-icta-gray-600"
                     >
-                      {row.url}
-                    </a>
-                  </td>
-                  <td className="py-3 pr-4 capitalize text-icta-gray-600">
-                    {row.org_type}
-                  </td>
-                  <td className="py-3 pr-4 font-medium tabular-nums text-icta-black">
-                    {formatScore(row.latest_score)}
-                  </td>
-                  <td
-                    className={`py-3 pr-4 font-medium ${trendClass(row.trend)}`}
-                  >
-                    {trendLabel(row.trend)}
-                  </td>
-                  <td className="py-3 pr-4 text-icta-gray-600">
-                    {formatChecked(row.last_checked_at)}
-                  </td>
-                  <td className="py-3 text-right">
-                    <button
-                      type="button"
-                      onClick={() => void onCopyUrl(row)}
-                      className={btnMuted}
-                      aria-label={`Copy ${row.url} for scanning`}
+                      No verified MCDAs yet. Seed the registry to populate this
+                      list.
+                    </td>
+                  </tr>
+                )}
+              {view === "leaderboard" &&
+                leaderboardRows.length === 0 &&
+                !pending &&
+                !error && (
+                  <tr>
+                    <td
+                      colSpan={leaderboardMetric === "overall" ? 5 : 6}
+                      className="py-10 text-center text-icta-gray-600"
                     >
-                      {copiedDomainId === row.domain_id ? "Copied" : "Copy"}
-                    </button>
-                  </td>
-                </tr>
-              ))}
+                      No scored sites in this view yet. Run{" "}
+                      <span className="text-icta-black">Scan all MCDAs</span>{" "}
+                      to build the leaderboard.
+                    </td>
+                  </tr>
+                )}
+              {view === "registry" &&
+                items.map((row, index) => (
+                  <tr
+                    key={row.domain_id}
+                    className="border-b border-icta-gray-100 align-top transition-colors hover:bg-icta-gray-50/80"
+                  >
+                    <td className="py-3 pr-3 tabular-nums text-icta-gray-600">
+                      {index + 1}
+                    </td>
+                    <td className="py-3 pr-4">
+                      <div className="font-medium text-icta-black">
+                        {row.registered_name || row.org_name}
+                      </div>
+                      <a
+                        href={row.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-1 block break-all text-xs text-icta-link underline-offset-2 hover:underline"
+                      >
+                        {row.url}
+                      </a>
+                    </td>
+                    <td className="py-3 pr-4 capitalize text-icta-gray-600">
+                      {row.org_type}
+                    </td>
+                    <td className="py-3 pr-4 font-medium tabular-nums text-icta-black">
+                      {formatScore(row.latest_score)}
+                    </td>
+                    <td
+                      className={`py-3 pr-4 font-medium ${trendClass(row.trend)}`}
+                    >
+                      {trendLabel(row.trend)}
+                    </td>
+                    <td className="py-3 pr-4 text-icta-gray-600">
+                      {formatChecked(row.last_checked_at)}
+                    </td>
+                    <td className="py-3 text-right">
+                      <button
+                        type="button"
+                        onClick={() => void onCopyUrl(row)}
+                        className={btnMuted}
+                        aria-label={`Copy ${row.url} for scanning`}
+                      >
+                        {copiedDomainId === row.domain_id ? "Copied" : "Copy"}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              {view === "leaderboard" &&
+                leaderboardRows.map((row, index) => (
+                  <tr
+                    key={`${leaderboardMetric}-${row.domain_id}`}
+                    className="border-b border-icta-gray-100 align-top transition-colors hover:bg-icta-gray-50/80"
+                  >
+                    <td className="py-3 pr-3 tabular-nums font-medium text-icta-black">
+                      {index + 1}
+                    </td>
+                    <td className="py-3 pr-4">
+                      <div className="font-medium text-icta-black">
+                        {row.registered_name || row.org_name}
+                      </div>
+                      <a
+                        href={row.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-1 block break-all text-xs text-icta-link underline-offset-2 hover:underline"
+                      >
+                        {row.url}
+                      </a>
+                    </td>
+                    <td className="py-3 pr-4 capitalize text-icta-gray-600">
+                      {row.org_type}
+                    </td>
+                    <td className="py-3 pr-4 font-semibold tabular-nums text-icta-black">
+                      {formatScore(row.rank_score)}
+                    </td>
+                    {leaderboardMetric !== "overall" && (
+                      <td className="py-3 pr-4 tabular-nums text-icta-gray-600">
+                        {formatScore(row.latest_score)}
+                      </td>
+                    )}
+                    <td className="py-3 text-right">
+                      <button
+                        type="button"
+                        onClick={() => void onCopyUrl(row)}
+                        className={btnMuted}
+                        aria-label={`Copy ${row.url} for scanning`}
+                      >
+                        {copiedDomainId === row.domain_id ? "Copied" : "Copy"}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
             </tbody>
           </table>
         </div>

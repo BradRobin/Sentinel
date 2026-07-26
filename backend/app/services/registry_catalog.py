@@ -49,6 +49,7 @@ def catalog_registry_entries(
                 "aliases": list(entry["aliases"]),
                 "latest_score": None,
                 "previous_score": None,
+                "category_breakdown": {},
                 "last_checked_at": None,
                 "last_source": None,
                 "trend": "unknown",

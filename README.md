@@ -107,7 +107,7 @@ Requires Redis running (`docker run -p 6379:6379 redis:7-alpine`).
 | GET | `/api/v1/health` | Versioned health alias |
 | POST | `/api/v1/scans` | Enqueue scan (`{ "url": "https://example.go.ke" }`) |
 | GET | `/api/v1/scans/{job_id}` | Poll job status |
-| GET | `/api/v1/registry` | MCDA registry list (scores, trend, last checked) |
+| GET | `/api/v1/registry` | MCDA registry list (scores, category breakdown, trend, last checked) |
 | POST | `/api/v1/registry/scan` | Enqueue scans for all verified MCDAs (records scores) |
 | GET | `/api/v1/registry/scan/{batch_id}` | Bulk registry scan progress |
 | GET | `/api/v1/registry/suggestions?q=` | Autocomplete suggestions from registry |

@@ -16,6 +16,7 @@ class RegistryEntry(BaseModel):
     aliases: list[str] = Field(default_factory=list)
     latest_score: float | None = None
     previous_score: float | None = None
+    category_breakdown: dict[str, float] = Field(default_factory=dict)
     last_checked_at: str | None = None
     last_source: str | None = None
     trend: Literal["up", "down", "flat", "unknown"] = "unknown"

@@ -157,6 +157,7 @@ def list_registry_entries(
             SELECT
                 u.domain_id,
                 u.overall_score,
+                u.category_breakdown,
                 u.checked_at,
                 u.source,
                 ROW_NUMBER() OVER (
@@ -175,6 +176,7 @@ def list_registry_entries(
             o.type AS org_type,
             o.sector,
             latest.overall_score AS latest_score,
+            latest.category_breakdown AS category_breakdown,
             latest.checked_at AS last_checked_at,
             latest.source AS last_source,
             prior.overall_score AS previous_score
@@ -215,6 +217,22 @@ def list_registry_entries(
         aliases = r["search_aliases"] or []
         if isinstance(aliases, str):
             aliases = [aliases]
+        breakdown_raw = r.get("category_breakdown") or {}
+        if isinstance(breakdown_raw, str):
+            try:
+                breakdown_raw = json.loads(breakdown_raw)
+            except json.JSONDecodeError:
+                breakdown_raw = {}
+        breakdown: dict[str, float] = {}
+        if isinstance(breakdown_raw, dict):
+            for key in HISTORICAL_CATEGORY_KEYS:
+                val = breakdown_raw.get(key)
+                if val is None:
+                    continue
+                try:
+                    breakdown[key] = float(val)
+                except (TypeError, ValueError):
+                    continue
         out.append(
             {
                 "domain_id": str(r["domain_id"]),
@@ -227,6 +245,7 @@ def list_registry_entries(
                 "aliases": list(aliases),
                 "latest_score": latest,
                 "previous_score": previous,
+                "category_breakdown": breakdown,
                 "last_checked_at": (
                     r["last_checked_at"].isoformat()
                     if r["last_checked_at"] is not None

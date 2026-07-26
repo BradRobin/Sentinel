@@ -15,6 +15,15 @@ def test_registry_seed_has_expected_size_and_types():
     assert len(urls) == len(set(urls)), "duplicate normalized URLs in seed"
 
 
+def test_catalog_fallback_includes_category_breakdown():
+    from app.services.registry_catalog import catalog_registry_entries
+
+    rows = catalog_registry_entries(limit=3)
+    assert rows
+    assert rows[0]["category_breakdown"] == {}
+    assert "latest_score" in rows[0]
+
+
 def test_registry_seed_urls_are_go_ke():
     for entry in MCDA_REGISTRY:
         host = normalize_domain_url(entry["url"]).split("://", 1)[-1]

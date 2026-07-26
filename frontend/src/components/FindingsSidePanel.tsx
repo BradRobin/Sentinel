@@ -3,6 +3,7 @@
 import { useEffect, useMemo } from "react";
 
 import { FindingDetailView } from "@/components/FindingDetailView";
+import { ClauseLink } from "@/components/ClauseLink";
 import type { Finding } from "@/lib/api";
 import { findingVisualWeight, labelCategory } from "@/lib/findings";
 import {
@@ -85,7 +86,11 @@ export function FindingsSidePanel({
                 <span className={headerWeight?.severityLabel}>
                   {findings[0].severity}
                 </span>{" "}
-                severity
+                severity ·{" "}
+                <ClauseLink
+                  clause={findings[0].clause_reference}
+                  showPrefix
+                />
               </p>
             )}
           </div>
@@ -122,8 +127,8 @@ export function FindingsSidePanel({
                       </span>
                     </div>
                     <div className="mt-1 text-xs text-icta-gray-600">
-                      {labelCategory(f.category)} · clause {f.clause_reference}{" "}
-                      ·{" "}
+                      {labelCategory(f.category)} ·{" "}
+                      <ClauseLink clause={f.clause_reference} showPrefix /> ·{" "}
                       <span className={weight.severityLabel}>{f.severity}</span>{" "}
                       · {f.automatability_type}
                     </div>

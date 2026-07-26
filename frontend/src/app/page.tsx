@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { StandardDocLink } from "@/components/ClauseLink";
 import { SentinelMark } from "@/components/SentinelMark";
 import { btnPrimaryLg, btnSecondaryLg } from "@/lib/ui";
 
@@ -18,8 +19,8 @@ export default function Home() {
             Sentinel
           </h1>
           <p className="mb-2 text-lg text-icta-gray-600">
-            Scan public government websites for compliance with ICTA.6.002:2019
-            Section 6.4
+            Scan public government websites for compliance with{" "}
+            <StandardDocLink>ICTA.6.002:2019 Section 6.4</StandardDocLink>
           </p>
           <p className="mb-8 text-sm text-icta-gray-600">
             Government website compliance checker — internal ICTA tool
@@ -27,6 +28,9 @@ export default function Home() {
           <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
             <Link href="/scan" className={btnPrimaryLg}>
               Scan a site
+            </Link>
+            <Link href="/standards" className={btnSecondaryLg}>
+              Standards
             </Link>
             <Link href="/registry" className={btnSecondaryLg}>
               MCDA registry

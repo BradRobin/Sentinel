@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { FormEvent, KeyboardEvent, useEffect, useState } from "react";
 
+import { StandardDocLink } from "@/components/ClauseLink";
 import { ScanResults } from "@/components/ScanResults";
 import { SentinelMark } from "@/components/SentinelMark";
 import { TypingPlaceholder } from "@/components/TypingPlaceholder";
@@ -403,7 +404,8 @@ export function ScanWorkspace() {
 
         <h1 className="mb-2 text-2xl font-bold text-icta-black">Scan</h1>
         <p className="mb-6 text-sm text-icta-gray-600">
-          ICTA.6.002:2019 §6.4 compliance checks — results cached for 24 hours
+          <StandardDocLink>ICTA.6.002:2019 §6.4</StandardDocLink> compliance
+          checks — results cached for 24 hours
         </p>
 
         <form onSubmit={onSubmit} noValidate className="mb-8 space-y-3">

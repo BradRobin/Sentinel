@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 import { ComparisonSidePanel } from "@/components/ComparisonSidePanel";
+import { ClauseLink, StandardDocLink } from "@/components/ClauseLink";
 import { FindingsSidePanel } from "@/components/FindingsSidePanel";
 import { CategoryScoreBars, StatusDonut } from "@/components/ScoreCharts";
 import {
@@ -65,6 +66,42 @@ function InlineStat({
 const narrativeLinkClass =
   "text-icta-link underline decoration-from-font underline-offset-2 transition-opacity hover:opacity-80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-icta-link";
 
+/** Link ICTA doc citations and clause numbers inside plain narrative text. */
+function linkStandardsInText(text: string, keyPrefix: string): ReactNode[] {
+  if (!text) return [];
+  const pattern =
+    /\bICTA\.6\.00[23]:\d{4}(?:\s*(?:Section|§)\s*6\.[45])?|\bSection\s+6\.4\b|\b(?:clause\s+)?(6\.4\.\d+(?:\.[ivx]+)?)\b/gi;
+  const parts: ReactNode[] = [];
+  let cursor = 0;
+  let i = 0;
+  for (const match of text.matchAll(pattern)) {
+    if (match.index == null) continue;
+    const start = match.index;
+    const end = start + match[0].length;
+    if (start > cursor) parts.push(text.slice(cursor, start));
+    const clause = match[1];
+    if (clause) {
+      parts.push(
+        <ClauseLink
+          key={`${keyPrefix}-c-${start}-${i}`}
+          clause={clause}
+          showPrefix={/^clause\s+/i.test(match[0])}
+        />,
+      );
+    } else {
+      parts.push(
+        <StandardDocLink key={`${keyPrefix}-d-${start}-${i}`}>
+          {match[0]}
+        </StandardDocLink>,
+      );
+    }
+    cursor = end;
+    i += 1;
+  }
+  if (cursor < text.length) parts.push(text.slice(cursor));
+  return parts.length > 0 ? parts : [text];
+}
+
 function NarrativeSummary({
   text,
   stats,
@@ -98,17 +135,13 @@ function NarrativeSummary({
     ],
   );
 
-  if (spans.length === 0) {
-    return (
-      <p className="text-base leading-relaxed text-icta-black">{text}</p>
-    );
-  }
-
   const parts: ReactNode[] = [];
   let cursor = 0;
   spans.forEach((span, i) => {
     if (span.start > cursor) {
-      parts.push(text.slice(cursor, span.start));
+      parts.push(
+        ...linkStandardsInText(text.slice(cursor, span.start), `pre-${i}`),
+      );
     }
     parts.push(
       <button
@@ -123,11 +156,13 @@ function NarrativeSummary({
     cursor = span.end;
   });
   if (cursor < text.length) {
-    parts.push(text.slice(cursor));
+    parts.push(...linkStandardsInText(text.slice(cursor), "tail"));
   }
 
   return (
-    <p className="text-base leading-relaxed text-icta-black">{parts}</p>
+    <p className="text-base leading-relaxed text-icta-black">
+      {parts.length > 0 ? parts : linkStandardsInText(text, "all")}
+    </p>
   );
 }
 
@@ -140,25 +175,32 @@ function FindingListItem({
 }) {
   const weight = findingVisualWeight(finding.status, finding.severity);
   return (
-    <li>
-      <button
-        type="button"
-        className={`flex w-full items-start gap-3 px-3 py-2.5 text-left text-sm hover:bg-icta-gray-50 ${weight.row}`}
-        onClick={onOpen}
-      >
-        <span
-          className={`mt-0.5 shrink-0 rounded px-1.5 py-0.5 text-xs uppercase ${weight.badge}`}
+    <li className={`hover:bg-icta-gray-50 ${weight.row}`}>
+      <div className="flex items-start gap-3 px-3 py-2.5">
+        <button
+          type="button"
+          className="flex min-w-0 flex-1 items-start gap-3 text-left text-sm hover:opacity-90"
+          onClick={onOpen}
         >
-          {finding.status === "manual_review" ? "review" : finding.status}
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className={weight.name}>{finding.check_name}</span>
-          <span className="mt-0.5 block text-xs text-icta-gray-600">
-            clause {finding.clause_reference} ·{" "}
-            <span className={weight.severityLabel}>{finding.severity}</span>
+          <span
+            className={`mt-0.5 shrink-0 rounded px-1.5 py-0.5 text-xs uppercase ${weight.badge}`}
+          >
+            {finding.status === "manual_review" ? "review" : finding.status}
           </span>
-        </span>
-      </button>
+          <span className="min-w-0 flex-1">
+            <span className={weight.name}>{finding.check_name}</span>
+            <span className="mt-0.5 block text-xs text-icta-gray-600">
+              <span className={weight.severityLabel}>{finding.severity}</span>{" "}
+              severity
+            </span>
+          </span>
+        </button>
+        <ClauseLink
+          clause={finding.clause_reference}
+          showPrefix
+          className="mt-0.5 shrink-0 text-xs"
+        />
+      </div>
     </li>
   );
 }
@@ -395,27 +437,35 @@ export function ScanResults({
             {topIssues.map((f) => {
               const weight = findingVisualWeight(f.status, f.severity);
               return (
-                <li key={`top-${f.category}-${f.check_name}-${f.clause_reference}`}>
-                  <button
-                    type="button"
-                    className={`w-full px-3 py-3 text-left hover:bg-icta-gray-50 ${weight.row}`}
-                    onClick={() =>
-                      openFindings(
-                        [f],
-                        f.check_name,
-                        `${labelCategory(f.category)} · clause ${f.clause_reference}`,
-                      )
-                    }
-                  >
-                    <div className={`text-sm ${weight.name}`}>{f.check_name}</div>
-                    <div className="mt-0.5 text-xs text-icta-gray-600">
-                      {labelCategory(f.category)} ·{" "}
-                      <span className={weight.severityLabel}>{f.severity}</span>
+                <li
+                  key={`top-${f.category}-${f.check_name}-${f.clause_reference}`}
+                  className={`${weight.row}`}
+                >
+                  <div className="px-3 py-3">
+                    <button
+                      type="button"
+                      className="w-full text-left hover:opacity-90"
+                      onClick={() =>
+                        openFindings(
+                          [f],
+                          f.check_name,
+                          `${labelCategory(f.category)} · clause ${f.clause_reference}`,
+                        )
+                      }
+                    >
+                      <div className={`text-sm ${weight.name}`}>{f.check_name}</div>
+                      <div className="mt-0.5 text-xs text-icta-gray-600">
+                        {labelCategory(f.category)} ·{" "}
+                        <span className={weight.severityLabel}>{f.severity}</span>
+                      </div>
+                      <p className="mt-1 text-sm text-icta-gray-600">
+                        {findingSummaryLine(f)}
+                      </p>
+                    </button>
+                    <div className="mt-1.5 text-xs">
+                      <ClauseLink clause={f.clause_reference} showPrefix />
                     </div>
-                    <p className="mt-1 text-sm text-icta-gray-600">
-                      {findingSummaryLine(f)}
-                    </p>
-                  </button>
+                  </div>
                 </li>
               );
             })}

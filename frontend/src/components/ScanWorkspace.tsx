@@ -28,6 +28,11 @@ import {
   type KnownDomain,
 } from "@/lib/known-domains";
 import { getCopiedScanUrl } from "@/lib/scan-url-clipboard";
+import {
+  clearActiveScan,
+  loadActiveScan,
+  saveActiveScan,
+} from "@/lib/scan-session";
 import type { SentinelMarkState } from "@/lib/sentinel-mark-paths";
 import {
   btnGhost,
@@ -158,6 +163,13 @@ export function ScanWorkspace() {
     };
   }, []);
 
+  // Keep the latest job id so Standards (or any navigation) can resume.
+  useEffect(() => {
+    if (scan?.job_id) {
+      saveActiveScan(scan.job_id, scan.url || url);
+    }
+  }, [scan?.job_id, scan?.url, url]);
+
   function pasteCopiedUrl() {
     const next = getCopiedScanUrl() ?? pendingPasteUrl;
     if (!next) return;
@@ -242,6 +254,64 @@ export function ScanWorkspace() {
     }
     setScanLevelFailure("timeout");
   }
+
+  // Restore the last scan for this browser tab after navigating away.
+  useEffect(() => {
+    let cancelled = false;
+
+    async function restore() {
+      const saved = loadActiveScan();
+      if (!saved) return;
+
+      try {
+        const status = await getScan(saved.jobId);
+        if (cancelled) return;
+
+        setUrl(saved.url || status.url || "");
+        setHasSubmitted(true);
+        setFieldError(null);
+        setScanError(null);
+        setScan(status);
+        setFindings(status.result?.findings ?? []);
+        setMarkState(markStateFromStatus(status.status));
+        setAttachedNote(Boolean(status.attached_to_existing));
+
+        if (status.status === "complete") {
+          setProgressLabel(null);
+          return;
+        }
+
+        if (status.status === "failed") {
+          if (status.error_category === "duplicate_in_progress") {
+            setProgressLabel("A scan for this URL is already in progress…");
+            setMarkState("processing");
+            await pollUntilDone(status.job_id);
+            return;
+          }
+          const kind = classifyScanError(
+            status.error ?? "",
+            status.error_category,
+          );
+          setScanLevelFailure(
+            isFormValidationError(kind) ? "internal_error" : kind,
+          );
+          return;
+        }
+
+        setProgressLabel(status.progress ?? "Resuming scan…");
+        setMarkState("processing");
+        await pollUntilDone(status.job_id);
+      } catch {
+        if (!cancelled) clearActiveScan();
+      }
+    }
+
+    void restore();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only resume
+  }, []);
 
   async function startScan(options?: {
     forceFresh?: boolean;

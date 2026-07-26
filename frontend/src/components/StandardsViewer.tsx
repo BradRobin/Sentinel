@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 
@@ -29,6 +29,7 @@ const StandardsPdfPage = dynamic(
 );
 
 export function StandardsViewer() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const pageParam = searchParams.get("page");
   const clauseParam = searchParams.get("clause");
@@ -46,14 +47,23 @@ export function StandardsViewer() {
   const highlightText = target?.highlight ?? null;
   const docClause = target?.docClause ?? null;
 
+  function onBack() {
+    // Prefer the scan workspace so results can resume from session storage.
+    router.push("/scan");
+  }
+
   return (
     <div className="flex flex-1 flex-col">
       <header className="border-b border-icta-gray-200 px-6 py-4">
         <div className="mx-auto flex w-full max-w-6xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
-            <Link href="/" className={`mb-2 inline-block ${linkQuiet}`}>
+            <button
+              type="button"
+              onClick={onBack}
+              className={`mb-2 inline-block ${linkQuiet}`}
+            >
               ← Back
-            </Link>
+            </button>
             <h1 className="text-xl font-bold text-icta-black sm:text-2xl">
               {STANDARDS_DOC_LABEL}
             </h1>

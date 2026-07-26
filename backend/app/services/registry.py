@@ -8,6 +8,10 @@ from typing import Any, Literal
 
 from app.core.database import get_connection
 from app.services.historical import HISTORICAL_CATEGORY_KEYS
+from app.services.registry_catalog import (
+    catalog_registry_entries,
+    catalog_registry_suggestions,
+)
 from app.services.scan_repository import normalize_domain_url
 from app.services.scoring import ScoreResult
 
@@ -187,8 +191,18 @@ def list_registry_entries(
         LIMIT %s
     """
 
-    with get_connection() as conn:
-        rows = conn.execute(sql, params).fetchall()
+    try:
+        with get_connection() as conn:
+            rows = conn.execute(sql, params).fetchall()
+    except Exception:
+        logger.exception(
+            "Registry list query failed; serving curated catalog fallback"
+        )
+        return catalog_registry_entries(org_type=org_type, q=q, limit=limit)
+
+    if not rows:
+        # Empty DB (migration/seed not applied) — still show known MCDAs.
+        return catalog_registry_entries(org_type=org_type, q=q, limit=limit)
 
     out: list[dict[str, Any]] = []
     for r in rows:
@@ -250,43 +264,52 @@ def match_registry_suggestions(query: str, *, limit: int = 5) -> list[dict[str, 
         return []
     limit = max(1, min(int(limit), 20))
     needle = f"%{q}%"
-    with get_connection() as conn:
-        rows = conn.execute(
-            """
-            SELECT
-                d.url,
-                d.registered_name,
-                d.search_aliases,
-                o.name AS org_name
-            FROM domains d
-            JOIN organizations o ON o.id = d.org_id
-            WHERE d.is_verified = true
-              AND (
-                lower(o.name) LIKE %s
-                OR lower(COALESCE(d.registered_name, '')) LIKE %s
-                OR lower(d.url) LIKE %s
-                OR EXISTS (
-                    SELECT 1 FROM unnest(d.search_aliases) a
-                    WHERE lower(a) LIKE %s OR lower(a) = %s
-                )
-              )
-            ORDER BY
-                CASE
-                    WHEN EXISTS (
+    try:
+        with get_connection() as conn:
+            rows = conn.execute(
+                """
+                SELECT
+                    d.url,
+                    d.registered_name,
+                    d.search_aliases,
+                    o.name AS org_name
+                FROM domains d
+                JOIN organizations o ON o.id = d.org_id
+                WHERE d.is_verified = true
+                  AND (
+                    lower(o.name) LIKE %s
+                    OR lower(COALESCE(d.registered_name, '')) LIKE %s
+                    OR lower(d.url) LIKE %s
+                    OR EXISTS (
                         SELECT 1 FROM unnest(d.search_aliases) a
-                        WHERE lower(a) = %s
-                    ) THEN 0
-                    WHEN EXISTS (
-                        SELECT 1 FROM unnest(d.search_aliases) a
-                        WHERE lower(a) LIKE %s
-                    ) THEN 1
-                    ELSE 2
-                END,
-                o.name
-            LIMIT %s
-            """,
-            (needle, needle, needle, needle, q, q, f"{q}%", limit),
-        ).fetchall()
+                        WHERE lower(a) LIKE %s OR lower(a) = %s
+                    )
+                  )
+                ORDER BY
+                    CASE
+                        WHEN EXISTS (
+                            SELECT 1 FROM unnest(d.search_aliases) a
+                            WHERE lower(a) = %s
+                        ) THEN 0
+                        WHEN EXISTS (
+                            SELECT 1 FROM unnest(d.search_aliases) a
+                            WHERE lower(a) LIKE %s
+                        ) THEN 1
+                        ELSE 2
+                    END,
+                    o.name
+                LIMIT %s
+                """,
+                (needle, needle, needle, needle, q, q, f"{q}%", limit),
+            ).fetchall()
+    except Exception:
+        logger.exception(
+            "Registry suggestions query failed; serving curated catalog fallback"
+        )
+        return catalog_registry_suggestions(query, limit=limit)
+
+    if not rows:
+        return catalog_registry_suggestions(query, limit=limit)
 
     return [
         {

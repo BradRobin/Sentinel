@@ -188,9 +188,9 @@ export function RegistryDashboard() {
           >
             {error}
             <span className="mt-1 block text-icta-gray-600">
-              Apply the registry migration and run{" "}
-              <code className="text-xs">scripts/seed_mcda_registry.py</code> if
-              the table is empty.
+              Check that the API is running and can reach Postgres. With Docker,
+              <code className="mx-1 text-xs">docker compose up --build</code>
+              starts a local DB and seeds the MCDA registry automatically.
             </span>
           </div>
         )}

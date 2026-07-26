@@ -22,8 +22,8 @@ supabase/     Migrations and CLI config
 
 - **Node.js** 20+
 - **Python** 3.11+
-- **Docker** and Docker Compose (Redis, API, worker)
-- **Supabase CLI** (optional for local DB; required to push migrations to remote)
+- **Docker** and Docker Compose (Postgres, Redis, API, worker, beat)
+- **Supabase CLI** (optional; required only to push migrations to a hosted project)
 
 ## Quick start
 
@@ -34,48 +34,27 @@ cp .env.example .env
 cp frontend/.env.example frontend/.env.local
 ```
 
-Edit `.env` with your Supabase `DATABASE_URL`, `SUPABASE_URL`, and `SUPABASE_SERVICE_ROLE_KEY` after linking your project.
+Edit `.env` as needed. **Docker Compose already runs a local Postgres** and overrides `DATABASE_URL` for the API/worker/beat containers, so the MCDA registry works without a reachable hosted Supabase project.
 
-### 2. Supabase setup
+### 2. Database setup
 
-Create a project at [supabase.com](https://supabase.com), then configure `.env`:
+**Local (recommended for development):** `docker compose up --build` starts Postgres on port **54322**, applies migrations, and seeds the MCDA registry via `db-init`.
 
-```bash
-cp .env.example .env
-```
-
-**Important:** Use the **Session pooler** connection string from Supabase Dashboard → Project Settings → Database → Connection pooling (not the direct `db.*` URI if your network lacks IPv6). Append `?sslmode=require`:
-
-```env
-DATABASE_URL=postgresql://postgres.[project-ref]:[password]@aws-0-[region].pooler.supabase.com:5432/postgres?sslmode=require
-SUPABASE_URL=https://[project-ref].supabase.co
-```
-
-Apply the schema (Supabase CLI or helper script):
+**Hosted Supabase (optional):** create a project at [supabase.com](https://supabase.com) and set the Session pooler URI in `.env` (append `?sslmode=require`). Note: some networks can open TCP to the pooler but hang during the Postgres/SSL handshake — use the Compose local DB in that case.
 
 ```bash
-# Option A: Supabase CLI
+# Option A: Supabase CLI (remote)
 supabase link --project-ref <your-project-ref>
 supabase db push
 
-# Option B: Python helper (uses DATABASE_URL from root .env)
+# Option B: Python helper against DATABASE_URL
 cd backend
 PYTHONPATH=. python scripts/apply_migration.py
+PYTHONPATH=. python scripts/seed_mcda_registry.py --allow-remote   # hosted only
+PYTHONPATH=. python scripts/seed_mcda_registry.py                  # local DB
 ```
 
-Migration file: `supabase/migrations/20260722120000_initial_schema.sql`
-
-MCDA registry (organizations, verified domains, weekly score updates):
-
-```bash
-# After initial schema
-supabase db push   # or apply 20260724120000_mcda_registry.sql
-
-cd backend
-PYTHONPATH=. python scripts/seed_mcda_registry.py --allow-remote   # hosted DB
-# local Supabase:
-PYTHONPATH=. python scripts/seed_mcda_registry.py
-```
+Migration files: `supabase/migrations/20260722120000_initial_schema.sql`, `20260724120000_mcda_registry.sql`
 
 Celery Beat (weekly Monday 02:00 Africa/Nairobi) is included in `docker compose` as the `beat` service.
 
@@ -87,9 +66,11 @@ docker compose up --build
 
 Services:
 - **API** — http://localhost:8001
+- **Postgres** — localhost:54322 (user/password/db: `sentinel`)
 - **Redis** — localhost:6379
 - **Celery worker** — bounded concurrency (default 2)
 - **Celery beat** — weekly MCDA registry rescan schedule
+- **db-init** — one-shot migrate + MCDA seed
 
 Health check: `GET http://localhost:8001/health`
 

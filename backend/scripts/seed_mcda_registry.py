@@ -30,6 +30,15 @@ MIGRATION = (
     / "migrations"
     / "20260724120000_mcda_registry.sql"
 )
+_DOCKER_MIGRATION = Path("/supabase/migrations/20260724120000_mcda_registry.sql")
+
+
+def _migration_path() -> Path:
+    if MIGRATION.is_file():
+        return MIGRATION
+    if _DOCKER_MIGRATION.is_file():
+        return _DOCKER_MIGRATION
+    return MIGRATION
 
 _PRODUCTION_APP_ENVS = frozenset({"production", "prod"})
 _LOCAL_HOSTS = frozenset({"localhost", "127.0.0.1", "::1", "0.0.0.0"})
@@ -91,11 +100,12 @@ def ensure_schema(conn: psycopg.Connection) -> None:
         print("Schema: domain_score_updates already present")
         return
 
-    if not MIGRATION.is_file():
+    if not MIGRATION.is_file() and not _DOCKER_MIGRATION.is_file():
         print(f"ERROR: migration not found at {MIGRATION}", file=sys.stderr)
         sys.exit(1)
-    print(f"Applying migration {MIGRATION.name} …")
-    conn.execute(MIGRATION.read_text(encoding="utf-8"))
+    migration = _migration_path()
+    print(f"Applying migration {migration.name} …")
+    conn.execute(migration.read_text(encoding="utf-8"))
     print("Schema: migration applied")
 
 

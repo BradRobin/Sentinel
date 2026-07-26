@@ -9,6 +9,40 @@ services:
       timeout: 3s
       retries: 5
 
+  # Local Postgres for reliable MCDA registry + scans without hosted Supabase.
+  # Compose overrides DATABASE_URL on api/worker/beat to point here.
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: sentinel
+      POSTGRES_PASSWORD: sentinel
+      POSTGRES_DB: sentinel
+    ports:
+      - "54322:5432"
+    volumes:
+      - sentinel_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sentinel -d sentinel"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  db-init:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_URL: postgresql://sentinel:sentinel@db:5432/sentinel
+      APP_ENV: development
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+      - ./supabase:/supabase:ro
+    command: python scripts/bootstrap_local_db.py
+    restart: "no"
+
   api:
     build:
       context: ./backend
@@ -19,9 +53,14 @@ services:
       - .env
     environment:
       REDIS_URL: redis://redis:6379/0
+      DATABASE_URL: postgresql://sentinel:sentinel@db:5432/sentinel
     depends_on:
       redis:
         condition: service_healthy
+      db:
+        condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
     volumes:
       - ./backend:/app
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
@@ -34,9 +73,14 @@ services:
       - .env
     environment:
       REDIS_URL: redis://redis:6379/0
+      DATABASE_URL: postgresql://sentinel:sentinel@db:5432/sentinel
     depends_on:
       redis:
         condition: service_healthy
+      db:
+        condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
     volumes:
       - ./backend:/app
     command: celery -A app.core.celery_app worker --loglevel=info --concurrency=${CELERY_WORKER_CONCURRENCY:-2}
@@ -49,9 +93,17 @@ services:
       - .env
     environment:
       REDIS_URL: redis://redis:6379/0
+      DATABASE_URL: postgresql://sentinel:sentinel@db:5432/sentinel
     depends_on:
       redis:
         condition: service_healthy
+      db:
+        condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
     volumes:
       - ./backend:/app
     command: celery -A app.core.celery_app beat --loglevel=info
+
+volumes:
+  sentinel_pgdata:

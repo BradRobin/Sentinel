@@ -18,11 +18,14 @@ def get_pool() -> ConnectionPool:
         conninfo = settings.database_url
         if "connect_timeout" not in conninfo:
             sep = "&" if "?" in conninfo else "?"
-            conninfo = f"{conninfo}{sep}connect_timeout=15"
+            # Keep short so hung remote poolers fail fast instead of
+            # blocking /api/v1/registry for 30s+ (PoolTimeout).
+            conninfo = f"{conninfo}{sep}connect_timeout=5"
         _pool = ConnectionPool(
             conninfo=conninfo,
-            min_size=1,
+            min_size=0,
             max_size=5,
+            timeout=8,
             kwargs={"row_factory": dict_row},
         )
     return _pool

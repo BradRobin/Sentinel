@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useMemo } from "react";
 import { useSearchParams } from "next/navigation";
@@ -9,27 +10,41 @@ import {
   STANDARDS_PDF_PATH,
   WEBSITES_SECTION_PAGE,
   normalizeClauseRef,
-  pdfPageForClause,
+  pdfTargetForClause,
   standardsPdfUrl,
 } from "@/lib/standards";
 import { btnSecondarySm, linkQuiet } from "@/lib/ui";
+
+const StandardsPdfPage = dynamic(
+  () =>
+    import("@/components/StandardsPdfPage").then((m) => m.StandardsPdfPage),
+  {
+    ssr: false,
+    loading: () => (
+      <p className="px-4 py-16 text-center text-sm text-icta-gray-600">
+        Loading standard…
+      </p>
+    ),
+  },
+);
 
 export function StandardsViewer() {
   const searchParams = useSearchParams();
   const pageParam = searchParams.get("page");
   const clauseParam = searchParams.get("clause");
 
+  const clause = clauseParam ? normalizeClauseRef(clauseParam) : null;
+  const target = clause ? pdfTargetForClause(clause) : null;
+
   const page = useMemo(() => {
     const fromQuery = pageParam ? Number.parseInt(pageParam, 10) : NaN;
     if (Number.isFinite(fromQuery) && fromQuery > 0) return fromQuery;
-    if (clauseParam) {
-      return pdfPageForClause(normalizeClauseRef(clauseParam)) ?? WEBSITES_SECTION_PAGE;
-    }
+    if (target) return target.page;
     return WEBSITES_SECTION_PAGE;
-  }, [pageParam, clauseParam]);
+  }, [pageParam, target]);
 
-  const clause = clauseParam ? normalizeClauseRef(clauseParam) : null;
-  const iframeSrc = `${STANDARDS_PDF_PATH}#page=${page}`;
+  const highlightText = target?.highlight ?? null;
+  const docClause = target?.docClause ?? null;
 
   return (
     <div className="flex flex-1 flex-col">
@@ -47,17 +62,25 @@ export function StandardsViewer() {
               {clause ? (
                 <>
                   {" "}
-                  · showing clause{" "}
+                  · Sentinel clause{" "}
                   <span className="font-medium text-icta-black">{clause}</span>
+                </>
+              ) : null}
+              {docClause ? (
+                <>
+                  {" "}
+                  · document §
+                  <span className="font-medium text-icta-black">{docClause}</span>
                 </>
               ) : null}
               {" "}
               · page {page}
             </p>
-            <p className="mt-1 text-xs text-icta-gray-600">
-              Sentinel cites ICTA.6.002:2019 §6.4 IDs; website rules appear under
-              §6.5 in this 2023 document. Links open the closest matching page.
-            </p>
+            {clause ? (
+              <p className="mt-1 text-xs text-icta-gray-600">
+                Sentinel cites ICTA.6.002:2019 §6.4 IDs.
+              </p>
+            ) : null}
           </div>
           <div className="flex flex-wrap gap-2">
             <a
@@ -68,11 +91,7 @@ export function StandardsViewer() {
             >
               Open PDF in new tab
             </a>
-            <a
-              href={STANDARDS_PDF_PATH}
-              download
-              className={btnSecondarySm}
-            >
+            <a href={STANDARDS_PDF_PATH} download className={btnSecondarySm}>
               Download
             </a>
           </div>
@@ -80,11 +99,11 @@ export function StandardsViewer() {
       </header>
 
       <div className="mx-auto w-full max-w-6xl flex-1 px-4 py-4 sm:px-6">
-        <iframe
-          key={iframeSrc}
+        <StandardsPdfPage
+          key={`${page}-${highlightText ?? ""}`}
+          pageNumber={page}
+          highlightText={highlightText}
           title={STANDARDS_DOC_LABEL}
-          src={iframeSrc}
-          className="h-[min(80vh,900px)] w-full rounded-md border border-icta-gray-200 bg-icta-gray-50"
         />
       </div>
     </div>

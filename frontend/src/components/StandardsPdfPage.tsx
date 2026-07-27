@@ -106,7 +106,8 @@ export function StandardsPdfPage({
         const canvas = canvasRef.current;
         if (!container || !canvas) return;
 
-        const pdfjs = await import("pdfjs-dist");
+        // Legacy build includes polyfills for Map.getOrInsertComputed / Promise.withResolvers.
+        const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
         pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
 
         const loadingTask = pdfjs.getDocument(STANDARDS_PDF_PATH);

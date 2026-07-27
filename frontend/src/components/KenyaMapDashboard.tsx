@@ -101,7 +101,7 @@ export function KenyaMapDashboard() {
         const [registry, geoRes, waterRes] = await Promise.all([
           getRegistry({ orgType: "county", limit: 100 }),
           fetch(KENYA_COUNTIES_GEOJSON_PATH, { cache: "force-cache" }),
-          fetch(KENYA_WATER_GEOJSON_PATH),
+          fetch(KENYA_WATER_GEOJSON_PATH, { cache: "no-store" }),
         ]);
         if (!geoRes.ok) {
           throw new Error(`County boundaries failed to load (${geoRes.status})`);
@@ -159,7 +159,7 @@ export function KenyaMapDashboard() {
     };
   }, []);
 
-  // Water bodies above county choropleth (so lakes/ocean are always visible)
+  // Water bodies beneath counties (clipped offshore; avoids blue underlay on land)
   useEffect(() => {
     const map = mapRef.current;
     if (!mapReady || !map || !waterGeojson) return;
@@ -233,7 +233,7 @@ export function KenyaMapDashboard() {
     layer.addTo(map);
     layerRef.current = layer;
     if (waterLayerRef.current) {
-      waterLayerRef.current.bringToFront();
+      waterLayerRef.current.bringToBack();
     }
 
     const bounds = layer.getBounds();

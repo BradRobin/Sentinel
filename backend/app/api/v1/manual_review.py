@@ -3,6 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException, Header, Query
 
 from app.core.database import get_connection
+from app.data.manual_check_registry import ManualCheckType
 from app.schemas.findings import (
     ManualReviewItemDetail,
     ManualReviewQueueItem,
@@ -10,12 +11,14 @@ from app.schemas.findings import (
     ManualReviewResolveResponse,
 )
 from app.services.manual_review import (
+    get_manual_review_item,
     list_pending_manual_review_items,
     resolve_manual_review_item,
-    get_manual_review_item,
 )
 
 router = APIRouter(prefix="/manual-review", tags=["manual-review"])
+
+_VALID_CHECK_TYPES: frozenset[str] = frozenset({"site_inspection", "institutional_attestation"})
 
 
 def _require_officer_id(x_officer_id: str | None) -> str:
@@ -42,6 +45,21 @@ def _officer_exists(officer_id: str) -> bool:
     return bool(row)
 
 
+def _parse_check_type(raw: str | None) -> ManualCheckType | None:
+    if raw is None or raw == "":
+        return None
+    if raw not in _VALID_CHECK_TYPES:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "message": (
+                    "check_type must be site_inspection or institutional_attestation"
+                )
+            },
+        )
+    return raw  # type: ignore[return-value]
+
+
 @router.get(
     "/items",
     response_model=list[ManualReviewQueueItem],
@@ -51,18 +69,19 @@ def list_queue_items(
     check_type: str | None = Query(default=None),
     category: str | None = Query(default=None),
     domain_id: str | None = Query(default=None),
+    domain_query: str | None = Query(default=None),
     limit: int = Query(default=200, ge=1, le=500),
 ):
     officer_id = _require_officer_id(x_officer_id)
     if not _officer_exists(officer_id):
         raise HTTPException(status_code=401, detail={"message": "Unknown officer"})
 
-    # check_type is validated downstream by SQL filters; keep it permissive in v1.
+    parsed_check_type = _parse_check_type(check_type)
     return list_pending_manual_review_items(
-        officer_id=officer_id,
-        check_type=check_type,  # type: ignore[arg-type]
+        check_type=parsed_check_type,
         category=category,
         domain_id=domain_id,
+        domain_query=domain_query,
         limit=limit,
     )
 
@@ -116,4 +135,3 @@ def resolve_item(
         raise HTTPException(status_code=409, detail={"message": str(exc)}) from exc
 
     return ManualReviewResolveResponse(ok=True, item_id=str(updated["id"]))
-

@@ -1,9 +1,9 @@
 """Legal and interoperability heuristic tests."""
 
+from app.data.manual_check_registry import MANUAL_CHECK_DEFS, MANUAL_CHECK_NAMES
 from app.checks.fetcher import FetchResult
 from app.checks.interoperability import run_interoperability_checks
 from app.checks.legal import run_legal_checks
-from app.checks.manual_review import emit_manual_review_findings
 from app.checks.page import PageSnapshot
 from app.schemas.findings import FindingStatus
 
@@ -42,12 +42,9 @@ def test_utf8_and_html_structure():
     assert findings["html_validation"].status == FindingStatus.pass_
 
 
-def test_manual_review_emits_all_pm_items():
-    findings = emit_manual_review_findings()
-    assert len(findings) >= 10
-    assert all(f.status == FindingStatus.manual_review for f in findings)
-    names = {f.check_name for f in findings}
-    # domain_semantic_relevance is resolved by the Phase 5 LLM check, not this emitter
+def test_manual_check_registry_lists_pm_items():
+    assert len(MANUAL_CHECK_DEFS) == 16
+    names = MANUAL_CHECK_NAMES
     assert "domain_semantic_relevance" not in names
     assert "db_isolation" in names
     assert "coat_of_arms" in names

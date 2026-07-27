@@ -423,6 +423,7 @@ export async function getManualReviewQueueItems(args: {
   check_type?: ManualReviewCheckType | "";
   category?: string | "";
   domain_id?: string | "";
+  domain_query?: string;
   limit?: number;
 }): Promise<ManualReviewQueueItem[]> {
   const {
@@ -431,11 +432,13 @@ export async function getManualReviewQueueItems(args: {
     check_type,
     category,
     domain_id,
+    domain_query,
   } = args;
   const params = new URLSearchParams();
   if (check_type) params.set("check_type", String(check_type));
   if (category) params.set("category", String(category));
   if (domain_id) params.set("domain_id", String(domain_id));
+  if (domain_query?.trim()) params.set("domain_query", domain_query.trim());
   params.set("limit", String(limit));
 
   const res = await fetch(

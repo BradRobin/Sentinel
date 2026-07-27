@@ -10,160 +10,42 @@ Key invariants (v1):
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from datetime import date, datetime, timezone
 import json
 from typing import Any, Literal
 
 from app.core.database import get_connection
+from app.data.manual_check_registry import MANUAL_CHECK_DEFS, ManualCheckDef, ManualCheckType
 from app.schemas.findings import Finding, FindingStatus
 
-
-ManualCheckType = Literal["site_inspection", "institutional_attestation"]
 ResolvedStatus = Literal["pass", "fail", "flagged"]
 
+_ITEM_COLUMNS = """
+    id,
+    current_status,
+    justification,
+    resolved_by,
+    resolved_at,
+    next_review_due,
+    source_scan_id
+"""
 
-@dataclass(frozen=True)
-class ManualCheckDef:
-    check_name: str
-    clause_reference: str
-    category: str
-    check_type: ManualCheckType
-    automatability_type: Literal["A", "P", "M"]
-    severity: Literal["high", "medium", "low"]
-
-
-_MANUAL_CHECK_DEFS: tuple[ManualCheckDef, ...] = (
-    ManualCheckDef(
-        check_name="domain_not_personal_name",
-        clause_reference="6.5.8",
-        category="domain_identity",
-        check_type="site_inspection",
-        automatability_type="P",
-        severity="low",
-    ),
-    ManualCheckDef(
-        check_name="image_link_alt",
-        clause_reference="6.5.12",
-        category="accessibility",
-        check_type="site_inspection",
-        automatability_type="P",
-        severity="medium",
-    ),
-    ManualCheckDef(
-        check_name="media_captions",
-        clause_reference="6.5.12",
-        category="accessibility",
-        check_type="site_inspection",
-        automatability_type="P",
-        severity="medium",
-    ),
-    ManualCheckDef(
-        check_name="embedded_video_alt",
-        clause_reference="6.5.12",
-        category="accessibility",
-        check_type="site_inspection",
-        automatability_type="P",
-        severity="medium",
-    ),
-    ManualCheckDef(
-        check_name="no_flashing",
-        clause_reference="6.5.12",
-        category="accessibility",
-        check_type="site_inspection",
-        automatability_type="P",
-        severity="high",
-    ),
-    ManualCheckDef(
-        check_name="responsive_mobile",
-        clause_reference="6.5.23",
-        category="accessibility",
-        check_type="site_inspection",
-        automatability_type="P",
-        severity="medium",
-    ),
-    ManualCheckDef(
-        check_name="coat_of_arms",
-        clause_reference="6.5.15",
-        category="design_branding",
-        check_type="site_inspection",
-        automatability_type="P",
-        severity="medium",
-    ),
-    ManualCheckDef(
-        check_name="g4c_index_structure",
-        clause_reference="6.5.16",
-        category="design_branding",
-        check_type="site_inspection",
-        automatability_type="M",
-        severity="medium",
-    ),
-    ManualCheckDef(
-        check_name="images_not_distorted",
-        clause_reference="6.5.19",
-        category="multimedia_performance",
-        check_type="site_inspection",
-        automatability_type="M",
-        severity="low",
-    ),
-    ManualCheckDef(
-        check_name="copyright_attribution",
-        clause_reference="6.5.22",
-        category="legal_content",
-        check_type="site_inspection",
-        automatability_type="M",
-        severity="low",
-    ),
-    ManualCheckDef(
-        check_name="content_freshness",
-        clause_reference="6.5.22",
-        category="legal_content",
-        check_type="site_inspection",
-        automatability_type="P",
-        severity="low",
-    ),
-    # Institutional attestation (no live-site required)
-    ManualCheckDef(
-        check_name="db_isolation",
-        clause_reference="6.5.25",
-        category="security",
-        check_type="institutional_attestation",
-        automatability_type="M",
-        severity="high",
-    ),
-    ManualCheckDef(
-        check_name="no_malicious_code",
-        clause_reference="6.5.25",
-        category="security",
-        check_type="institutional_attestation",
-        automatability_type="P",
-        severity="high",
-    ),
-    ManualCheckDef(
-        check_name="cms_patched",
-        clause_reference="6.5.25",
-        category="security",
-        check_type="institutional_attestation",
-        automatability_type="P",
-        severity="medium",
-    ),
-    ManualCheckDef(
-        check_name="vuln_scanning_process",
-        clause_reference="6.5.25",
-        category="security",
-        check_type="institutional_attestation",
-        automatability_type="M",
-        severity="medium",
-    ),
-    ManualCheckDef(
-        check_name="server_side_scripting",
-        clause_reference="6.5.14",
-        category="design_branding",
-        check_type="institutional_attestation",
-        automatability_type="P",
-        severity="low",
-    ),
-)
+_QUEUE_SELECT = """
+    SELECT
+        m.id,
+        m.domain_id,
+        d.url AS domain_url,
+        m.check_name,
+        m.category,
+        m.check_type,
+        s.clause_number AS clause_reference,
+        s.title AS question_title,
+        m.status_updated_at AS pending_since,
+        m.source_scan_id
+    FROM manual_review_items m
+    JOIN domains d ON d.id = m.domain_id
+    JOIN standards_reference s ON s.check_name = m.check_name
+"""
 
 
 def _today() -> date:
@@ -178,9 +60,7 @@ def _emit_finding_for_pending(defn: ManualCheckDef) -> Finding:
         status=FindingStatus.manual_review,
         severity=defn.severity,  # type: ignore[arg-type]
         automatability_type=defn.automatability_type,  # type: ignore[arg-type]
-        detail={
-            "requires_manual_review": True,
-        },
+        detail={"requires_manual_review": True},
     )
 
 
@@ -197,8 +77,6 @@ def _emit_finding_for_officer_resolved(
     elif current_status == "fail":
         status = FindingStatus.fail
     else:
-        # flagged should not dilute scores; keep manual_review status but mark
-        # it as officer-reviewed for transparency.
         status = FindingStatus.manual_review
 
     return Finding(
@@ -218,6 +96,18 @@ def _emit_finding_for_officer_resolved(
     )
 
 
+def _fetch_items_for_domain(conn: Any, domain_id: str) -> dict[str, dict[str, Any]]:
+    rows = conn.execute(
+        f"""
+        SELECT {_ITEM_COLUMNS}
+        FROM manual_review_items
+        WHERE domain_id = %s
+        """,
+        (domain_id,),
+    ).fetchall()
+    return {str(r["check_name"]): dict(r) for r in rows}
+
+
 def _upsert_pending_item(
     conn: Any,
     *,
@@ -226,9 +116,7 @@ def _upsert_pending_item(
     defn: ManualCheckDef,
     scan_id: str,
 ) -> None:
-    """
-    Mark the item as pending and clear resolution fields.
-    """
+    """Insert or reset an item to pending (clears prior resolution fields)."""
     conn.execute(
         """
         INSERT INTO manual_review_items (
@@ -264,13 +152,62 @@ def _upsert_pending_item(
     )
 
 
+def _touch_pending_source_scans(
+    conn: Any,
+    *,
+    item_ids: list[str],
+    scan_id: str,
+) -> None:
+    if not item_ids:
+        return
+    conn.execute(
+        """
+        UPDATE manual_review_items
+        SET source_scan_id = %s
+        WHERE id = ANY(%s::uuid[])
+        """,
+        (scan_id, item_ids),
+    )
+
+
+def _log_cadence_requeue(
+    conn: Any,
+    *,
+    item_id: str,
+    domain_id: str,
+    check_name: str,
+    prior_status: str,
+    scan_id: str,
+    actor: str = "system:cadence",
+) -> None:
+    conn.execute(
+        """
+        INSERT INTO audit_log (actor, action, target, metadata)
+        VALUES (%s, 'manual_review_cadence_requeue', %s, %s::jsonb)
+        """,
+        (
+            actor,
+            item_id,
+            json.dumps(
+                {
+                    "item_id": item_id,
+                    "domain_id": domain_id,
+                    "check_name": check_name,
+                    "prior_status": prior_status,
+                    "source_scan_id": scan_id,
+                }
+            ),
+        ),
+    )
+
+
 def emit_manual_review_findings_for_scan(
     scan_id: str,
     *,
     scan_now: date | None = None,
 ) -> list[Finding]:
     """
-    Emit the 16 manual-review findings for this scan, mapping officer resolutions
+    Emit manual-review findings for this scan, mapping officer resolutions
     into FindingStatus pass/fail/manual_review.
     """
     today = scan_now or _today()
@@ -278,38 +215,20 @@ def emit_manual_review_findings_for_scan(
 
     with get_connection() as conn:
         scan_row = conn.execute(
-            """
-            SELECT domain_id
-            FROM scans
-            WHERE id = %s
-            """,
+            "SELECT domain_id FROM scans WHERE id = %s",
             (scan_id,),
         ).fetchone()
         if not scan_row or not scan_row.get("domain_id"):
-            # Should not happen: scans are always created with a domain_id.
-            # Still emit pending placeholders so check counts remain stable.
-            for defn in _MANUAL_CHECK_DEFS:
+            for defn in MANUAL_CHECK_DEFS:
                 findings.append(_emit_finding_for_pending(defn))
             return findings
 
         domain_id = str(scan_row["domain_id"])
+        existing = _fetch_items_for_domain(conn, domain_id)
+        pending_touch_ids: list[str] = []
 
-        for defn in _MANUAL_CHECK_DEFS:
-            row = conn.execute(
-                """
-                SELECT
-                    id,
-                    current_status,
-                    justification,
-                    resolved_by,
-                    resolved_at,
-                    next_review_due,
-                    source_scan_id
-                FROM manual_review_items
-                WHERE domain_id = %s AND check_name = %s
-                """,
-                (domain_id, defn.check_name),
-            ).fetchone()
+        for defn in MANUAL_CHECK_DEFS:
+            row = existing.get(defn.check_name)
 
             if not row:
                 _upsert_pending_item(
@@ -325,21 +244,20 @@ def emit_manual_review_findings_for_scan(
             current_status = str(row["current_status"])
 
             if current_status == "pending":
-                # Keep it pending, but refresh source_scan_id so the queue panel
-                # can link to the most recently surfaced snapshot.
-                conn.execute(
-                    """
-                    UPDATE manual_review_items
-                    SET source_scan_id = %s
-                    WHERE id = %s
-                    """,
-                    (scan_id, row["id"]),
-                )
+                pending_touch_ids.append(str(row["id"]))
                 findings.append(_emit_finding_for_pending(defn))
                 continue
 
             next_due = row.get("next_review_due")
             if not next_due or next_due <= today:
+                _log_cadence_requeue(
+                    conn,
+                    item_id=str(row["id"]),
+                    domain_id=domain_id,
+                    check_name=defn.check_name,
+                    prior_status=current_status,
+                    scan_id=scan_id,
+                )
                 _upsert_pending_item(
                     conn,
                     domain_id=domain_id,
@@ -350,24 +268,25 @@ def emit_manual_review_findings_for_scan(
                 findings.append(_emit_finding_for_pending(defn))
                 continue
 
-            # Resolved and still within cadence window
-            justification = row.get("justification")
-            resolved_by = row.get("resolved_by")
             resolved_at = row.get("resolved_at")
             resolved_at_iso = (
                 resolved_at.isoformat() if isinstance(resolved_at, datetime) else None
             )
-
             findings.append(
                 _emit_finding_for_officer_resolved(
                     defn,
-                    current_status=str(current_status),  # type: ignore[arg-type]
-                    justification=str(justification) if justification else None,
-                    resolved_by=str(resolved_by) if resolved_by else None,
+                    current_status=current_status,  # type: ignore[arg-type]
+                    justification=str(row["justification"])
+                    if row.get("justification")
+                    else None,
+                    resolved_by=str(row["resolved_by"])
+                    if row.get("resolved_by")
+                    else None,
                     resolved_at=resolved_at_iso,
                 )
             )
 
+        _touch_pending_source_scans(conn, item_ids=pending_touch_ids, scan_id=scan_id)
         conn.commit()
 
     return findings
@@ -380,20 +299,12 @@ def resolve_manual_review_item(
     resolved_status: ResolvedStatus,
     justification: str,
 ) -> dict[str, Any]:
-    """
-    Resolve a pending item by setting officer status + justification.
-    """
+    """Resolve a pending item by setting officer status + justification."""
     now = datetime.now(timezone.utc)
     with get_connection() as conn:
         row = conn.execute(
             """
-            SELECT
-                id,
-                current_status,
-                domain_id,
-                check_name,
-                category,
-                check_type
+            SELECT id, current_status, domain_id, check_name, category, check_type
             FROM manual_review_items
             WHERE id = %s
             """,
@@ -416,32 +327,15 @@ def resolve_manual_review_item(
                 status_updated_at = now()
             WHERE id = %s
             """,
-            (
-                resolved_status,
-                justification,
-                officer_id,
-                now,
-                now,
-                item_id,
-            ),
+            (resolved_status, justification, officer_id, now, now, item_id),
         )
 
-        # Return updated state
         updated = conn.execute(
-            """
+            f"""
             SELECT
-                id,
-                domain_id,
-                check_name,
-                category,
-                check_type,
-                current_status,
-                justification,
-                resolved_by,
-                resolved_at,
-                next_review_due,
-                source_scan_id,
-                status_updated_at
+                id, domain_id, check_name, category, check_type,
+                current_status, justification, resolved_by, resolved_at,
+                next_review_due, source_scan_id, status_updated_at
             FROM manual_review_items
             WHERE id = %s
             """,
@@ -451,38 +345,32 @@ def resolve_manual_review_item(
         if not updated:
             raise RuntimeError("Resolution update failed")
 
-        # Audit log
         conn.execute(
             """
             INSERT INTO audit_log (actor, action, target, metadata)
-            VALUES (
-                %s,
-                'manual_review_resolved',
-                %s,
-                %s::jsonb
-            )
+            VALUES (%s, 'manual_review_resolved', %s, %s::jsonb)
             """,
             (
                 officer_id,
                 str(updated["id"]),
                 json.dumps(
                     {
-                    "item_id": str(updated["id"]),
-                    "domain_id": str(updated["domain_id"]),
-                    "check_name": str(updated["check_name"]),
-                    "resolved_status": str(updated["current_status"]),
-                    "justification": updated["justification"],
-                    "resolved_at": (
-                        updated["resolved_at"].isoformat()
-                        if isinstance(updated["resolved_at"], datetime)
-                        else None
-                    ),
-                    "next_review_due": (
-                        updated["next_review_due"].isoformat()
-                        if updated["next_review_due"]
-                        else None
-                    ),
-                    },
+                        "item_id": str(updated["id"]),
+                        "domain_id": str(updated["domain_id"]),
+                        "check_name": str(updated["check_name"]),
+                        "resolved_status": str(updated["current_status"]),
+                        "justification": updated["justification"],
+                        "resolved_at": (
+                            updated["resolved_at"].isoformat()
+                            if isinstance(updated["resolved_at"], datetime)
+                            else None
+                        ),
+                        "next_review_due": (
+                            updated["next_review_due"].isoformat()
+                            if updated["next_review_due"]
+                            else None
+                        ),
+                    }
                 ),
             ),
         )
@@ -493,11 +381,35 @@ def resolve_manual_review_item(
 
 
 def requeue_due_manual_review_items() -> int:
-    """
-    Scheduled job: move items back to pending when cadence window expires.
-    """
+    """Scheduled job: move items back to pending when cadence window expires."""
     today = _today()
     with get_connection() as conn:
+        due_rows = conn.execute(
+            """
+            SELECT id, domain_id, check_name, current_status
+            FROM manual_review_items
+            WHERE next_review_due IS NOT NULL
+              AND next_review_due <= %s
+              AND current_status IN (
+                'pass'::manual_review_status,
+                'fail'::manual_review_status,
+                'flagged'::manual_review_status
+              )
+            """,
+            (today,),
+        ).fetchall()
+
+        for row in due_rows:
+            _log_cadence_requeue(
+                conn,
+                item_id=str(row["id"]),
+                domain_id=str(row["domain_id"]),
+                check_name=str(row["check_name"]),
+                prior_status=str(row["current_status"]),
+                scan_id="",
+                actor="system:scheduled_requeue",
+            )
+
         res = conn.execute(
             """
             UPDATE manual_review_items
@@ -525,15 +437,13 @@ def requeue_due_manual_review_items() -> int:
 
 def list_pending_manual_review_items(
     *,
-    officer_id: str | None = None,
     check_type: ManualCheckType | None = None,
     category: str | None = None,
     domain_id: str | None = None,
+    domain_query: str | None = None,
     limit: int = 200,
 ) -> list[dict[str, Any]]:
-    """
-    Queue for officers: list pending items across all domains.
-    """
+    """Queue for officers: list pending items across all domains."""
     limit = max(1, min(int(limit), 500))
     where: list[str] = ["m.current_status = 'pending'::manual_review_status"]
     params: list[Any] = []
@@ -547,22 +457,13 @@ def list_pending_manual_review_items(
     if domain_id:
         where.append("m.domain_id = %s")
         params.append(domain_id)
+    q = (domain_query or "").strip()
+    if q:
+        where.append("lower(d.url) LIKE %s")
+        params.append(f"%{q.lower()}%")
 
     sql = f"""
-        SELECT
-            m.id,
-            m.domain_id,
-            d.url AS domain_url,
-            m.check_name,
-            m.category,
-            m.check_type,
-            s.clause_number AS clause_reference,
-            s.title AS question_title,
-            m.status_updated_at AS pending_since,
-            m.source_scan_id
-        FROM manual_review_items m
-        JOIN domains d ON d.id = m.domain_id
-        JOIN standards_reference s ON s.check_name = m.check_name
+        {_QUEUE_SELECT}
         WHERE {" AND ".join(where)}
         ORDER BY m.status_updated_at ASC
         LIMIT %s
@@ -587,7 +488,7 @@ def list_pending_manual_review_items(
 def get_manual_review_item(item_id: str) -> dict[str, Any] | None:
     with get_connection() as conn:
         row = conn.execute(
-            """
+            f"""
             SELECT
                 m.id,
                 m.domain_id,
@@ -597,13 +498,13 @@ def get_manual_review_item(item_id: str) -> dict[str, Any] | None:
                 m.check_type,
                 s.clause_number AS clause_reference,
                 s.title AS question_title,
+                m.status_updated_at AS pending_since,
+                m.source_scan_id,
                 m.current_status,
                 m.justification,
                 m.resolved_by,
                 m.resolved_at,
-                m.next_review_due,
-                m.source_scan_id,
-                m.status_updated_at AS pending_since
+                m.next_review_due
             FROM manual_review_items m
             JOIN domains d ON d.id = m.domain_id
             JOIN standards_reference s ON s.check_name = m.check_name
@@ -624,8 +525,7 @@ def get_manual_review_item(item_id: str) -> dict[str, Any] | None:
     if item.get("next_review_due") is not None:
         nr = item["next_review_due"]
         try:
-            item["next_review_due"] = nr.isoformat()  # date
+            item["next_review_due"] = nr.isoformat()
         except Exception:
             item["next_review_due"] = str(nr)
     return item
-

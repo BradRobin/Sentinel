@@ -85,13 +85,10 @@ export default function ReviewQueuePage() {
         officerId,
         check_type: filters.check_type,
         category: filters.category,
+        domain_query: filters.domainQuery,
         limit: 400,
       });
-      const q = filters.domainQuery.trim().toLowerCase();
-      const filtered = q
-        ? data.filter((x) => x.domain_url.toLowerCase().includes(q))
-        : data;
-      setItems(filtered);
+      setItems(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load queue");
     } finally {

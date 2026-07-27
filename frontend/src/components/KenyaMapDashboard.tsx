@@ -1,17 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
+import { useKenyaMapLayers } from "@/hooks/useKenyaMapLayers";
 import { getRegistry, type RegistryEntry } from "@/lib/api";
 import {
   KENYA_COUNTIES_GEOJSON_PATH,
   KENYA_WATER_GEOJSON_PATH,
   SCORE_BAND_LEGEND,
   enrichCountiesGeoJSON,
-  kenyaWaterStyle,
   scoreBand,
   topIssueFromBreakdown,
   type CountyMapFeatureProps,
@@ -61,52 +61,8 @@ function countyStyle(feature?: GeoJSON.Feature): L.PathOptions {
   };
 }
 
-function splitWaterFeatures(water: GeoJSON.GeoJsonObject): {
-  lakes: GeoJSON.Feature[];
-  ocean: GeoJSON.Feature[];
-} {
-  const features =
-    water.type === "FeatureCollection"
-      ? (water as GeoJSON.FeatureCollection).features
-      : [];
-  const lakes: GeoJSON.Feature[] = [];
-  const ocean: GeoJSON.Feature[] = [];
-  for (const feature of features) {
-    const kind = (feature.properties as { kind?: string } | null)?.kind;
-    if (kind === "ocean") ocean.push(feature);
-    else lakes.push(feature);
-  }
-  return { lakes, ocean };
-}
-
-function orderWaterLayers(
-  oceanLayer: L.GeoJSON | null,
-  lakeLayer: L.GeoJSON | null,
-) {
-  oceanLayer?.bringToBack();
-  lakeLayer?.bringToFront();
-}
-
-/** Fixed panes so county hover (bringToFront) cannot cover lakes. */
-function ensureKenyaMapPanes(map: L.Map) {
-  const panes: Array<[string, string]> = [
-    ["kenya-ocean", "350"],
-    ["kenya-counties", "400"],
-    ["kenya-lakes", "450"],
-  ];
-  for (const [name, zIndex] of panes) {
-    if (!map.getPane(name)) map.createPane(name);
-    const pane = map.getPane(name);
-    if (pane) pane.style.zIndex = zIndex;
-  }
-}
-
 export function KenyaMapDashboard() {
   const containerRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<L.Map | null>(null);
-  const layerRef = useRef<L.GeoJSON | null>(null);
-  const oceanLayerRef = useRef<L.GeoJSON | null>(null);
-  const lakeLayerRef = useRef<L.GeoJSON | null>(null);
 
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -115,7 +71,6 @@ export function KenyaMapDashboard() {
   const [waterGeojson, setWaterGeojson] = useState<GeoJSON.GeoJsonObject | null>(
     null,
   );
-  const [mapReady, setMapReady] = useState(false);
   const [tooltip, setTooltip] = useState<TooltipState | null>(null);
   const [selected, setSelected] = useState<CountyMapFeatureProps | null>(null);
 
@@ -167,143 +122,60 @@ export function KenyaMapDashboard() {
     });
   }, []);
 
-  // Create map once (re-created cleanly under React Strict Mode)
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
+  const onEachCountyFeature = useCallback(
+    (
+      feature: GeoJSON.Feature,
+      lyr: L.Layer,
+      layerGroup: L.GeoJSON,
+    ) => {
+      lyr.on({
+        mouseover: (e) => {
+          const path = e.target as L.Path;
+          path.setStyle({ weight: 2.2, color: "#000000", opacity: 1 });
+          if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
+            path.bringToFront();
+          }
+          const props = featureProps(feature);
+          if (!props || !containerRef.current) return;
+          const rect = containerRef.current.getBoundingClientRect();
+          const oe = e.originalEvent as MouseEvent;
+          setTooltip({
+            x: oe.clientX - rect.left,
+            y: oe.clientY - rect.top,
+            props,
+          });
+        },
+        mouseout: (e) => {
+          layerGroup.resetStyle(e.target);
+          setTooltip(null);
+        },
+        mousemove: (e) => {
+          const props = featureProps(feature);
+          if (!props || !containerRef.current) return;
+          const rect = containerRef.current.getBoundingClientRect();
+          const oe = e.originalEvent as MouseEvent;
+          setTooltip({
+            x: oe.clientX - rect.left,
+            y: oe.clientY - rect.top,
+            props,
+          });
+        },
+        click: () => {
+          const props = featureProps(feature);
+          if (props) setSelected(props);
+        },
+      });
+    },
+    [],
+  );
 
-    const map = L.map(el, {
-      zoomControl: true,
-      attributionControl: true,
-      minZoom: 5,
-      maxZoom: 10,
-    });
-    map.setView([0.35, 37.9], 6);
-    map.attributionControl.setPrefix("");
-    map.attributionControl.addAttribution(
-      '<a href="https://www.geoboundaries.org/" target="_blank" rel="noreferrer">geoBoundaries</a>',
-    );
-    ensureKenyaMapPanes(map);
-    mapRef.current = map;
-    setMapReady(true);
-
-    const ro = new ResizeObserver(() => map.invalidateSize());
-    ro.observe(el);
-    requestAnimationFrame(() => map.invalidateSize());
-
-    return () => {
-      ro.disconnect();
-      setMapReady(false);
-      layerRef.current = null;
-      oceanLayerRef.current = null;
-      lakeLayerRef.current = null;
-      map.remove();
-      if (mapRef.current === map) mapRef.current = null;
-    };
-  }, []);
-
-  // Ocean beneath counties; lakes above (lakes overlap county polygons)
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!mapReady || !map || !waterGeojson) return;
-
-    if (oceanLayerRef.current) {
-      map.removeLayer(oceanLayerRef.current);
-      oceanLayerRef.current = null;
-    }
-    if (lakeLayerRef.current) {
-      map.removeLayer(lakeLayerRef.current);
-      lakeLayerRef.current = null;
-    }
-
-    const { lakes, ocean } = splitWaterFeatures(waterGeojson);
-    const style = () => kenyaWaterStyle();
-
-    if (ocean.length > 0) {
-      const oceanLayer = L.geoJSON(
-        { type: "FeatureCollection", features: ocean },
-        { style, interactive: false, pane: "kenya-ocean" },
-      );
-      oceanLayer.addTo(map);
-      oceanLayerRef.current = oceanLayer;
-    }
-
-    if (lakes.length > 0) {
-      const lakeLayer = L.geoJSON(
-        { type: "FeatureCollection", features: lakes },
-        { style, interactive: false, pane: "kenya-lakes" },
-      );
-      lakeLayer.addTo(map);
-      lakeLayerRef.current = lakeLayer;
-    }
-
-    orderWaterLayers(oceanLayerRef.current, lakeLayerRef.current);
-  }, [waterGeojson, mapReady]);
-
-  // Paint / update choropleth when map is ready and data is available
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!mapReady || !map || !enriched) return;
-
-    if (layerRef.current) {
-      map.removeLayer(layerRef.current);
-      layerRef.current = null;
-    }
-
-    const layer = L.geoJSON(enriched as GeoJSON.GeoJsonObject, {
-      pane: "kenya-counties",
-      style: countyStyle,
-      onEachFeature: (feature, lyr) => {
-        lyr.on({
-          mouseover: (e) => {
-            const path = e.target as L.Path;
-            path.setStyle({ weight: 2.2, color: "#000000", opacity: 1 });
-            if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
-              path.bringToFront();
-            }
-            const props = featureProps(feature);
-            if (!props || !containerRef.current) return;
-            const rect = containerRef.current.getBoundingClientRect();
-            const oe = e.originalEvent as MouseEvent;
-            setTooltip({
-              x: oe.clientX - rect.left,
-              y: oe.clientY - rect.top,
-              props,
-            });
-          },
-          mouseout: (e) => {
-            layer.resetStyle(e.target);
-            setTooltip(null);
-          },
-          mousemove: (e) => {
-            const props = featureProps(feature);
-            if (!props || !containerRef.current) return;
-            const rect = containerRef.current.getBoundingClientRect();
-            const oe = e.originalEvent as MouseEvent;
-            setTooltip({
-              x: oe.clientX - rect.left,
-              y: oe.clientY - rect.top,
-              props,
-            });
-          },
-          click: () => {
-            const props = featureProps(feature);
-            if (props) setSelected(props);
-          },
-        });
-      },
-    });
-
-    layer.addTo(map);
-    layerRef.current = layer;
-    orderWaterLayers(oceanLayerRef.current, lakeLayerRef.current);
-
-    const bounds = layer.getBounds();
-    if (bounds.isValid()) {
-      map.fitBounds(bounds, { padding: [28, 28], maxZoom: 7 });
-    }
-    map.invalidateSize();
-  }, [enriched, mapReady]);
+  useKenyaMapLayers({
+    containerRef,
+    enriched: enriched as GeoJSON.GeoJsonObject | null,
+    waterGeojson,
+    countyStyle,
+    onEachCountyFeature,
+  });
 
   return (
     <div className="flex flex-1 flex-col">

@@ -10,13 +10,13 @@ from app.checks.domain import run_domain_checks
 from app.checks.domain_semantic import run_domain_semantic_check
 from app.checks.interoperability import run_interoperability_checks
 from app.checks.legal import run_legal_checks
-from app.checks.manual_review import emit_manual_review_findings
 from app.checks.monitoring import run_monitoring_checks
 from app.checks.multimedia import run_multimedia_checks
 from app.checks.page import load_page_snapshot
 from app.checks.security import _EXPOSED_PATHS, run_security_checks
 from app.checks.seo import run_seo_checks
 from app.schemas.findings import Finding
+from app.services.manual_review import emit_manual_review_findings_for_scan
 
 # Scored categories in scoring_weights / SRS display order (monitoring excluded)
 SCORED_PROGRESS_CATEGORIES: tuple[str, ...] = (
@@ -50,6 +50,7 @@ ProgressCallback = Callable[[str | None, list[str], list[Finding]], None]
 
 def run_all_checks(
     url: str,
+    scan_id: str,
     *,
     allowed_tlds: list[str] | None = None,
     allow_tld_bypass: bool = False,
@@ -116,6 +117,6 @@ def run_all_checks(
 
     # Excluded from scored progress sequence
     findings.extend(run_monitoring_checks(snap))
-    findings.extend(emit_manual_review_findings())
+    findings.extend(emit_manual_review_findings_for_scan(scan_id))
 
     return findings

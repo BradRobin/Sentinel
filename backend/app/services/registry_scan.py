@@ -13,6 +13,7 @@ from app.core.ssrf import SSRFError
 from app.services.registry import list_verified_domains_for_scan
 from app.services.scan_cache import invalidate_cached_scan
 from app.services.scan_repository import create_scan_record
+from app.services.manual_review import requeue_due_manual_review_items
 from app.workers.scan_tasks import (
     claim_scan_lock,
     get_active_scan_job_id,
@@ -53,6 +54,14 @@ def enqueue_registry_scans(
     """
     if triggered_type not in ("manual", "scheduled"):
         triggered_type = "manual"
+
+    # Officer manual review cadence: flip any stale resolutions back to pending
+    # so the queue doesn't silently stop updating after a quarter.
+    try:
+        requeued = requeue_due_manual_review_items()
+        logger.info("Manual review cadence requeue: %s items", requeued)
+    except Exception as exc:
+        logger.warning("Manual review cadence requeue failed: %s", exc)
 
     domains = list_verified_domains_for_scan()
     queued = 0

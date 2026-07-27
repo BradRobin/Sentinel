@@ -177,6 +177,16 @@ function FindingListItem({
   onOpen: () => void;
 }) {
   const weight = findingVisualWeight(finding.status, finding.severity);
+  const d = (finding.detail ?? {}) as Record<string, unknown>;
+  const officerReviewed = d.officer_reviewed === true;
+  const officerStatus = d.officer_resolution_status;
+  const badgeText = officerReviewed
+    ? officerStatus === "flagged"
+      ? "Officer-reviewed (Flagged)"
+      : "Officer-reviewed"
+    : finding.status === "manual_review"
+      ? "review"
+      : finding.status;
   return (
     <li className={`hover:bg-icta-gray-50 ${weight.row}`}>
       <div className="flex items-start gap-3 px-3 py-2.5">
@@ -188,7 +198,7 @@ function FindingListItem({
           <span
             className={`mt-0.5 shrink-0 rounded px-1.5 py-0.5 text-xs uppercase ${weight.badge}`}
           >
-            {finding.status === "manual_review" ? "review" : finding.status}
+            {badgeText}
           </span>
           <span className="min-w-0 flex-1">
             <span className={weight.name}>{finding.check_name}</span>

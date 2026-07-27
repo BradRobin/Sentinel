@@ -103,3 +103,34 @@ class ComparisonAvailabilityResponse(BaseModel):
     available_periods: list[str]
     current_date: str | None = None
     period_labels: dict[str, str] = Field(default_factory=dict)
+
+
+class ManualReviewQueueItem(BaseModel):
+    id: str
+    domain_id: str
+    domain_url: str
+    check_name: str
+    category: str
+    check_type: Literal["site_inspection", "institutional_attestation"]
+    clause_reference: str
+    question_title: str
+    pending_since: str | None = None
+    source_scan_id: str | None = None
+
+
+class ManualReviewResolveRequest(BaseModel):
+    current_status: Literal["pass", "fail", "flagged"]
+    justification: str
+
+
+class ManualReviewResolveResponse(BaseModel):
+    ok: bool
+    item_id: str
+
+
+class ManualReviewItemDetail(ManualReviewQueueItem):
+    current_status: Literal["pending", "pass", "fail", "flagged"]
+    justification: str | None = None
+    resolved_by: str | None = None
+    resolved_at: str | None = None
+    next_review_due: str | None = None

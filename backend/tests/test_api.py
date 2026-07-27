@@ -124,7 +124,11 @@ class TestScanEndpoint:
             "job_id": "cached-scan-1",
             "status": "complete",
             "url": "https://www.ict.go.ke",
-            "result": {"findings": [], "finding_count": 0},
+            "result": {
+                "findings": [],
+                "finding_count": 0,
+                "narrative": "Cached narrative exists for cache-hit behavior testing.",
+            },
             "error": None,
             "cache_hit": True,
         }

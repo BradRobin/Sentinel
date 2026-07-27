@@ -139,6 +139,21 @@ def ensure_schema(conn: psycopg.Connection) -> None:
     else:
         print("Schema: historical_scores.snapshot_at already present")
 
+    has_manual_review = conn.execute(
+        """
+        SELECT EXISTS (
+            SELECT 1 FROM information_schema.tables
+            WHERE table_schema = 'public' AND table_name = 'manual_review_items'
+        )
+        """
+    ).fetchone()[0]
+    if not has_manual_review:
+        apply_sql_file(
+            conn, migrations / "20260727140000_manual_review_queue.sql"
+        )
+    else:
+        print("Schema: manual_review_items already present")
+
 
 def seed_registry() -> int:
     count = 0

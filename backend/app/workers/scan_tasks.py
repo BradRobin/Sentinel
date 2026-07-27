@@ -268,6 +268,7 @@ def run_scan(
         def _run() -> list:
             return run_all_checks(
                 url,
+                scan_id,
                 allowed_tlds=allowed_tlds,
                 allow_tld_bypass=settings.allow_tld_bypass,
                 on_progress=on_progress,

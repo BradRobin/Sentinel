@@ -189,6 +189,7 @@ const DETAIL_MESSAGE_KEYS = [
   "message",
   "summary",
   "note",
+  "officer_justification",
 ] as const;
 
 /** Meta flags already reflected by finding status / badges — omit from detail. */
@@ -225,6 +226,12 @@ const DETAIL_KEY_LABELS: Record<string, string> = {
   https_enforced: "HTTPS enforced",
   certificate_valid: "Certificate valid",
   certificate_expires_at: "Certificate expires",
+  officer_reviewed: "Officer reviewed",
+  officer_resolution_status: "Officer resolution",
+  officer_justification: "Officer justification",
+  resolved_by: "Resolved by",
+  resolved_at: "Resolved at",
+  next_review_due: "Next review due",
   skip_navigation_detected: "Skip navigation detected",
   linked_or_mentioned: "Linked or mentioned",
   cookies_detected: "Cookies detected",

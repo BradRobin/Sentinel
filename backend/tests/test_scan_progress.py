@@ -40,9 +40,12 @@ def test_progress_reports_before_each_scored_category():
         patch("app.services.scan_runner.run_legal_checks", return_value=empty),
         patch("app.services.scan_runner.run_seo_checks", return_value=empty),
         patch("app.services.scan_runner.run_monitoring_checks", return_value=empty),
-        patch("app.services.scan_runner.emit_manual_review_findings", return_value=empty),
+        patch(
+            "app.services.scan_runner.emit_manual_review_findings_for_scan",
+            return_value=empty,
+        ),
     ):
-        run_all_checks("https://www.ict.go.ke", on_progress=on_progress)
+        run_all_checks("https://www.ict.go.ke", "scan-test-1", on_progress=on_progress)
 
     # Two events per scored category: start (completed=prev) + finish (completed includes self)
     assert len(events) == len(SCORED_PROGRESS_CATEGORIES) * 2
@@ -86,9 +89,12 @@ def test_progress_includes_findings_as_categories_complete():
         patch("app.services.scan_runner.run_legal_checks", return_value=[]),
         patch("app.services.scan_runner.run_seo_checks", return_value=[]),
         patch("app.services.scan_runner.run_monitoring_checks", return_value=[]),
-        patch("app.services.scan_runner.emit_manual_review_findings", return_value=[]),
+        patch(
+            "app.services.scan_runner.emit_manual_review_findings_for_scan",
+            return_value=[],
+        ),
     ):
-        run_all_checks("https://www.ict.go.ke", on_progress=on_progress)
+        run_all_checks("https://www.ict.go.ke", "scan-test-2", on_progress=on_progress)
 
     # Before domain: no findings yet
     assert events[0][2] == []

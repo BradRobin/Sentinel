@@ -9,6 +9,7 @@ from app.api.v1.health import router as health_router
 from app.api.v1.domains import router as domains_router
 from app.api.v1.registry import router as registry_router
 from app.api.v1.scans import router as scans_router
+from app.api.v1.manual_review import router as manual_review_router
 from app.core.config import settings
 from app.core.database import close_pool
 from app.core.redis_client import close_redis
@@ -59,3 +60,4 @@ app.include_router(health_router, prefix="/api/v1")
 app.include_router(scans_router, prefix="/api/v1")
 app.include_router(domains_router, prefix="/api/v1")
 app.include_router(registry_router, prefix="/api/v1")
+app.include_router(manual_review_router, prefix="/api/v1")

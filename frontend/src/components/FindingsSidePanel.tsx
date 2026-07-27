@@ -13,6 +13,16 @@ import {
   panelShell,
 } from "@/lib/ui";
 
+function badgeLabelForFinding(finding: Finding): string {
+  const d = (finding.detail ?? {}) as Record<string, unknown>;
+  if (d.officer_reviewed === true) {
+    const rs = d.officer_resolution_status;
+    if (rs === "flagged") return "Officer-reviewed (Flagged)";
+    return "Officer-reviewed";
+  }
+  return finding.status === "manual_review" ? "review" : finding.status;
+}
+
 interface FindingsSidePanelProps {
   open: boolean;
   title: string;
@@ -79,9 +89,7 @@ export function FindingsSidePanel({
                 <span
                   className={`mr-2 inline-block rounded px-1.5 py-0.5 uppercase ${headerWeight?.badge ?? ""}`}
                 >
-                  {findings[0].status === "manual_review"
-                    ? "review"
-                    : findings[0].status}
+                  {badgeLabelForFinding(findings[0])}
                 </span>
                 <span className={headerWeight?.severityLabel}>
                   {findings[0].severity}
@@ -120,7 +128,7 @@ export function FindingsSidePanel({
                       <span
                         className={`rounded px-1.5 py-0.5 text-xs uppercase ${weight.badge}`}
                       >
-                        {f.status === "manual_review" ? "review" : f.status}
+                        {badgeLabelForFinding(f)}
                       </span>
                       <span className={`text-sm ${weight.name}`}>
                         {f.check_name}

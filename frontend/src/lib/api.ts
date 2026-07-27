@@ -88,6 +88,22 @@ export interface Finding {
   detail: Record<string, unknown>;
 }
 
+export type ManualReviewCheckType = "site_inspection" | "institutional_attestation";
+export type ManualReviewResolvedStatus = "pass" | "fail" | "flagged";
+
+export interface ManualReviewQueueItem {
+  id: string;
+  domain_id: string;
+  domain_url: string;
+  check_name: string;
+  category: string;
+  check_type: ManualReviewCheckType;
+  clause_reference: string;
+  question_title: string;
+  pending_since: string | null;
+  source_scan_id: string | null;
+}
+
 export interface CategoryScore {
   category: string;
   weight?: number;
@@ -400,6 +416,67 @@ export async function getRegistrySuggestions(
   }
   const body = (await res.json()) as { items: RegistrySuggestion[] };
   return body.items ?? [];
+}
+
+export async function getManualReviewQueueItems(args: {
+  officerId: string;
+  check_type?: ManualReviewCheckType | "";
+  category?: string | "";
+  domain_id?: string | "";
+  limit?: number;
+}): Promise<ManualReviewQueueItem[]> {
+  const {
+    officerId,
+    limit = 200,
+    check_type,
+    category,
+    domain_id,
+  } = args;
+  const params = new URLSearchParams();
+  if (check_type) params.set("check_type", String(check_type));
+  if (category) params.set("category", String(category));
+  if (domain_id) params.set("domain_id", String(domain_id));
+  params.set("limit", String(limit));
+
+  const res = await fetch(
+    `${API_URL}/api/v1/manual-review/items?${params}`,
+    {
+      method: "GET",
+      headers: { "x-officer-id": officerId },
+      cache: "no-store",
+    },
+  );
+  if (!res.ok) throw new Error(`Manual review queue load failed: ${res.status}`);
+  return (await res.json()) as ManualReviewQueueItem[];
+}
+
+export async function resolveManualReviewItem(args: {
+  officerId: string;
+  itemId: string;
+  current_status: ManualReviewResolvedStatus;
+  justification: string;
+}): Promise<{ ok: boolean; item_id: string }> {
+  const res = await fetch(
+    `${API_URL}/api/v1/manual-review/items/${encodeURIComponent(args.itemId)}/resolve`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-officer-id": args.officerId,
+      },
+      body: JSON.stringify({
+        current_status: args.current_status,
+        justification: args.justification,
+      }),
+      cache: "no-store",
+    },
+  );
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    const detail = formatApiDetail((body as { detail?: unknown }).detail);
+    throw new Error(detail || `Resolve failed: ${res.status}`);
+  }
+  return (await res.json()) as { ok: boolean; item_id: string };
 }
 
 export { API_URL };

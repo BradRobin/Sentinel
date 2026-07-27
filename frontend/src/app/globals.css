@@ -187,12 +187,16 @@ input[type="checkbox"] {
 .kenya-map-glass-card {
   background: linear-gradient(
     135deg,
-    rgb(255 255 255 / 0.55) 0%,
-    rgb(255 255 255 / 0.18) 100%
+    rgb(255 255 255 / 0.28) 0%,
+    rgb(255 255 255 / 0.08) 100%
   );
-  -webkit-backdrop-filter: blur(16px) saturate(1.5);
-  backdrop-filter: blur(16px) saturate(1.5);
+  -webkit-backdrop-filter: blur(20px) saturate(1.6);
+  backdrop-filter: blur(20px) saturate(1.6);
   box-shadow:
-    0 8px 32px rgb(0 0 0 / 0.1),
-    inset 0 1px 0 rgb(255 255 255 / 0.65);
+    0 8px 28px rgb(0 0 0 / 0.08),
+    inset 0 1px 0 rgb(255 255 255 / 0.38);
+}
+
+.kenya-map-glass-card p {
+  text-shadow: 0 1px 2px rgb(255 255 255 / 0.85);
 }

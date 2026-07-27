@@ -1,4 +1,17 @@
-import { KenyaMapDashboard } from "@/components/KenyaMapDashboard";
+import dynamic from "next/dynamic";
+
+const KenyaMapDashboard = dynamic(
+  () =>
+    import("@/components/KenyaMapDashboard").then((m) => m.KenyaMapDashboard),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex flex-1 items-center justify-center px-6 py-24 text-sm text-icta-gray-600">
+        Loading map…
+      </div>
+    ),
+  },
+);
 
 export default function MapPage() {
   return <KenyaMapDashboard />;

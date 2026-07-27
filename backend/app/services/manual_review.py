@@ -52,6 +52,27 @@ def _today() -> date:
     return datetime.now(timezone.utc).date()
 
 
+def _normalize_queue_item_row(row: dict[str, Any]) -> dict[str, Any]:
+    item = dict(row)
+    for key in ("id", "domain_id", "source_scan_id", "resolved_by"):
+        if item.get(key) is not None:
+            item[key] = str(item[key])
+    ps = item.get("pending_since")
+    if isinstance(ps, datetime):
+        item["pending_since"] = ps.isoformat()
+    elif ps is None:
+        item["pending_since"] = None
+    if item.get("resolved_at") is not None and isinstance(item["resolved_at"], datetime):
+        item["resolved_at"] = item["resolved_at"].isoformat()
+    if item.get("next_review_due") is not None:
+        nr = item["next_review_due"]
+        try:
+            item["next_review_due"] = nr.isoformat()
+        except Exception:
+            item["next_review_due"] = str(nr)
+    return item
+
+
 def _emit_finding_for_pending(defn: ManualCheckDef) -> Finding:
     return Finding(
         category=defn.category,
@@ -473,16 +494,7 @@ def list_pending_manual_review_items(
     with get_connection() as conn:
         rows = conn.execute(sql, params).fetchall()
 
-    out: list[dict[str, Any]] = []
-    for r in rows:
-        item = dict(r)
-        ps = item.get("pending_since")
-        if isinstance(ps, datetime):
-            item["pending_since"] = ps.isoformat()
-        elif ps is None:
-            item["pending_since"] = None
-        out.append(item)
-    return out
+    return [_normalize_queue_item_row(dict(r)) for r in rows]
 
 
 def get_manual_review_item(item_id: str) -> dict[str, Any] | None:
@@ -516,16 +528,4 @@ def get_manual_review_item(item_id: str) -> dict[str, Any] | None:
     if not row:
         return None
 
-    item = dict(row)
-    ps = item.get("pending_since")
-    if isinstance(ps, datetime):
-        item["pending_since"] = ps.isoformat()
-    if item.get("resolved_at") is not None and isinstance(item["resolved_at"], datetime):
-        item["resolved_at"] = item["resolved_at"].isoformat()
-    if item.get("next_review_due") is not None:
-        nr = item["next_review_due"]
-        try:
-            item["next_review_due"] = nr.isoformat()
-        except Exception:
-            item["next_review_due"] = str(nr)
-    return item
+    return _normalize_queue_item_row(dict(row))

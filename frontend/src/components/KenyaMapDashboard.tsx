@@ -101,7 +101,7 @@ export function KenyaMapDashboard() {
         const [registry, geoRes, waterRes] = await Promise.all([
           getRegistry({ orgType: "county", limit: 100 }),
           fetch(KENYA_COUNTIES_GEOJSON_PATH, { cache: "force-cache" }),
-          fetch(KENYA_WATER_GEOJSON_PATH, { cache: "force-cache" }),
+          fetch(KENYA_WATER_GEOJSON_PATH),
         ]);
         if (!geoRes.ok) {
           throw new Error(`County boundaries failed to load (${geoRes.status})`);

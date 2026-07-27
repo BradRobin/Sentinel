@@ -87,6 +87,20 @@ function orderWaterLayers(
   lakeLayer?.bringToFront();
 }
 
+/** Fixed panes so county hover (bringToFront) cannot cover lakes. */
+function ensureKenyaMapPanes(map: L.Map) {
+  const panes: Array<[string, string]> = [
+    ["kenya-ocean", "350"],
+    ["kenya-counties", "400"],
+    ["kenya-lakes", "450"],
+  ];
+  for (const [name, zIndex] of panes) {
+    if (!map.getPane(name)) map.createPane(name);
+    const pane = map.getPane(name);
+    if (pane) pane.style.zIndex = zIndex;
+  }
+}
+
 export function KenyaMapDashboard() {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
@@ -169,6 +183,7 @@ export function KenyaMapDashboard() {
     map.attributionControl.addAttribution(
       '<a href="https://www.geoboundaries.org/" target="_blank" rel="noreferrer">geoBoundaries</a>',
     );
+    ensureKenyaMapPanes(map);
     mapRef.current = map;
     setMapReady(true);
 
@@ -207,7 +222,7 @@ export function KenyaMapDashboard() {
     if (ocean.length > 0) {
       const oceanLayer = L.geoJSON(
         { type: "FeatureCollection", features: ocean },
-        { style, interactive: false },
+        { style, interactive: false, pane: "kenya-ocean" },
       );
       oceanLayer.addTo(map);
       oceanLayerRef.current = oceanLayer;
@@ -216,7 +231,7 @@ export function KenyaMapDashboard() {
     if (lakes.length > 0) {
       const lakeLayer = L.geoJSON(
         { type: "FeatureCollection", features: lakes },
-        { style, interactive: false },
+        { style, interactive: false, pane: "kenya-lakes" },
       );
       lakeLayer.addTo(map);
       lakeLayerRef.current = lakeLayer;
@@ -236,6 +251,7 @@ export function KenyaMapDashboard() {
     }
 
     const layer = L.geoJSON(enriched as GeoJSON.GeoJsonObject, {
+      pane: "kenya-counties",
       style: countyStyle,
       onEachFeature: (feature, lyr) => {
         lyr.on({

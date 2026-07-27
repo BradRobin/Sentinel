@@ -272,7 +272,7 @@ export function KenyaMapDashboard() {
 
             {tooltip && (
               <div
-                className="pointer-events-none absolute z-[1000] max-w-[16rem] rounded-md border border-icta-gray-200 bg-white px-3 py-2 text-xs shadow-md"
+                className="kenya-map-glass-card pointer-events-none absolute z-[1000] max-w-[16rem] rounded-xl border border-white/50 px-3.5 py-2.5 text-xs"
                 style={{
                   left: Math.min(
                     tooltip.x + 14,
@@ -282,7 +282,7 @@ export function KenyaMapDashboard() {
                 }}
                 role="tooltip"
               >
-                <p className="font-semibold text-icta-black">
+                <p className="font-semibold text-icta-black drop-shadow-sm">
                   {tooltip.props.orgName || tooltip.props.shapeName}
                 </p>
                 <p className="mt-1 tabular-nums text-icta-gray-600">

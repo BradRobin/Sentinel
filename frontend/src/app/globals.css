@@ -182,3 +182,17 @@ input[type="checkbox"] {
   font-size: 10px;
   background: rgb(255 255 255 / 0.85);
 }
+
+/* Kenya map hover stat card — liquid glass */
+.kenya-map-glass-card {
+  background: linear-gradient(
+    135deg,
+    rgb(255 255 255 / 0.55) 0%,
+    rgb(255 255 255 / 0.18) 100%
+  );
+  -webkit-backdrop-filter: blur(16px) saturate(1.5);
+  backdrop-filter: blur(16px) saturate(1.5);
+  box-shadow:
+    0 8px 32px rgb(0 0 0 / 0.1),
+    inset 0 1px 0 rgb(255 255 255 / 0.65);
+}

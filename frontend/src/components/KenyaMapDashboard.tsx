@@ -159,7 +159,7 @@ export function KenyaMapDashboard() {
     };
   }, []);
 
-  // Water bodies beneath county choropleth
+  // Water bodies above county choropleth (so lakes/ocean are always visible)
   useEffect(() => {
     const map = mapRef.current;
     if (!mapReady || !map || !waterGeojson) return;
@@ -233,7 +233,7 @@ export function KenyaMapDashboard() {
     layer.addTo(map);
     layerRef.current = layer;
     if (waterLayerRef.current) {
-      waterLayerRef.current.bringToBack();
+      waterLayerRef.current.bringToFront();
     }
 
     const bounds = layer.getBounds();

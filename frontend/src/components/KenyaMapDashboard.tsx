@@ -61,11 +61,38 @@ function countyStyle(feature?: GeoJSON.Feature): L.PathOptions {
   };
 }
 
+function splitWaterFeatures(water: GeoJSON.GeoJsonObject): {
+  lakes: GeoJSON.Feature[];
+  ocean: GeoJSON.Feature[];
+} {
+  const features =
+    water.type === "FeatureCollection"
+      ? (water as GeoJSON.FeatureCollection).features
+      : [];
+  const lakes: GeoJSON.Feature[] = [];
+  const ocean: GeoJSON.Feature[] = [];
+  for (const feature of features) {
+    const kind = (feature.properties as { kind?: string } | null)?.kind;
+    if (kind === "ocean") ocean.push(feature);
+    else lakes.push(feature);
+  }
+  return { lakes, ocean };
+}
+
+function orderWaterLayers(
+  oceanLayer: L.GeoJSON | null,
+  lakeLayer: L.GeoJSON | null,
+) {
+  oceanLayer?.bringToBack();
+  lakeLayer?.bringToFront();
+}
+
 export function KenyaMapDashboard() {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const layerRef = useRef<L.GeoJSON | null>(null);
-  const waterLayerRef = useRef<L.GeoJSON | null>(null);
+  const oceanLayerRef = useRef<L.GeoJSON | null>(null);
+  const lakeLayerRef = useRef<L.GeoJSON | null>(null);
 
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -153,28 +180,49 @@ export function KenyaMapDashboard() {
       ro.disconnect();
       setMapReady(false);
       layerRef.current = null;
-      waterLayerRef.current = null;
+      oceanLayerRef.current = null;
+      lakeLayerRef.current = null;
       map.remove();
       if (mapRef.current === map) mapRef.current = null;
     };
   }, []);
 
-  // Water bodies beneath counties (clipped offshore; avoids blue underlay on land)
+  // Ocean beneath counties; lakes above (lakes overlap county polygons)
   useEffect(() => {
     const map = mapRef.current;
     if (!mapReady || !map || !waterGeojson) return;
 
-    if (waterLayerRef.current) {
-      map.removeLayer(waterLayerRef.current);
-      waterLayerRef.current = null;
+    if (oceanLayerRef.current) {
+      map.removeLayer(oceanLayerRef.current);
+      oceanLayerRef.current = null;
+    }
+    if (lakeLayerRef.current) {
+      map.removeLayer(lakeLayerRef.current);
+      lakeLayerRef.current = null;
     }
 
-    const waterLayer = L.geoJSON(waterGeojson, {
-      style: () => kenyaWaterStyle(),
-      interactive: false,
-    });
-    waterLayer.addTo(map);
-    waterLayerRef.current = waterLayer;
+    const { lakes, ocean } = splitWaterFeatures(waterGeojson);
+    const style = () => kenyaWaterStyle();
+
+    if (ocean.length > 0) {
+      const oceanLayer = L.geoJSON(
+        { type: "FeatureCollection", features: ocean },
+        { style, interactive: false },
+      );
+      oceanLayer.addTo(map);
+      oceanLayerRef.current = oceanLayer;
+    }
+
+    if (lakes.length > 0) {
+      const lakeLayer = L.geoJSON(
+        { type: "FeatureCollection", features: lakes },
+        { style, interactive: false },
+      );
+      lakeLayer.addTo(map);
+      lakeLayerRef.current = lakeLayer;
+    }
+
+    orderWaterLayers(oceanLayerRef.current, lakeLayerRef.current);
   }, [waterGeojson, mapReady]);
 
   // Paint / update choropleth when map is ready and data is available
@@ -232,9 +280,7 @@ export function KenyaMapDashboard() {
 
     layer.addTo(map);
     layerRef.current = layer;
-    if (waterLayerRef.current) {
-      waterLayerRef.current.bringToBack();
-    }
+    orderWaterLayers(oceanLayerRef.current, lakeLayerRef.current);
 
     const bounds = layer.getBounds();
     if (bounds.isValid()) {

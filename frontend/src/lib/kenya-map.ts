@@ -4,6 +4,28 @@ import { labelCategory } from "@/lib/findings";
 /** Public path to geoBoundaries Kenya ADM1 (simplified). */
 export const KENYA_COUNTIES_GEOJSON_PATH = "/geo/kenya-counties.geojson";
 
+/** Lakes and ocean polygons for the Kenya map basemap. */
+export const KENYA_WATER_GEOJSON_PATH = "/geo/kenya-water.geojson";
+
+/** Leaflet style for water bodies (lakes + ocean). */
+export const KENYA_WATER_FILL = "#2b7bc9";
+
+export function kenyaWaterStyle(): {
+  fillColor: string;
+  fillOpacity: number;
+  color: string;
+  weight: number;
+  opacity: number;
+} {
+  return {
+    fillColor: KENYA_WATER_FILL,
+    fillOpacity: 0.88,
+    color: "#1a5f96",
+    weight: 0.6,
+    opacity: 0.7,
+  };
+}
+
 export type ScoreBand = "strong" | "moderate" | "weak" | "none";
 
 export interface ScoreBandMeta {

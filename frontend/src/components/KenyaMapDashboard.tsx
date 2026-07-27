@@ -8,8 +8,10 @@ import "leaflet/dist/leaflet.css";
 import { getRegistry, type RegistryEntry } from "@/lib/api";
 import {
   KENYA_COUNTIES_GEOJSON_PATH,
+  KENYA_WATER_GEOJSON_PATH,
   SCORE_BAND_LEGEND,
   enrichCountiesGeoJSON,
+  kenyaWaterStyle,
   scoreBand,
   topIssueFromBreakdown,
   type CountyMapFeatureProps,
@@ -63,11 +65,15 @@ export function KenyaMapDashboard() {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const layerRef = useRef<L.GeoJSON | null>(null);
+  const waterLayerRef = useRef<L.GeoJSON | null>(null);
 
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [counties, setCounties] = useState<RegistryEntry[]>([]);
   const [geojson, setGeojson] = useState<KenyaCountiesGeoJSON | null>(null);
+  const [waterGeojson, setWaterGeojson] = useState<GeoJSON.GeoJsonObject | null>(
+    null,
+  );
   const [mapReady, setMapReady] = useState(false);
   const [tooltip, setTooltip] = useState<TooltipState | null>(null);
   const [selected, setSelected] = useState<CountyMapFeatureProps | null>(null);
@@ -92,19 +98,28 @@ export function KenyaMapDashboard() {
     startTransition(async () => {
       try {
         setError(null);
-        const [registry, geoRes] = await Promise.all([
+        const [registry, geoRes, waterRes] = await Promise.all([
           getRegistry({ orgType: "county", limit: 100 }),
           fetch(KENYA_COUNTIES_GEOJSON_PATH, { cache: "force-cache" }),
+          fetch(KENYA_WATER_GEOJSON_PATH, { cache: "force-cache" }),
         ]);
         if (!geoRes.ok) {
           throw new Error(`County boundaries failed to load (${geoRes.status})`);
         }
+        if (!waterRes.ok) {
+          throw new Error(`Water bodies failed to load (${waterRes.status})`);
+        }
         const geo = (await geoRes.json()) as KenyaCountiesGeoJSON & {
           crs?: unknown;
         };
+        const water = (await waterRes.json()) as GeoJSON.GeoJsonObject & {
+          crs?: unknown;
+        };
         delete geo.crs;
+        delete water.crs;
         setCounties(registry.items);
         setGeojson(geo);
+        setWaterGeojson(water);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load map data");
       }
@@ -138,10 +153,29 @@ export function KenyaMapDashboard() {
       ro.disconnect();
       setMapReady(false);
       layerRef.current = null;
+      waterLayerRef.current = null;
       map.remove();
       if (mapRef.current === map) mapRef.current = null;
     };
   }, []);
+
+  // Water bodies beneath county choropleth
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!mapReady || !map || !waterGeojson) return;
+
+    if (waterLayerRef.current) {
+      map.removeLayer(waterLayerRef.current);
+      waterLayerRef.current = null;
+    }
+
+    const waterLayer = L.geoJSON(waterGeojson, {
+      style: () => kenyaWaterStyle(),
+      interactive: false,
+    });
+    waterLayer.addTo(map);
+    waterLayerRef.current = waterLayer;
+  }, [waterGeojson, mapReady]);
 
   // Paint / update choropleth when map is ready and data is available
   useEffect(() => {
@@ -198,6 +232,9 @@ export function KenyaMapDashboard() {
 
     layer.addTo(map);
     layerRef.current = layer;
+    if (waterLayerRef.current) {
+      waterLayerRef.current.bringToBack();
+    }
 
     const bounds = layer.getBounds();
     if (bounds.isValid()) {
@@ -410,7 +447,8 @@ export function KenyaMapDashboard() {
 
             <p className="text-[10px] leading-relaxed text-icta-gray-600">
               Boundaries: geoBoundaries Kenya ADM1 (CC / public domain via
-              RCMRD). Scores: Sentinel MCDA registry.
+              RCMRD). Water: Natural Earth lakes + regional ocean extent.
+              Scores: Sentinel MCDA registry.
             </p>
           </aside>
         </div>

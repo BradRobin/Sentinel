@@ -41,6 +41,9 @@ export default function Home() {
             <Link href="/health" className={btnSecondaryLg}>
               System health
             </Link>
+            <Link href="/review" className={btnSecondaryLg}>
+              Officer review
+            </Link>
           </div>
         </div>
       </main>

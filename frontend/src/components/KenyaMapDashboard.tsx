@@ -272,7 +272,7 @@ export function KenyaMapDashboard() {
 
             {tooltip && (
               <div
-                className="kenya-map-glass-card pointer-events-none absolute z-[1000] max-w-[16rem] rounded-xl border border-white/30 px-3.5 py-2.5 text-xs"
+                className="kenya-map-glass-card pointer-events-none absolute z-[1000] max-w-[16rem] rounded-xl border border-white/20 px-3.5 py-2.5 text-xs"
                 style={{
                   left: Math.min(
                     tooltip.x + 14,

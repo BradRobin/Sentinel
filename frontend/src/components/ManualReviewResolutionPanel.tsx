@@ -9,6 +9,7 @@ import type {
 } from "@/lib/api";
 import { resolveManualReviewItem } from "@/lib/api";
 import {
+  btnDanger,
   btnGhost,
   btnPrimary,
   btnSecondary,
@@ -311,7 +312,13 @@ export function ManualReviewResolutionPanel({
                       type="button"
                       onClick={() => setStatus(v)}
                       disabled={!allStepsDone}
-                      className={status === v ? btnPrimary : btnSecondary}
+                      className={
+                        status === v
+                          ? v === "fail"
+                            ? btnDanger
+                            : btnPrimary
+                          : btnSecondary
+                      }
                       aria-pressed={status === v}
                     >
                       {v === "pass" ? "Pass" : v === "fail" ? "Fail" : "Flagged"}

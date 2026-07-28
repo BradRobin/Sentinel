@@ -9,6 +9,10 @@ export const btnPrimary =
 export const btnPrimaryLg =
   "inline-flex items-center justify-center rounded-md bg-icta-green px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-icta-green/90 active:bg-icta-green/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-icta-green disabled:pointer-events-none disabled:opacity-50";
 
+/** Solid fail / destructive action — ICTA red (#bb0000). */
+export const btnDanger =
+  "inline-flex items-center justify-center rounded-md bg-icta-red px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-icta-red/90 active:bg-icta-red/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-icta-red disabled:pointer-events-none disabled:opacity-50";
+
 export const btnSecondary =
   "inline-flex items-center justify-center rounded-md border border-icta-gray-200 bg-white px-4 py-2 text-sm font-semibold text-icta-black transition-colors hover:bg-icta-gray-50 active:bg-icta-gray-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-icta-black disabled:pointer-events-none disabled:cursor-not-allowed disabled:border-icta-gray-200 disabled:bg-icta-gray-50 disabled:text-icta-gray-600 disabled:opacity-70";
 

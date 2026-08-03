@@ -9,6 +9,12 @@ export const KENYA_WATER_GEOJSON_PATH = "/geo/kenya-water.geojson";
 
 /** Leaflet style for water bodies (lakes + ocean). */
 export const KENYA_WATER_FILL = "#2b7bc9";
+export const KENYA_WATER_STROKE = "#1a5f96";
+
+/** County fills/strokes — keep in sync with the ICTA theme tokens. */
+export const COUNTY_NO_SCORE_FILL = "#e5e7eb"; // --icta-gray-200
+export const COUNTY_STROKE = "#111111";
+export const COUNTY_STROKE_HOVER = "#000000"; // --icta-black
 
 export function kenyaWaterStyle(): {
   fillColor: string;
@@ -20,7 +26,7 @@ export function kenyaWaterStyle(): {
   return {
     fillColor: KENYA_WATER_FILL,
     fillOpacity: 0.88,
-    color: "#1a5f96",
+    color: KENYA_WATER_STROKE,
     weight: 0.6,
     opacity: 0.7,
   };

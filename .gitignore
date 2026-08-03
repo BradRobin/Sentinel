@@ -12,6 +12,7 @@ celerybeat-schedule.db
 *.bak-work
 *.orig
 *.rej
+PROJECT_ANALYSIS.md
 
 # Playwright CLI captures
 .playwright-cli/

@@ -8,6 +8,9 @@ import "leaflet/dist/leaflet.css";
 import { useKenyaMapLayers } from "@/hooks/useKenyaMapLayers";
 import { getRegistry, type RegistryEntry } from "@/lib/api";
 import {
+  COUNTY_NO_SCORE_FILL,
+  COUNTY_STROKE,
+  COUNTY_STROKE_HOVER,
   KENYA_COUNTIES_GEOJSON_PATH,
   KENYA_WATER_GEOJSON_PATH,
   SCORE_BAND_LEGEND,
@@ -40,7 +43,7 @@ function featureProps(
         : null;
   return {
     shapeName: String(props.shapeName ?? "Unknown"),
-    fillColor: String(props.fillColor ?? "#e5e7eb"),
+    fillColor: String(props.fillColor ?? COUNTY_NO_SCORE_FILL),
     scoreBand: (props.scoreBand as CountyMapFeatureProps["scoreBand"]) ?? "none",
     score: score != null && Number.isFinite(score) ? score : null,
     orgName: props.orgName ? String(props.orgName) : null,
@@ -53,12 +56,36 @@ function featureProps(
 
 function countyStyle(feature?: GeoJSON.Feature): L.PathOptions {
   return {
-    fillColor: String(feature?.properties?.fillColor ?? "#e5e7eb"),
+    fillColor: String(feature?.properties?.fillColor ?? COUNTY_NO_SCORE_FILL),
     fillOpacity: 0.92,
-    color: "#111111",
+    color: COUNTY_STROKE,
     weight: 0.8,
     opacity: 0.55,
   };
+}
+
+function trendMark(trend: string | null): string {
+  switch (trend) {
+    case "up":
+      return "↑ improving";
+    case "down":
+      return "↓ declining";
+    case "flat":
+      return "→ stable";
+    default:
+      return "";
+  }
+}
+
+function trendClass(trend: string | null): string {
+  switch (trend) {
+    case "up":
+      return "text-icta-green";
+    case "down":
+      return "text-icta-red";
+    default:
+      return "text-icta-gray-600";
+  }
 }
 
 export function KenyaMapDashboard() {
@@ -131,7 +158,7 @@ export function KenyaMapDashboard() {
       lyr.on({
         mouseover: (e) => {
           const path = e.target as L.Path;
-          path.setStyle({ weight: 2.2, color: "#000000", opacity: 1 });
+          path.setStyle({ weight: 2.2, color: COUNTY_STROKE_HOVER, opacity: 1 });
           if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
             path.bringToFront();
           }
@@ -266,6 +293,11 @@ export function KenyaMapDashboard() {
                     ? `Top gap: ${tooltip.props.topIssue}`
                     : "Top gap: —"}
                 </p>
+                {trendMark(tooltip.props.trend) && (
+                  <p className={`mt-0.5 ${trendClass(tooltip.props.trend)}`}>
+                    {trendMark(tooltip.props.trend)}
+                  </p>
+                )}
               </div>
             )}
           </div>
@@ -290,6 +322,13 @@ export function KenyaMapDashboard() {
                       ? `Weakest category: ${selected.topIssue}`
                       : "Weakest category: no breakdown yet"}
                   </p>
+                  {trendMark(selected.trend) && (
+                    <p
+                      className={`text-xs font-medium ${trendClass(selected.trend)}`}
+                    >
+                      {trendMark(selected.trend)}
+                    </p>
+                  )}
                   {selected.url && (
                     <div className="flex flex-wrap gap-2 pt-1">
                       <a

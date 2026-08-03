@@ -265,7 +265,7 @@ export function ManualReviewResolutionPanel({
                         >
                           <input
                             type="checkbox"
-                            className="mt-0.5 h-4 w-4 shrink-0 accent-icta-green"
+                            className="mt-0.5 h-4 w-4 shrink-0"
                             checked={checked}
                             disabled={blocked}
                             onChange={() =>

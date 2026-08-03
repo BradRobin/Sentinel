@@ -44,6 +44,12 @@ interface ScanResultsProps {
   narrative?: string | null;
   /** False while categories are still streaming; gates score / top issues / narrative. */
   resultsReady?: boolean;
+  /** Server-reported total finding count (may differ from partial streams). */
+  findingCount?: number;
+  /** Source of the scoring weights — "database" or "defaults". */
+  weightsSource?: string;
+  /** ISO timestamp of the last status update from the API. */
+  updatedAt?: string | null;
 }
 
 function InlineStat({
@@ -169,6 +175,15 @@ function NarrativeSummary({
   );
 }
 
+function formatTimestamp(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleString(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+}
+
 function FindingListItem({
   finding,
   onOpen,
@@ -227,6 +242,9 @@ export function ScanResults({
   jobId,
   narrative,
   resultsReady = true,
+  findingCount,
+  weightsSource,
+  updatedAt,
 }: ScanResultsProps) {
   const stats = useMemo(() => summarizeFindings(findings), [findings]);
   const grouped = useMemo(() => groupFindingsByCategory(findings), [findings]);
@@ -381,7 +399,7 @@ export function ScanResults({
 
   return (
     <div className="space-y-8">
-      <section>
+      <section className="animate-fade-in-up">
         {resultsReady && overallScore !== null && overallScore !== undefined ? (
           <div className="mb-3 text-4xl font-bold tracking-tight text-icta-black">
             {Number(overallScore).toFixed(1)}%
@@ -449,6 +467,27 @@ export function ScanResults({
           .
         </p>
 
+        <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-icta-gray-600">
+          {resultsReady && findingCount != null && findingCount !== stats.total && (
+            <span className="inline-flex items-center gap-1.5 rounded-md bg-icta-gray-100 px-2 py-1 tabular-nums">
+              {findingCount} total findings
+            </span>
+          )}
+          {weightsSource && (
+            <span className="inline-flex items-center gap-1.5 rounded-md bg-icta-gray-100 px-2 py-1">
+              Weights: {weightsSource === "database" ? "configured" : "defaults"}
+            </span>
+          )}
+          {updatedAt && (
+            <time
+              dateTime={updatedAt}
+              className="inline-flex items-center gap-1.5 rounded-md bg-icta-gray-100 px-2 py-1 tabular-nums"
+            >
+              {formatTimestamp(updatedAt)}
+            </time>
+          )}
+        </div>
+
         <div className="mt-5">
           <StatusDonut
             findings={findings}
@@ -507,7 +546,7 @@ export function ScanResults({
       </section>
 
       {resultsReady && narrative ? (
-        <section aria-label="Scan summary">
+        <section aria-label="Scan summary" className="animate-fade-in-up" style={{ animationDelay: "60ms" }}>
           <h2 className="mb-2 text-lg font-semibold text-icta-black">Summary</h2>
           <NarrativeSummary
             text={narrative}
@@ -533,7 +572,7 @@ export function ScanResults({
       ) : null}
 
       {resultsReady && topIssues.length > 0 ? (
-        <section>
+        <section className="animate-fade-in-up" style={{ animationDelay: "120ms" }}>
           <h2 className="mb-3 text-lg font-semibold text-icta-black">
             Top issues
           </h2>
@@ -587,7 +626,7 @@ export function ScanResults({
       ) : null}
 
       {resultsReady && categoryScores.length > 0 && (
-        <section>
+        <section className="animate-fade-in-up" style={{ animationDelay: "180ms" }}>
           <CategoryScoreBars
             categoryScores={categoryScores}
             findings={findings}
@@ -596,7 +635,7 @@ export function ScanResults({
         </section>
       )}
 
-      <section className="space-y-6">
+      <section className="space-y-6 animate-fade-in-up" style={{ animationDelay: "240ms" }}>
         <h2 className="text-lg font-semibold text-icta-black">
           Findings by category
           {!resultsReady ? (

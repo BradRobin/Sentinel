@@ -19,8 +19,8 @@ export interface SentinelMarkProps {
   label?: string;
 }
 
-/** Logo settle / check green from the mark prototype (#046A38). */
-const MARK_GREEN = "#046A38";
+/** Logo settle / check green — matches the --icta-green theme token. */
+const MARK_GREEN = "#006600";
 const ERROR_STROKE = "var(--icta-gray-600)";
 
 export function SentinelMark({

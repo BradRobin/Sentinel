@@ -33,7 +33,7 @@ function statusTone(value: string): {
 function StatusBadge({ label, value }: { label: string; value: string }) {
   const tone = statusTone(value);
   return (
-    <div className="flex items-center justify-between gap-3 rounded-md border border-icta-gray-200 bg-white px-4 py-3">
+    <div className="card flex items-center justify-between gap-3 px-4 py-3">
       <span className="text-sm font-medium text-icta-black">{label}</span>
       <span
         className={`inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-semibold uppercase tracking-wide ${tone.pill}`}
@@ -50,7 +50,7 @@ function StatusBadge({ label, value }: { label: string; value: string }) {
 
 function MetaRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-center justify-between gap-3 rounded-md border border-icta-gray-200 bg-white px-4 py-3">
+    <div className="card flex items-center justify-between gap-3 px-4 py-3">
       <span className="text-sm font-medium text-icta-black">{label}</span>
       <span className="font-mono text-sm text-icta-gray-600">{value}</span>
     </div>
@@ -114,14 +114,17 @@ export function HealthCheck() {
           Frontend and backend connectivity check
         </p>
 
-        <section className="mb-6 rounded-md border border-icta-gray-200 p-4">
+        <section className="mb-6 card animate-fade-in-up p-4">
           <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-icta-gray-600">
             Frontend
           </h2>
           <StatusBadge label="Next.js" value="ok" />
         </section>
 
-        <section className="rounded-md border border-icta-gray-200 p-4">
+        <section
+          className="card animate-fade-in-up p-4"
+          style={{ animationDelay: "100ms" }}
+        >
           <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-icta-gray-600">
             Backend API
           </h2>

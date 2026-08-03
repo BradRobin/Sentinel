@@ -72,6 +72,16 @@ function formatScore(score: number | null): string {
   return score.toFixed(1);
 }
 
+function formatDelta(delta: number | null): string | null {
+  if (delta === null || delta === undefined) return null;
+  const sign = delta > 0 ? "+" : "";
+  return `${sign}${delta.toFixed(1)}`;
+}
+
+function orgTypeLabel(type: string): string {
+  return type.charAt(0).toUpperCase() + type.slice(1);
+}
+
 type OrgFilter = "all" | "ministry" | "agency" | "county";
 type DashboardView = "registry" | "leaderboard";
 
@@ -442,7 +452,7 @@ export function RegistryDashboard() {
 
         {showScanPanel && (
           <section
-            className="mb-6 overflow-hidden rounded-md border border-icta-gray-200 bg-white"
+            className="mb-6 card animate-fade-in-up"
             role="status"
             aria-live="polite"
             aria-label={
@@ -480,6 +490,16 @@ export function RegistryDashboard() {
                       {scanDone
                         ? "Latest scores are in the table below."
                         : "Scores update in the table as each scan completes."}
+                      {batchStatus?.triggered_type && !scanDone && (
+                        <>
+                          {" "}
+                          ·{" "}
+                          <span className="capitalize">
+                            {batchStatus.triggered_type}
+                          </span>{" "}
+                          batch
+                        </>
+                      )}
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
@@ -540,6 +560,9 @@ export function RegistryDashboard() {
                         value={counts.failed}
                         tone="bad"
                       />
+                    )}
+                    {(counts.unknown ?? 0) > 0 && (
+                      <StatusChip label="unknown" value={counts.unknown ?? 0} />
                     )}
                   </div>
                 )}
@@ -627,14 +650,22 @@ export function RegistryDashboard() {
                 items.map((row, index) => (
                   <tr
                     key={row.domain_id}
-                    className="border-b border-icta-gray-100 align-top transition-colors hover:bg-icta-gray-50/80"
+                    className="border-b border-icta-gray-100 align-top transition-colors hover:bg-icta-gray-50/80 animate-fade-in"
+                    style={{ animationDelay: `${Math.min(index * 20, 300)}ms` }}
                   >
                     <td className="py-3 pr-3 tabular-nums text-icta-gray-600">
                       {index + 1}
                     </td>
                     <td className="py-3 pr-4">
-                      <div className="font-medium text-icta-black">
-                        {row.registered_name || row.org_name}
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="font-medium text-icta-black">
+                          {row.registered_name || row.org_name}
+                        </span>
+                        {row.sector && (
+                          <span className="rounded-md bg-icta-gray-100 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-icta-gray-600">
+                            {row.sector}
+                          </span>
+                        )}
                       </div>
                       <a
                         href={row.url}
@@ -644,20 +675,44 @@ export function RegistryDashboard() {
                       >
                         {row.url}
                       </a>
+                      {row.aliases.length > 0 && (
+                        <span className="mt-1 block truncate text-[11px] text-icta-gray-600">
+                          {row.aliases.slice(0, 3).join(" · ")}
+                        </span>
+                      )}
                     </td>
                     <td className="py-3 pr-4 capitalize text-icta-gray-600">
-                      {row.org_type}
+                      {orgTypeLabel(row.org_type)}
                     </td>
-                    <td className="py-3 pr-4 font-medium tabular-nums text-icta-black">
-                      {formatScore(row.latest_score)}
+                    <td className="py-3 pr-4">
+                      <div className="font-medium tabular-nums text-icta-black">
+                        {formatScore(row.latest_score)}
+                      </div>
+                      {row.previous_score != null && row.latest_score != null && (
+                        <div className="mt-0.5 text-[11px] tabular-nums text-icta-gray-600">
+                          prev {row.previous_score.toFixed(1)}
+                        </div>
+                      )}
                     </td>
-                    <td
-                      className={`py-3 pr-4 font-medium ${trendClass(row.trend)}`}
-                    >
-                      {trendLabel(row.trend)}
+                    <td className={`py-3 pr-4 font-medium ${trendClass(row.trend)}`}>
+                      <span className="inline-flex items-center gap-1">
+                        {trendLabel(row.trend)}
+                        {formatDelta(row.score_delta) && (
+                          <span
+                            className={`text-[11px] tabular-nums ${row.score_delta != null && row.score_delta < 0 ? "text-icta-red" : "text-icta-green"}`}
+                          >
+                            {formatDelta(row.score_delta)}
+                          </span>
+                        )}
+                      </span>
                     </td>
                     <td className="py-3 pr-4 text-icta-gray-600">
-                      {formatChecked(row.last_checked_at)}
+                      <div>{formatChecked(row.last_checked_at)}</div>
+                      {row.last_source && (
+                        <div className="mt-0.5 text-[11px] text-icta-gray-600/80">
+                          {row.last_source === "manual" ? "manual scan" : row.last_source}
+                        </div>
+                      )}
                     </td>
                     <td className="py-3 text-right">
                       <button
@@ -675,7 +730,8 @@ export function RegistryDashboard() {
                 leaderboardRows.map((row, index) => (
                   <tr
                     key={`${leaderboardMetric}-${row.domain_id}`}
-                    className="border-b border-icta-gray-100 align-top transition-colors hover:bg-icta-gray-50/80"
+                    className="border-b border-icta-gray-100 align-top transition-colors hover:bg-icta-gray-50/80 animate-fade-in"
+                    style={{ animationDelay: `${Math.min(index * 20, 300)}ms` }}
                   >
                     <td className="py-3 pr-3 tabular-nums font-medium text-icta-black">
                       {index + 1}

@@ -433,7 +433,7 @@ export function ScanWorkspace() {
 
   return (
     <div className="flex flex-1 flex-col">
-      <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-16">
+      <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-16 animate-fade-in">
         <Link
           href="/"
           className="mb-8 inline-block text-sm text-icta-gray-600 hover:text-icta-black"
@@ -441,7 +441,7 @@ export function ScanWorkspace() {
           ← Back
         </Link>
 
-        <div className="mb-8 flex flex-col items-center gap-3">
+        <div className="mb-8 flex flex-col items-center gap-3 animate-fade-in-up">
           <SentinelMark state={markState} size={120} />
           <p className="text-center text-sm text-icta-gray-600">
             {markState === "processing" &&
@@ -620,6 +620,9 @@ export function ScanWorkspace() {
             jobId={resultsReady ? scan?.job_id : null}
             narrative={narrative}
             resultsReady={resultsReady}
+            findingCount={resultsReady ? scan?.result?.finding_count : undefined}
+            weightsSource={resultsReady ? scan?.result?.scores?.weights_source : undefined}
+            updatedAt={resultsReady ? (scan?.updated_at ?? null) : null}
           />
         )}
       </main>

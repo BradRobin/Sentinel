@@ -256,9 +256,10 @@ export function CategoryScoreBars({
         Bar segments show pass / fail / review mix; label shows category score.
       </p>
       <ul className="space-y-3">
-        {rows.map((row) => {
+        {rows.map((row, rowIndex) => {
           const { pass, fail, review } = row.counts;
           const denom = row.total || 1;
+          const growDelay = Math.min(rowIndex * 60, 480);
           return (
             <li key={row.category}>
               <div className="mb-1 flex flex-wrap items-baseline justify-between gap-2">
@@ -285,29 +286,41 @@ export function CategoryScoreBars({
               >
                 {row.total === 0 ? (
                   <div
-                    className="h-full bg-icta-gray-200"
-                    style={{ width: `${Math.max(row.score, 2)}%` }}
+                    className="h-full bg-icta-gray-200 animate-bar-grow"
+                    style={{
+                      width: `${Math.max(row.score, 2)}%`,
+                      animationDelay: `${growDelay}ms`,
+                    }}
                   />
                 ) : (
                   <>
                     {pass > 0 && (
                       <div
-                        className="h-full bg-icta-green"
-                        style={{ width: `${(pass / denom) * 100}%` }}
+                        className="h-full bg-icta-green animate-bar-grow"
+                        style={{
+                          width: `${(pass / denom) * 100}%`,
+                          animationDelay: `${growDelay}ms`,
+                        }}
                         title={`${pass} pass`}
                       />
                     )}
                     {fail > 0 && (
                       <div
-                        className="h-full bg-icta-red"
-                        style={{ width: `${(fail / denom) * 100}%` }}
+                        className="h-full bg-icta-red animate-bar-grow"
+                        style={{
+                          width: `${(fail / denom) * 100}%`,
+                          animationDelay: `${growDelay + 40}ms`,
+                        }}
                         title={`${fail} fail`}
                       />
                     )}
                     {review > 0 && (
                       <div
-                        className="h-full bg-icta-gray-200"
-                        style={{ width: `${(review / denom) * 100}%` }}
+                        className="h-full bg-icta-gray-200 animate-bar-grow"
+                        style={{
+                          width: `${(review / denom) * 100}%`,
+                          animationDelay: `${growDelay + 80}ms`,
+                        }}
                         title={`${review} review`}
                       />
                     )}

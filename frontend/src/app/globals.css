@@ -15,20 +15,38 @@
   --icta-gray-100: #f3f4f6;
   --icta-gray-200: #e5e7eb;
   --icta-gray-600: #4b5563;
+  /* Soft tints for status pills / callouts */
+  --icta-red-tint: #fdf3f3;
+  --icta-green-tint: #f0f7f0;
+  --icta-amber-tint: #fbf5ec;
+  /* Water palette for the Kenya basemap (single source: lib/kenya-map.ts) */
+  --icta-water: #2b7bc9;
+  --icta-water-deep: #1a5f96;
+  /* Motion — consistent easing + duration tokens */
+  --ease-out-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-out-smooth: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-fast: 150ms;
+  --dur-base: 240ms;
+  --dur-slow: 420ms;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-icta-red: var(--icta-red);
+  --color-icta-red-tint: var(--icta-red-tint);
   --color-icta-black: var(--icta-black);
   --color-icta-green: var(--icta-green);
+  --color-icta-green-tint: var(--icta-green-tint);
   --color-icta-amber: var(--icta-amber);
+  --color-icta-amber-tint: var(--icta-amber-tint);
   --color-icta-link: var(--icta-link);
   --color-icta-gray-50: var(--icta-gray-50);
   --color-icta-gray-100: var(--icta-gray-100);
   --color-icta-gray-200: var(--icta-gray-200);
   --color-icta-gray-600: var(--icta-gray-600);
+  --color-icta-water: var(--icta-water);
+  --color-icta-water-deep: var(--icta-water-deep);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -39,6 +57,157 @@ body {
   font-family: var(--font-sans), system-ui, sans-serif;
 }
 
+/* ---- Shared chrome -------------------------------------------------------
+   Card: the standard surface across the app (rounded-xl, hairline border,
+   gentle shadow). Hover lifts it slightly; `card` composes cleanly with
+   padding utilities from components. */
+
+.card {
+  border-radius: 0.75rem;
+  border: 1px solid var(--icta-gray-200);
+  background: #ffffff;
+  box-shadow:
+    0 1px 2px rgb(0 0 0 / 0.04),
+    0 8px 24px -16px rgb(0 0 0 / 0.18);
+}
+
+.card-hover {
+  transition:
+    border-color var(--dur-fast) ease-out,
+    box-shadow var(--dur-base) ease-out,
+    transform var(--dur-base) var(--ease-out-smooth);
+}
+
+.card-hover:hover {
+  transform: translateY(-2px);
+  border-color: rgb(0 0 0 / 0.14);
+  box-shadow:
+    0 2px 4px rgb(0 0 0 / 0.05),
+    0 20px 40px -20px rgb(0 0 0 / 0.28);
+}
+
+/* Kenya flag tricolour stripe — used on the landing accent bar */
+.flag-stripe {
+  background: linear-gradient(
+    to right,
+    var(--icta-black) 0 33.33%,
+    var(--icta-red) 33.33% 66.66%,
+    var(--icta-green) 66.66% 100%
+  );
+}
+
+/* ---- Motion utilities ---------------------------------------------------- */
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in-down {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes bar-grow {
+  from {
+    opacity: 0.35;
+    transform: scaleX(0.05);
+  }
+  to {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+}
+
+@keyframes shimmer {
+  from {
+    background-position: -200% 0;
+  }
+  to {
+    background-position: 200% 0;
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in var(--dur-base) var(--ease-out-smooth) both;
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up var(--dur-slow) var(--ease-out-smooth) both;
+}
+
+.animate-fade-in-down {
+  animation: fade-in-down var(--dur-base) var(--ease-out-smooth) both;
+}
+
+.animate-scale-in {
+  animation: scale-in var(--dur-base) var(--ease-out-spring) both;
+}
+
+.animate-bar-grow {
+  animation: bar-grow 0.6s var(--ease-out-smooth) both;
+  transform-origin: left center;
+}
+
+/* Shimmer skeleton for pending content */
+.skeleton {
+  background: linear-gradient(
+    100deg,
+    var(--icta-gray-100) 40%,
+    var(--icta-gray-200) 50%,
+    var(--icta-gray-100) 60%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.6s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in,
+  .animate-fade-in-up,
+  .animate-fade-in-down,
+  .animate-scale-in,
+  .animate-bar-grow {
+    animation: none;
+  }
+
+  .card-hover {
+    transform: none !important;
+    transition: none;
+  }
+}
+
 /* Shared focus ring fallback for native controls without explicit focus classes */
 input[type="checkbox"]:focus-visible {
   outline: 2px solid var(--icta-black);
@@ -46,7 +215,7 @@ input[type="checkbox"]:focus-visible {
 }
 
 input[type="checkbox"] {
-  accent-color: var(--icta-red);
+  accent-color: var(--icta-green);
 }
 
 /* Sentinel mark animations */

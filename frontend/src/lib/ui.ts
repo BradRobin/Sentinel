@@ -21,7 +21,7 @@ export const btnSecondaryLg =
 
 /** Compact outline — compare / retry / filter chips */
 export const btnSecondarySm =
-  "inline-flex items-center justify-center rounded-md border border-icta-black px-3 py-1.5 text-sm font-semibold text-icta-black transition-colors hover:bg-icta-gray-50 active:bg-icta-gray-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-icta-black disabled:pointer-events-none disabled:cursor-not-allowed disabled:border-icta-gray-200 disabled:bg-icta-gray-50 disabled:font-medium disabled:text-icta-gray-600 disabled:opacity-70";
+  "inline-flex items-center justify-center rounded-md border border-icta-gray-200 px-3 py-1.5 text-sm font-semibold text-icta-black transition-colors hover:bg-icta-gray-50 active:bg-icta-gray-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-icta-black disabled:pointer-events-none disabled:cursor-not-allowed disabled:border-icta-gray-200 disabled:bg-icta-gray-50 disabled:font-medium disabled:text-icta-gray-600 disabled:opacity-70";
 
 export const btnGhost =
   "inline-flex shrink-0 items-center justify-center rounded-md px-2.5 py-1.5 text-sm font-medium text-icta-gray-600 transition-colors hover:bg-icta-gray-50 hover:text-icta-black active:bg-icta-gray-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-icta-black";
@@ -53,3 +53,10 @@ export const panelShell =
 
 export const panelHeader =
   "flex items-start justify-between gap-4 border-b border-icta-gray-200 bg-white px-5 py-4";
+
+/** Shared surface — matches `.card` in globals.css (kept as a Tailwind string so it can be used alongside other utilities). */
+export const card =
+  "rounded-xl border border-icta-gray-200 bg-white shadow-[0_1px_2px_rgb(0_0_0/0.04),0_8px_24px_-16px_rgb(0_0_0/0.18)]";
+
+/** Card + lift-on-hover behaviour. */
+export const cardHover = `${card} card-hover`;

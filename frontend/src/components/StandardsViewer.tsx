@@ -69,7 +69,7 @@ function ClauseIndex({
       aria-label="Clause index"
       className="max-h-[min(80vh,900px)] overflow-y-auto rounded-md border border-icta-gray-200 bg-white p-3"
     >
-      <h2 className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-icta-gray-600">
+      <h2 className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-icta-gray-600 font-serif">
         Clause index
       </h2>
       <ul className="space-y-3">
@@ -95,7 +95,7 @@ function ClauseIndex({
                       <button
                         type="button"
                         onClick={() => onClause(target.docClause)}
-                        className={itemClass(clauseActive)}
+                        className={`${itemClass(clauseActive)} font-serif`}
                         aria-current={clauseActive ? "true" : undefined}
                       >
                         {target.highlight}
@@ -188,7 +188,7 @@ export function StandardsViewer() {
       <header className="border-b border-icta-gray-200 px-6 py-4">
         <div className="mx-auto flex w-full max-w-6xl flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div className="min-w-0">
-            <h1 className="text-xl font-bold text-icta-black sm:text-2xl">
+            <h1 className="text-xl font-bold text-icta-black sm:text-2xl font-serif">
               {STANDARDS_DOC_LABEL}
             </h1>
             <p className="mt-1 text-sm text-icta-gray-600">
@@ -197,7 +197,7 @@ export function StandardsViewer() {
                 <>
                   {" "}
                   · clause{" "}
-                  <span className="font-medium text-icta-black">{clause}</span>
+                  <span className="font-medium text-icta-black font-serif">{clause}</span>
                 </>
               ) : null}
               {" "}

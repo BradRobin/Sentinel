@@ -1,11 +1,16 @@
+import { cn } from "@/lib/utils"
+
 /**
  * Shimmer placeholder for pending content.
- * Wires the `.skeleton` CSS in globals.css (`@keyframes shimmer`).
+ * Uses Tailwind's built-in animate-pulse for a modern, professional feel.
  * Compose with sizing utilities, e.g. `<Skeleton className="h-4 w-40 rounded-md" />`.
  */
 export function Skeleton({ className }: { className?: string }) {
   return (
-    <div aria-hidden="true" className={`skeleton ${className ?? ""}`.trim()} />
+    <div 
+      aria-hidden="true" 
+      className={cn("animate-pulse rounded-md bg-icta-gray-100", className)} 
+    />
   );
 }
 
@@ -18,9 +23,9 @@ export function SkeletonText({
   className?: string;
 }) {
   return (
-    <div className={`space-y-2 ${className ?? ""}`.trim()}>
+    <div className={cn("space-y-2", className)}>
       {Array.from({ length: lines }, (_, i) => (
-        <Skeleton key={i} className="h-4 rounded-md" />
+        <Skeleton key={i} className="h-4 w-full" />
       ))}
     </div>
   );

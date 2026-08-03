@@ -5,6 +5,7 @@ import { ViewTransition } from "react";
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
 import { ToastProvider } from "@/components/Toast";
+import { ThemeProvider } from "@/components/theme-provider";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -38,15 +39,18 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} ${playfair.variable} h-full antialiased`}
     >
-      <body suppressHydrationWarning className="min-h-full flex flex-col">
-        <Header />
-        <ToastProvider>
-          <ViewTransition enter="auto" default="none">
-            {children}
-          </ViewTransition>
-        </ToastProvider>
-        <Footer />
+      <body className="min-h-full flex flex-col">
+        <ThemeProvider>
+          <Header />
+          <ToastProvider>
+            <ViewTransition enter="auto" default="none">
+              {children}
+            </ViewTransition>
+          </ToastProvider>
+          <Footer />
+        </ThemeProvider>
       </body>
     </html>
   );
 }
+

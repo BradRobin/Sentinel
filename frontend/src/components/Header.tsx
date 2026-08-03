@@ -59,7 +59,7 @@ export function Header() {
           aria-label="Sentinel home"
         >
           <SentinelMark state="idle" size={28} label="Sentinel" />
-          <span className="text-base font-bold text-icta-black">Sentinel</span>
+          <span className="text-base font-bold text-icta-black font-serif">Sentinel</span>
         </Link>
 
         <nav aria-label="Main" className="hidden items-center gap-1 md:flex">

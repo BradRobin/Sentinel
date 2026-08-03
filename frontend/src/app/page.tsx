@@ -19,6 +19,7 @@ import { StandardDocLink } from "@/components/ClauseLink";
 import { HomeHeroActions } from "@/components/HomeHeroActions";
 import { ScrollReveal } from "@/components/ScrollReveal";
 import { SentinelMark } from "@/components/SentinelMark";
+import { Card, CardContent } from "@/components/ui/card";
 
 const BENEFITS: Array<{
   title: string;
@@ -113,7 +114,7 @@ export default function Home() {
       <div className="flag-stripe h-1.5 w-full shrink-0" aria-hidden="true" />
 
       {/* Hero */}
-      <main className="flex flex-1 flex-col items-center bg-white px-6 pb-16 pt-16 sm:pt-20">
+      <main className="flex flex-1 flex-col items-center bg-background px-6 pb-16 pt-16 sm:pt-20">
         <div className="max-w-3xl text-center">
           <div className="mb-6 flex justify-center animate-fade-in-up">
             <SentinelMark state="idle" size={140} />
@@ -161,7 +162,7 @@ export default function Home() {
         >
           <h2
             id="benefits-heading"
-            className="mb-3 text-center text-2xl font-bold tracking-tight text-icta-black sm:text-3xl"
+            className="mb-3 text-center text-2xl font-bold tracking-tight text-icta-black sm:text-3xl font-serif"
           >
             Why Sentinel
           </h2>
@@ -173,17 +174,19 @@ export default function Home() {
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {BENEFITS.map((benefit, index) => (
               <ScrollReveal key={benefit.title} delay={index * 60}>
-                <article className="card card-hover h-full px-5 py-5">
-                  <span className="mb-3 flex size-10 items-center justify-center rounded-lg bg-icta-gray-50 text-icta-black ring-1 ring-inset ring-icta-gray-200">
-                    {benefit.icon}
-                  </span>
-                  <h3 className="mb-1.5 font-semibold text-icta-black">
-                    {benefit.title}
-                  </h3>
-                  <p className="text-sm leading-relaxed text-icta-gray-600">
-                    {benefit.description}
-                  </p>
-                </article>
+                <Card className="card-hover h-full">
+                  <CardContent className="p-5">
+                    <span className="mb-3 flex size-10 items-center justify-center rounded-lg bg-icta-gray-50 text-icta-black ring-1 ring-inset ring-icta-gray-200">
+                      {benefit.icon}
+                    </span>
+                    <h3 className="mb-1.5 font-semibold text-icta-black font-serif">
+                      {benefit.title}
+                    </h3>
+                    <p className="text-sm leading-relaxed text-icta-gray-600">
+                      {benefit.description}
+                    </p>
+                  </CardContent>
+                </Card>
               </ScrollReveal>
             ))}
           </div>
@@ -193,7 +196,7 @@ export default function Home() {
         <section className="mx-auto mt-24 w-full max-w-5xl" aria-labelledby="tools-heading">
           <h2
             id="tools-heading"
-            className="mb-3 text-center text-2xl font-bold tracking-tight text-icta-black sm:text-3xl"
+            className="mb-3 text-center text-2xl font-bold tracking-tight text-icta-black sm:text-3xl font-serif"
           >
             Tools
           </h2>
@@ -234,8 +237,8 @@ export default function Home() {
 
         {/* Final CTA */}
         <section className="mt-24 w-full max-w-4xl text-center">
-          <div className="card px-6 py-12">
-            <h2 className="mb-3 text-2xl font-bold tracking-tight text-icta-black sm:text-3xl">
+          <Card className="border-t-4 border-t-icta-green-deep px-6 py-12">
+            <h2 className="mb-3 text-2xl font-bold tracking-tight text-icta-black sm:text-3xl font-serif">
               Ready to check your first site?
             </h2>
             <p className="mx-auto mb-8 max-w-xl text-sm text-icta-gray-600 sm:text-base">
@@ -243,9 +246,10 @@ export default function Home() {
               or .gov.ke website — results are ready in under a minute.
             </p>
             <HomeHeroActions />
-          </div>
+          </Card>
         </section>
       </main>
     </div>
   );
 }
+

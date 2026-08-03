@@ -396,14 +396,14 @@ export function RegistryDashboard() {
     <div className="flex flex-1 flex-col">
       <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-12 sm:py-16">
         <header className="mb-8">
-          <h1 className="mb-2 text-2xl font-bold tracking-tight text-icta-black sm:text-3xl">
+          <h1 className="mb-2 text-2xl font-bold tracking-tight text-icta-black sm:text-3xl font-serif">
             MCDA registry
           </h1>
           <p className="max-w-2xl text-sm leading-relaxed text-icta-gray-600">
             Ministries, counties, and agencies with compliance scores from
             weekly scans. Switch to the leaderboard to rank the most compliant
-            sites overall or by category. Use{" "}
-            <span className="text-icta-black">Scan all</span> to re-check every
+            sites overall by category. Use{" "}
+            <span className="text-icta-black font-medium">Scan all</span> to re-check every
             listed site.
           </p>
         </header>
@@ -534,7 +534,7 @@ export function RegistryDashboard() {
 
           {view === "leaderboard" && (
             <div className="flex flex-col gap-2">
-              <p className="text-sm font-medium text-icta-black">
+              <p className="text-sm font-semibold text-icta-black font-serif">
                 {activeMetric.headline}
               </p>
               <div
@@ -568,7 +568,7 @@ export function RegistryDashboard() {
 
         {showScanPanel && (
           <section
-            className="mb-6 card animate-fade-in-up"
+            className="mb-6 card border-t-4 border-t-icta-black animate-fade-in-up"
             role="status"
             aria-live="polite"
             aria-label={

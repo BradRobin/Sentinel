@@ -220,7 +220,7 @@ export function KenyaMapDashboard() {
           <p className="mb-1 text-xs font-medium uppercase tracking-wider text-icta-gray-600">
             Showcase
           </p>
-          <h1 className="mb-2 text-2xl font-bold tracking-tight text-icta-black sm:text-3xl">
+          <h1 className="mb-2 text-2xl font-bold tracking-tight text-icta-black sm:text-3xl font-serif">
             Kenya compliance map
           </h1>
           <p className="max-w-2xl text-sm leading-relaxed text-icta-gray-600">
@@ -304,7 +304,7 @@ export function KenyaMapDashboard() {
 
           <aside className="flex flex-col gap-4">
             <section className="rounded-md border border-icta-gray-200 px-4 py-3">
-              <h2 className="text-sm font-semibold text-icta-black">
+              <h2 className="text-sm font-semibold text-icta-black font-serif">
                 {selected ? "Selected county" : "Hover or click a county"}
               </h2>
               {selected ? (
@@ -361,7 +361,7 @@ export function KenyaMapDashboard() {
             </section>
 
             <section className="min-h-0 flex-1 rounded-md border border-icta-gray-200 px-4 py-3">
-              <h2 className="mb-2 text-sm font-semibold text-icta-black">
+              <h2 className="mb-2 text-sm font-semibold text-icta-black font-serif">
                 Scored counties
               </h2>
               {ranked.length === 0 ? (

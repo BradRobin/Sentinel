@@ -127,7 +127,7 @@ pytest -v
 
 ## Environment variables
 
-See [`.env.example`](.env.example). Never commit secrets. Backend uses `SUPABASE_SERVICE_ROLE_KEY` only server-side.
+See [`.env.example`](.env.example).Backend uses `SUPABASE_SERVICE_ROLE_KEY` only server-side.
 
 ## Build phases
 

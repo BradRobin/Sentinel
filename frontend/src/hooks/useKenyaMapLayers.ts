@@ -121,19 +121,29 @@ export function useKenyaMapLayers({
     const style = () => kenyaWaterStyle();
 
     if (ocean.length > 0) {
-      const oceanLayer = L.geoJSON(
-        { type: "FeatureCollection", features: ocean },
-        { style, interactive: false, pane: "kenya-ocean" },
-      );
+      const oceanData: GeoJSON.FeatureCollection = {
+        type: "FeatureCollection",
+        features: ocean,
+      };
+      const oceanLayer = L.geoJSON(oceanData, {
+        style,
+        interactive: false,
+        pane: "kenya-ocean",
+      });
       oceanLayer.addTo(map);
       oceanLayerRef.current = oceanLayer;
     }
 
     if (lakes.length > 0) {
-      const lakeLayer = L.geoJSON(
-        { type: "FeatureCollection", features: lakes },
-        { style, interactive: false, pane: "kenya-lakes" },
-      );
+      const lakeData: GeoJSON.FeatureCollection = {
+        type: "FeatureCollection",
+        features: lakes,
+      };
+      const lakeLayer = L.geoJSON(lakeData, {
+        style,
+        interactive: false,
+        pane: "kenya-lakes",
+      });
       lakeLayer.addTo(map);
       lakeLayerRef.current = lakeLayer;
     }
@@ -157,7 +167,7 @@ export function useKenyaMapLayers({
 
     for (const lyr of layer.getLayers()) {
       const geoLayer = lyr as L.GeoJSON;
-      const feature = geoLayer.feature;
+      const feature = geoLayer.feature as unknown as GeoJSON.Feature | undefined;
       if (feature) onEachCountyFeature(feature, lyr, layer);
     }
 

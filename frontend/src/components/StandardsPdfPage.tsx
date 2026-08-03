@@ -13,6 +13,8 @@ interface StandardsPdfPageProps {
   /** Exact text to locate and highlight on the page. */
   highlightText?: string | null;
   title: string;
+  /** Reports the loaded document's total page count. */
+  onDocumentInfo?: (info: { pageCount: number; pageNumber: number }) => void;
 }
 
 function compactText(value: string): string {
@@ -85,6 +87,7 @@ export function StandardsPdfPage({
   pageNumber,
   highlightText,
   title,
+  onDocumentInfo,
 }: StandardsPdfPageProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -116,6 +119,7 @@ export function StandardsPdfPage({
         const pdf = await loadingTask.promise;
         destroyPdf = () => pdf.destroy();
         if (cancelled) return;
+        onDocumentInfo?.({ pageCount: pdf.numPages, pageNumber });
 
         const page = await pdf.getPage(pageNumber);
         if (cancelled) return;
@@ -179,7 +183,7 @@ export function StandardsPdfPage({
       cancelled = true;
       void destroyPdf?.();
     };
-  }, [pageNumber, highlightText]);
+  }, [pageNumber, highlightText, onDocumentInfo]);
 
   useEffect(() => {
     if (boxes.length === 0) return;

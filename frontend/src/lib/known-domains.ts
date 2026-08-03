@@ -170,6 +170,13 @@ export const SCAN_URL_PLACEHOLDER_EXAMPLES: readonly string[] = KNOWN_DOMAINS.ma
   (d) => d.url,
 );
 
+/** True when the value already equals a known canonical URL (scheme / trailing-slash tolerant). */
+export function isKnownDomainUrl(value: string): boolean {
+  const key = normalizeKey(value);
+  if (!key) return false;
+  return KNOWN_DOMAINS.some((d) => normalizeKey(d.url) === key);
+}
+
 const MIN_QUERY_LEN = 2;
 
 function normalizeKey(value: string): string {

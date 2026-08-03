@@ -1,8 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { SentinelMark } from "@/components/SentinelMark";
+import { ErrorState } from "@/components/ErrorState";
+import { RegistryDetailDrawer } from "@/components/RegistryDetailDrawer";
+import { Skeleton } from "@/components/Skeleton";
 import {
   getRegistry,
   getRegistryScanBatch,
@@ -29,9 +32,90 @@ import {
   btnSecondary,
   inputBase,
 } from "@/lib/ui";
-import { ErrorState } from "@/components/ErrorState";
-import { Skeleton } from "@/components/Skeleton";
 import { trendClass, trendLabel } from "@/lib/trend";
+
+type OrgFilter = "all" | "ministry" | "agency" | "county";
+type DashboardView = "registry" | "leaderboard";
+type SortKey = "name" | "type" | "score" | "trend" | "checked" | "rank";
+type SortDir = "asc" | "desc";
+interface SortState {
+  key: SortKey;
+  dir: SortDir;
+}
+
+function sortedValue(
+  row: RegistryEntry,
+  key: SortKey,
+): string | number | null {
+  switch (key) {
+    case "name":
+      return (row.registered_name || row.org_name).toLowerCase();
+    case "type":
+      return row.org_type;
+    case "score":
+      return row.latest_score;
+    case "trend":
+      return row.trend;
+    case "checked":
+      return row.last_checked_at ?? "";
+    case "rank":
+      return row.latest_score;
+  }
+}
+
+function compareSorted(a: RegistryEntry, b: RegistryEntry, key: SortKey): number {
+  const va = sortedValue(a, key);
+  const vb = sortedValue(b, key);
+  if (va === null && vb === null) return 0;
+  if (va === null) return 1;
+  if (vb === null) return -1;
+  if (typeof va === "number" && typeof vb === "number") return va - vb;
+  return String(va).localeCompare(String(vb));
+}
+
+function SortableHeader({
+  label,
+  sortKey,
+  sort,
+  onSort,
+  className,
+  right,
+}: {
+  label: string;
+  sortKey: SortKey;
+  sort: SortState | null;
+  onSort: (key: SortKey) => void;
+  className?: string;
+  right?: boolean;
+}) {
+  const active = sort?.key === sortKey;
+  const dir = active ? sort!.dir : null;
+  return (
+    <th
+      scope="col"
+      aria-sort={active ? (dir === "asc" ? "ascending" : "descending") : undefined}
+      className={className}
+    >
+      <button
+        type="button"
+        onClick={() => onSort(sortKey)}
+        className={`inline-flex items-center gap-1 font-medium uppercase tracking-wide transition-colors hover:text-icta-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-icta-black ${
+          right ? "justify-end" : ""
+        }`}
+      >
+        {label}
+        <span
+          className={`text-[10px] tabular-nums ${
+            active ? "text-icta-black" : "text-icta-gray-400"
+          }`}
+          aria-hidden="true"
+        >
+          {active ? (dir === "asc" ? "▲" : "▼") : "▴▾"}
+        </span>
+      </button>
+    </th>
+  );
+}
 
 function formatChecked(iso: string | null): string {
   if (!iso) return "Never";
@@ -57,9 +141,6 @@ function formatDelta(delta: number | null): string | null {
 function orgTypeLabel(type: string): string {
   return type.charAt(0).toUpperCase() + type.slice(1);
 }
-
-type OrgFilter = "all" | "ministry" | "agency" | "county";
-type DashboardView = "registry" | "leaderboard";
 
 const BATCH_POLL_MS = 2500;
 const BATCH_STORAGE_KEY = "sentinel.registry.scanBatchId";
@@ -121,6 +202,8 @@ export function RegistryDashboard() {
     null,
   );
   const [showFinishedBanner, setShowFinishedBanner] = useState(false);
+  const [drawerEntry, setDrawerEntry] = useState<RegistryEntry | null>(null);
+  const [sort, setSort] = useState<SortState | null>(null);
   const lastRefreshComplete = useRef(0);
   const queryRef = useRef("");
   const orgFilterRef = useRef<OrgFilter>("all");
@@ -135,7 +218,7 @@ export function RegistryDashboard() {
     [request],
   );
 
-  const items = data?.items ?? [];
+  const items = useMemo(() => data?.items ?? [], [data]);
   const errorMessage =
     error instanceof Error
       ? error.message
@@ -148,6 +231,39 @@ export function RegistryDashboard() {
     orgFilterRef.current = nextFilter;
     setRequest({ query: nextQuery, orgFilter: nextFilter });
     reload();
+  }
+
+  function toggleSort(key: SortKey) {
+    setSort((current) =>
+      current && current.key === key
+        ? { key, dir: current.dir === "asc" ? "desc" : "asc" }
+        : {
+            key,
+            dir:
+              key === "score" || key === "checked" || key === "rank"
+                ? "desc"
+                : "asc",
+          },
+    );
+  }
+
+  const sortedItems = useMemo(() => {
+    if (!sort) return items;
+    const dir = sort.dir === "asc" ? 1 : -1;
+    return [...items].sort(
+      (a, b) => compareSorted(a, b, sort.key) * dir,
+    );
+  }, [items, sort]);
+
+  const sortedLeaderboardRows = useMemo(() => {
+    const rows = rankRegistryEntries(items, leaderboardMetric);
+    if (!sort || sort.key !== "rank") return rows;
+    const dir = sort.dir === "asc" ? 1 : -1;
+    return [...rows].sort((a, b) => (a.rank_score - b.rank_score) * dir);
+  }, [items, leaderboardMetric, sort]);
+
+  function openDetails(row: RegistryEntry) {
+    setDrawerEntry(row);
   }
 
   async function onCopyUrl(row: RegistryEntry) {
@@ -255,7 +371,7 @@ export function RegistryDashboard() {
       : "bg-icta-green"
     : "bg-icta-black";
 
-  const leaderboardRows = rankRegistryEntries(items, leaderboardMetric);
+  const leaderboardRows = sortedLeaderboardRows;
   const activeMetric =
     LEADERBOARD_METRIC_OPTIONS.find((m) => m.value === leaderboardMetric) ??
     LEADERBOARD_METRIC_OPTIONS[0];
@@ -378,14 +494,14 @@ export function RegistryDashboard() {
                 </button>
               ))}
             </div>
-            <p className="text-xs tabular-nums text-icta-gray-600">
+            <div className="text-xs tabular-nums text-icta-gray-600">
               {loading ? (
                 <Skeleton className="h-4 w-32 rounded-md" />
               ) : (
                 `${items.length} MCDAs`
               )}
               {!loading && scored > 0 ? ` · ${scored} with scores` : ""}
-            </p>
+            </div>
           </div>
 
           {view === "leaderboard" && (
@@ -566,17 +682,52 @@ export function RegistryDashboard() {
           <table className="w-full min-w-[40rem] text-left text-sm">
             <thead>
               <tr className="border-b border-icta-gray-200 text-xs uppercase tracking-wide text-icta-gray-600">
-                <th className="w-10 py-3 pr-3 font-medium tabular-nums">#</th>
-                <th className="py-3 pr-4 font-medium">Organization</th>
-                <th className="py-3 pr-4 font-medium">Type</th>
-                <th className="py-3 pr-4 font-medium">{scoreColumnLabel}</th>
+                <th
+                  scope="col"
+                  className="w-10 py-3 pr-3 font-medium tabular-nums"
+                >
+                  #
+                </th>
+                <SortableHeader
+                  label="Organization"
+                  sortKey="name"
+                  sort={sort}
+                  onSort={toggleSort}
+                  className="py-3 pr-4"
+                />
+                <SortableHeader
+                  label="Type"
+                  sortKey="type"
+                  sort={sort}
+                  onSort={toggleSort}
+                  className="py-3 pr-4"
+                />
+                <SortableHeader
+                  label={scoreColumnLabel}
+                  sortKey={view === "leaderboard" ? "rank" : "score"}
+                  sort={sort}
+                  onSort={toggleSort}
+                  className="py-3 pr-4"
+                />
                 {view === "leaderboard" && leaderboardMetric !== "overall" && (
                   <th className="py-3 pr-4 font-medium">Overall</th>
                 )}
                 {view === "registry" && (
                   <>
-                    <th className="py-3 pr-4 font-medium">Trend</th>
-                    <th className="py-3 pr-4 font-medium">Last checked</th>
+                    <SortableHeader
+                      label="Trend"
+                      sortKey="trend"
+                      sort={sort}
+                      onSort={toggleSort}
+                      className="py-3 pr-4"
+                    />
+                    <SortableHeader
+                      label="Last checked"
+                      sortKey="checked"
+                      sort={sort}
+                      onSort={toggleSort}
+                      className="py-3 pr-4"
+                    />
                   </>
                 )}
                 <th className="py-3 text-right font-medium">
@@ -632,7 +783,7 @@ export function RegistryDashboard() {
                   </tr>
                 )}
               {view === "registry" &&
-                items.map((row, index) => (
+                sortedItems.map((row, index) => (
                   <tr
                     key={row.domain_id}
                     className="border-b border-icta-gray-100 align-top transition-colors hover:bg-icta-gray-50/80 animate-fade-in"
@@ -643,9 +794,14 @@ export function RegistryDashboard() {
                     </td>
                     <td className="py-3 pr-4">
                       <div className="flex flex-wrap items-center gap-1.5">
-                        <span className="font-medium text-icta-black">
+                        <button
+                          type="button"
+                          onClick={() => openDetails(row)}
+                          className="font-medium text-icta-black underline decoration-transparent underline-offset-2 transition-colors hover:decoration-icta-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-icta-black"
+                          aria-label={`View details for ${row.registered_name || row.org_name}`}
+                        >
                           {row.registered_name || row.org_name}
-                        </span>
+                        </button>
                         {row.sector && (
                           <span className="rounded-md bg-icta-gray-100 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-icta-gray-600">
                             {row.sector}
@@ -722,9 +878,14 @@ export function RegistryDashboard() {
                       {index + 1}
                     </td>
                     <td className="py-3 pr-4">
-                      <div className="font-medium text-icta-black">
+                      <button
+                        type="button"
+                        onClick={() => openDetails(row)}
+                        className="font-medium text-icta-black underline decoration-transparent underline-offset-2 transition-colors hover:decoration-icta-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-icta-black"
+                        aria-label={`View details for ${row.registered_name || row.org_name}`}
+                      >
                         {row.registered_name || row.org_name}
-                      </div>
+                      </button>
                       <a
                         href={row.url}
                         target="_blank"
@@ -760,6 +921,13 @@ export function RegistryDashboard() {
             </tbody>
           </table>
         </div>
+
+        <RegistryDetailDrawer
+          open={Boolean(drawerEntry)}
+          entry={drawerEntry}
+          peers={items}
+          onClose={() => setDrawerEntry(null)}
+        />
       </main>
     </div>
   );

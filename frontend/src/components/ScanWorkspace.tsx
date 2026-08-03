@@ -10,6 +10,10 @@ import { SentinelMark } from "@/components/SentinelMark";
 import { TypingPlaceholder } from "@/components/TypingPlaceholder";
 import { usePolling } from "@/hooks/usePolling";
 import {
+  useRegistrySuggestions,
+  type ScanUrlSuggestion,
+} from "@/hooks/useRegistrySuggestions";
+import {
   ScanApiError,
   createScan,
   getScan,
@@ -21,14 +25,12 @@ import {
   classifyScanError,
   formValidationMessage,
   isFormValidationError,
+  labelCategory,
   scanFailureMessage,
+  SCORED_CATEGORIES,
   type ScanErrorKind,
 } from "@/lib/findings";
-import {
-  matchKnownDomain,
-  SCAN_URL_PLACEHOLDER_EXAMPLES,
-  type KnownDomain,
-} from "@/lib/known-domains";
+import { SCAN_URL_PLACEHOLDER_EXAMPLES } from "@/lib/known-domains";
 import { getCopiedScanUrl } from "@/lib/scan-url-clipboard";
 import {
   clearActiveScan,
@@ -40,6 +42,7 @@ import {
   btnGhost,
   btnPrimary,
   btnSecondarySm,
+  card,
   inputBase,
   inputError,
 } from "@/lib/ui";
@@ -116,6 +119,98 @@ function EmptyIdle() {
   );
 }
 
+type ChecklistState = "done" | "active" | "pending";
+
+function ProgressMark({ state }: { state: ChecklistState }) {
+  if (state === "done") {
+    return (
+      <svg
+        viewBox="0 0 20 20"
+        fill="currentColor"
+        className="size-4 shrink-0 text-icta-green"
+        aria-hidden="true"
+      >
+        <path
+          fillRule="evenodd"
+          d="M16.704 5.29a1 1 0 0 1 .006 1.414l-6.5 6.57a1 1 0 0 1-1.416.006l-3.5-3.5a1 1 0 1 1 1.414-1.415l2.79 2.79 5.79-5.856a1 1 0 0 1 1.416-.009Z"
+          clipRule="evenodd"
+        />
+      </svg>
+    );
+  }
+  if (state === "active") {
+    return (
+      <span
+        className="size-2 shrink-0 animate-pulse rounded-full bg-icta-black"
+        aria-hidden="true"
+      />
+    );
+  }
+  return (
+    <span
+      className="size-2 shrink-0 rounded-full border border-icta-gray-300 bg-white"
+      aria-hidden="true"
+    />
+  );
+}
+
+function ProgressRow({ label, state }: { label: string; state: ChecklistState }) {
+  return (
+    <li className="flex items-center gap-2.5 py-1">
+      <ProgressMark state={state} />
+      <span
+        className={
+          state === "pending"
+            ? "text-sm text-icta-gray-600"
+            : "text-sm font-medium text-icta-black"
+        }
+      >
+        {label}
+      </span>
+    </li>
+  );
+}
+
+function ScanProgressChecklist({
+  completed,
+  current,
+}: {
+  completed: ReadonlySet<string>;
+  current: string | null;
+}) {
+  const completedCount = SCORED_CATEGORIES.filter((cat) => completed.has(cat)).length;
+  return (
+    <section
+      aria-label="Compliance checks progress"
+      className={`${card} mb-8 animate-fade-in-up p-4`}
+    >
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <h2 className="text-sm font-semibold text-icta-black">
+          Compliance checks
+        </h2>
+        <p className="text-xs tabular-nums text-icta-gray-600">
+          {completedCount}/{SCORED_CATEGORIES.length} done
+        </p>
+      </div>
+      <ul className="grid gap-x-6 gap-y-0.5 sm:grid-cols-2">
+        {SCORED_CATEGORIES.map((cat) => (
+          <ProgressRow
+            key={cat}
+            label={labelCategory(cat)}
+            state={
+              completed.has(cat)
+                ? "done"
+                : cat === current
+                  ? "active"
+                  : "pending"
+            }
+          />
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 export function ScanWorkspace() {
   const [url, setUrl] = useState("");
   const [force, setForce] = useState(false);
@@ -131,12 +226,16 @@ export function ScanWorkspace() {
   const [pendingPasteUrl, setPendingPasteUrl] = useState<string | null>(null);
   const [urlFocused, setUrlFocused] = useState(false);
   const [pollingJobId, setPollingJobId] = useState<string | null>(null);
+  const [currentCategory, setCurrentCategory] = useState<string | null>(null);
+  const [completedCategories, setCompletedCategories] = useState<string[]>([]);
+  const [highlightIndex, setHighlightIndex] = useState(-1);
   const lastCategoryRef = useRef<string | null>(null);
   const lastCategoryAtRef = useRef(0);
 
   const busy = markState === "processing";
-  const suggestion =
-    !busy && !suggestionDismissed ? matchKnownDomain(url) : null;
+  const suggestions = useRegistrySuggestions(url, !busy && !suggestionDismissed);
+  const suggestionCount = suggestions.length;
+  const completedSet = new Set(completedCategories);
   const showPaste =
     Boolean(pendingPasteUrl) &&
     !busy &&
@@ -177,6 +276,7 @@ export function ScanWorkspace() {
     if (!next) return;
     setUrl(next);
     setSuggestionDismissed(false);
+    setHighlightIndex(-1);
     setFieldError(null);
     setPendingPasteUrl(next);
   }
@@ -210,6 +310,8 @@ export function ScanWorkspace() {
   function startPolling(jobId: string) {
     lastCategoryRef.current = null;
     lastCategoryAtRef.current = Date.now();
+    setCurrentCategory(null);
+    setCompletedCategories([]);
     setPollingJobId(jobId);
   }
 
@@ -226,6 +328,8 @@ export function ScanWorkspace() {
 
       setScan(status);
       setMarkState(markStateFromStatus(status.status));
+      setCurrentCategory(category);
+      setCompletedCategories(status.categories_completed ?? []);
 
       const nextFindings = status.result?.findings;
       if (nextFindings && nextFindings.length > 0) {
@@ -365,6 +469,8 @@ export function ScanWorkspace() {
     setFindings([]);
     setAttachedNote(false);
     setPollingJobId(null);
+    setCurrentCategory(null);
+    setCompletedCategories([]);
 
     const trimmed = (options?.urlOverride ?? url).trim();
     if (options?.urlOverride) {
@@ -441,8 +547,9 @@ export function ScanWorkspace() {
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
-    if (suggestion) {
-      await acceptSuggestion(suggestion);
+    if (suggestionCount > 0) {
+      const target = highlightIndex >= 0 ? highlightIndex : 0;
+      await acceptSuggestion(suggestions[target]);
       return;
     }
     await startScan();
@@ -453,22 +560,36 @@ export function ScanWorkspace() {
     await startScan({ forceFresh: true });
   }
 
-  function acceptSuggestion(entry: KnownDomain) {
+  function acceptSuggestion(entry: ScanUrlSuggestion) {
     setSuggestionDismissed(true);
+    setHighlightIndex(-1);
     setFieldError(null);
     return startScan({ urlOverride: entry.url });
   }
 
   function onUrlKeyDown(e: KeyboardEvent<HTMLInputElement>) {
-    if (busy || !suggestion) return;
+    if (busy || suggestionCount === 0) return;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setHighlightIndex((i) => (i + 1) % suggestionCount);
+      return;
+    }
+    if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setHighlightIndex((i) => (i <= 0 ? suggestionCount - 1 : i - 1));
+      return;
+    }
     if (e.key === "Tab" || e.key === "Enter") {
       e.preventDefault();
-      void acceptSuggestion(suggestion);
+      void acceptSuggestion(
+        suggestions[highlightIndex >= 0 ? highlightIndex : 0],
+      );
       return;
     }
     if (e.key === "Escape") {
       e.preventDefault();
       setSuggestionDismissed(true);
+      setHighlightIndex(-1);
     }
   }
 
@@ -536,12 +657,19 @@ export function ScanWorkspace() {
                 disabled={busy}
                 aria-invalid={Boolean(fieldError)}
                 aria-autocomplete="list"
-                aria-expanded={Boolean(suggestion)}
-                aria-controls={suggestion ? "domain-suggestion" : undefined}
+                aria-expanded={suggestionCount > 0}
+                aria-controls={
+                  suggestionCount > 0 ? "scan-suggestions" : undefined
+                }
+                aria-activedescendant={
+                  highlightIndex >= 0
+                    ? `scan-suggestion-${highlightIndex}`
+                    : undefined
+                }
                 aria-describedby={
                   [
                     fieldError ? "url-field-error" : null,
-                    suggestion ? "domain-suggestion" : null,
+                    suggestionCount > 0 ? "scan-suggestions" : null,
                   ]
                     .filter(Boolean)
                     .join(" ") || undefined
@@ -562,25 +690,45 @@ export function ScanWorkspace() {
                 </button>
               )}
             </div>
-            {suggestion && (
-              <button
-                type="button"
-                id="domain-suggestion"
-                onClick={() => void acceptSuggestion(suggestion)}
-                className="mt-1.5 flex w-full items-baseline justify-between gap-3 rounded-md border border-icta-gray-200 bg-icta-gray-50 px-3 py-2 text-left transition-colors hover:border-icta-black/30 hover:bg-white"
+            {suggestionCount > 0 && (
+              <ul
+                id="scan-suggestions"
+                role="listbox"
+                aria-label="Registry suggestions"
+                className="mt-1.5 overflow-hidden rounded-md border border-icta-gray-200 bg-white shadow-sm"
               >
-                <span className="min-w-0">
-                  <span className="block text-sm font-medium text-icta-black">
-                    {suggestion.name}
-                  </span>
-                  <span className="block truncate text-xs text-icta-gray-600">
-                    {suggestion.url}
-                  </span>
-                </span>
-                <span className="shrink-0 text-xs text-icta-gray-600">
-                  Tab / Enter
-                </span>
-              </button>
+                {suggestions.map((entry, i) => (
+                  <li
+                    key={entry.url}
+                    id={`scan-suggestion-${i}`}
+                    role="option"
+                    aria-selected={i === highlightIndex}
+                  >
+                    <button
+                      type="button"
+                      onMouseEnter={() => setHighlightIndex(i)}
+                      onClick={() => void acceptSuggestion(entry)}
+                      className={`flex w-full items-baseline justify-between gap-3 px-3 py-2 text-left transition-colors ${
+                        i === highlightIndex
+                          ? "bg-icta-gray-100"
+                          : "hover:bg-icta-gray-50"
+                      }`}
+                    >
+                      <span className="min-w-0">
+                        <span className="block text-sm font-medium text-icta-black">
+                          {entry.name}
+                        </span>
+                        <span className="block truncate text-xs text-icta-gray-600">
+                          {entry.url}
+                        </span>
+                      </span>
+                      <span className="shrink-0 text-xs text-icta-gray-600">
+                        {entry.source === "registry" ? "Registry" : "Known"}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
             )}
             {fieldError && (
               <p
@@ -605,6 +753,13 @@ export function ScanWorkspace() {
             Start scan
           </button>
         </form>
+
+        {markState === "processing" && (
+          <ScanProgressChecklist
+            completed={completedSet}
+            current={currentCategory}
+          />
+        )}
 
         {scanError && markState === "error" && (
           <ErrorState

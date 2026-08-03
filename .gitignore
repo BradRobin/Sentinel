@@ -1,3 +1,21 @@
+# Editor / OS
+.DS_Store
+Thumbs.db
+*.swp
+
+# Celery runtime artifacts
+celerybeat-schedule
+celerybeat-schedule.db
+
+# Backup / scratch files
+*.bak
+*.bak-work
+*.orig
+*.rej
+
+# Playwright CLI captures
+.playwright-cli/
+
 # Logs
 logs
 *.log

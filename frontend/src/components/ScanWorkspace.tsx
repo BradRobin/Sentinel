@@ -1,6 +1,5 @@
 ﻿"use client";
 
-import Link from "next/link";
 import { FormEvent, KeyboardEvent, useEffect, useState } from "react";
 
 import { StandardDocLink } from "@/components/ClauseLink";
@@ -434,13 +433,6 @@ export function ScanWorkspace() {
   return (
     <div className="flex flex-1 flex-col">
       <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-16 animate-fade-in">
-        <Link
-          href="/"
-          className="mb-8 inline-block text-sm text-icta-gray-600 hover:text-icta-black"
-        >
-          ← Back
-        </Link>
-
         <div className="mb-8 flex flex-col items-center gap-3 animate-fade-in-up">
           <SentinelMark state={markState} size={120} />
           <p className="text-center text-sm text-icta-gray-600">

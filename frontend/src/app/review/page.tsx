@@ -2,8 +2,6 @@
 
 import { useEffect, useState } from "react";
 
-import Link from "next/link";
-
 import {
   getManualReviewQueueItems,
   type ManualReviewCheckType,
@@ -115,13 +113,7 @@ export default function ReviewQueuePage() {
       <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-10">
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div className="min-w-0">
-            <Link
-              href="/"
-              className="text-sm text-icta-gray-600 transition-colors hover:text-icta-black"
-            >
-              ← Back
-            </Link>
-            <h1 className="mt-2 text-2xl font-bold text-icta-black">
+            <h1 className="text-2xl font-bold text-icta-black">
               Officer manual review queue
             </h1>
             <p className="mt-1 text-sm text-icta-gray-600">

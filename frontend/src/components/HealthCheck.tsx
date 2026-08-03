@@ -1,12 +1,10 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { SentinelMark } from "@/components/SentinelMark";
 import { fetchBackendHealth, type HealthResponse } from "@/lib/api";
 import type { SentinelMarkState } from "@/lib/sentinel-mark-paths";
-import { linkQuiet } from "@/lib/ui";
 
 function statusTone(value: string): {
   pill: string;
@@ -91,10 +89,6 @@ export function HealthCheck() {
   return (
     <div className="flex flex-1 flex-col">
       <main className="mx-auto w-full max-w-lg flex-1 px-6 py-16">
-        <Link href="/" className={`mb-8 inline-block ${linkQuiet}`}>
-          ← Back
-        </Link>
-
         <div className="mb-8 flex flex-col items-center gap-3">
           <SentinelMark state={markState} size={120} />
           <p className="text-center text-sm text-icta-gray-600">

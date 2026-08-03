@@ -21,7 +21,7 @@ import {
   type KenyaCountiesGeoJSON,
 } from "@/lib/kenya-map";
 import { copyScanUrl } from "@/lib/scan-url-clipboard";
-import { btnSecondarySm, linkQuiet } from "@/lib/ui";
+import { btnSecondarySm } from "@/lib/ui";
 
 interface TooltipState {
   x: number;
@@ -207,10 +207,6 @@ export function KenyaMapDashboard() {
   return (
     <div className="flex flex-1 flex-col">
       <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-6 py-12 sm:py-16">
-        <Link href="/" className={`mb-8 inline-block ${linkQuiet}`}>
-          ← Back
-        </Link>
-
         <header className="mb-6">
           <p className="mb-1 text-xs font-medium uppercase tracking-wider text-icta-gray-600">
             Showcase

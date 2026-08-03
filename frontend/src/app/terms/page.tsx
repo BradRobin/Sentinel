@@ -1,7 +1,3 @@
-import Link from "next/link";
-
-import { linkQuiet } from "@/lib/ui";
-
 function Section({
   title,
   children,
@@ -27,10 +23,6 @@ export default function TermsPage() {
   return (
     <div className="flex flex-1 flex-col">
       <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-12">
-        <Link href="/" className={`mb-8 inline-block ${linkQuiet}`}>
-          ← Back to home
-        </Link>
-
         <p className="mb-2 text-xs font-medium uppercase tracking-[0.2em] text-icta-gray-600">
           ICTA Sentinel
         </p>

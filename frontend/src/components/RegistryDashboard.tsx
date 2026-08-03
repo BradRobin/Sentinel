@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useRef, useState, useTransition } from "react";
 
 import { SentinelMark } from "@/components/SentinelMark";
@@ -28,7 +27,6 @@ import {
   btnPrimary,
   btnSecondary,
   inputBase,
-  linkQuiet,
 } from "@/lib/ui";
 
 function trendLabel(trend: RegistryTrend): string {
@@ -298,10 +296,6 @@ export function RegistryDashboard() {
   return (
     <div className="flex flex-1 flex-col">
       <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-12 sm:py-16">
-        <Link href="/" className={`mb-8 inline-block ${linkQuiet}`}>
-          ← Back
-        </Link>
-
         <header className="mb-8">
           <h1 className="mb-2 text-2xl font-bold tracking-tight text-icta-black sm:text-3xl">
             MCDA registry

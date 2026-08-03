@@ -1,11 +1,12 @@
 ﻿"use client";
 
-import { FormEvent, KeyboardEvent, useEffect, useState } from "react";
+import { FormEvent, KeyboardEvent, useEffect, useRef, useState } from "react";
 
 import { StandardDocLink } from "@/components/ClauseLink";
 import { ScanResults } from "@/components/ScanResults";
 import { SentinelMark } from "@/components/SentinelMark";
 import { TypingPlaceholder } from "@/components/TypingPlaceholder";
+import { usePolling } from "@/hooks/usePolling";
 import {
   ScanApiError,
   createScan,
@@ -130,6 +131,9 @@ export function ScanWorkspace() {
   const [suggestionDismissed, setSuggestionDismissed] = useState(false);
   const [pendingPasteUrl, setPendingPasteUrl] = useState<string | null>(null);
   const [urlFocused, setUrlFocused] = useState(false);
+  const [pollingJobId, setPollingJobId] = useState<string | null>(null);
+  const lastCategoryRef = useRef<string | null>(null);
+  const lastCategoryAtRef = useRef(0);
 
   const busy = markState === "processing";
   const suggestion =
@@ -203,18 +207,22 @@ export function ScanWorkspace() {
     setProgressLabel(null);
   }
 
-  async function pollUntilDone(jobId: string) {
-    let lastCategory: string | null = null;
-    let lastCategoryAt = Date.now();
+  /** Reset per-session category-staleness tracking and begin polling. */
+  function startPolling(jobId: string) {
+    lastCategoryRef.current = null;
+    lastCategoryAtRef.current = Date.now();
+    setPollingJobId(jobId);
+  }
 
-    for (let i = 0; i < MAX_POLLS; i++) {
-      const status = await getScan(jobId);
+  usePolling(
+    async () => {
+      const status = await getScan(pollingJobId!);
       const now = Date.now();
       const category = status.current_category ?? null;
 
-      if (category !== lastCategory) {
-        lastCategory = category;
-        lastCategoryAt = now;
+      if (category !== lastCategoryRef.current) {
+        lastCategoryRef.current = category;
+        lastCategoryAtRef.current = now;
       }
 
       setScan(status);
@@ -228,13 +236,12 @@ export function ScanWorkspace() {
       if (status.status === "complete") {
         setFindings(status.result?.findings ?? []);
         setProgressLabel(null);
-        return;
+        return true;
       }
       if (status.status === "failed") {
         if (status.error_category === "duplicate_in_progress") {
           setProgressLabel("A scan for this URL is already in progress…");
-          await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
-          continue;
+          return false;
         }
         const kind = classifyScanError(
           status.error ?? "",
@@ -243,16 +250,52 @@ export function ScanWorkspace() {
         setScanLevelFailure(
           isFormValidationError(kind) ? "internal_error" : kind,
         );
-        return;
+        return true;
       }
 
       setProgressLabel(
-        processingLabel(status, "Queued…", lastCategoryAt, now),
+        processingLabel(status, "Queued…", lastCategoryAtRef.current, now),
       );
-      await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
-    }
-    setScanLevelFailure("timeout");
-  }
+      return false;
+    },
+    [pollingJobId],
+    {
+      intervalMs: POLL_INTERVAL_MS,
+      maxAttempts: MAX_POLLS,
+      enabled: pollingJobId !== null,
+      onDone: () => setPollingJobId(null),
+      onExhausted: () => {
+        setScanLevelFailure("timeout");
+        setPollingJobId(null);
+      },
+      onError: (err) => {
+        const apiErr =
+          err instanceof ScanApiError
+            ? err
+            : err &&
+                typeof err === "object" &&
+                "errorCategory" in err &&
+                typeof (err as { message?: unknown }).message === "string"
+              ? (err as ScanApiError)
+              : null;
+        const category = apiErr?.errorCategory ?? null;
+        const message =
+          apiErr?.message ??
+          (err instanceof Error ? err.message : "Unknown error");
+        const kind = classifyScanError(message, category);
+
+        if (isFormValidationError(kind)) {
+          setFieldError(kind);
+          setMarkState("idle");
+          setProgressLabel(null);
+          setScanError(null);
+        } else {
+          setScanLevelFailure(kind === "generic" ? "internal_error" : kind);
+        }
+        setPollingJobId(null);
+      },
+    },
+  );
 
   // Restore the last scan for this browser tab after navigating away.
   useEffect(() => {
@@ -284,7 +327,7 @@ export function ScanWorkspace() {
           if (status.error_category === "duplicate_in_progress") {
             setProgressLabel("A scan for this URL is already in progress…");
             setMarkState("processing");
-            await pollUntilDone(status.job_id);
+            startPolling(status.job_id);
             return;
           }
           const kind = classifyScanError(
@@ -299,7 +342,7 @@ export function ScanWorkspace() {
 
         setProgressLabel(status.progress ?? "Resuming scan…");
         setMarkState("processing");
-        await pollUntilDone(status.job_id);
+        startPolling(status.job_id);
       } catch {
         if (!cancelled) clearActiveScan();
       }
@@ -309,7 +352,6 @@ export function ScanWorkspace() {
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only resume
   }, []);
 
   async function startScan(options?: {
@@ -323,6 +365,7 @@ export function ScanWorkspace() {
     setScan(null);
     setFindings([]);
     setAttachedNote(false);
+    setPollingJobId(null);
 
     const trimmed = (options?.urlOverride ?? url).trim();
     if (options?.urlOverride) {
@@ -368,7 +411,7 @@ export function ScanWorkspace() {
         return;
       }
 
-      await pollUntilDone(job.job_id);
+      startPolling(job.job_id);
     } catch (err) {
       const apiErr =
         err instanceof ScanApiError

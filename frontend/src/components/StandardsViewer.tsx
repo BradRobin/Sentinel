@@ -28,7 +28,6 @@ const StandardsPdfPage = dynamic(
 );
 
 export function StandardsViewer() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const pageParam = searchParams.get("page");
   const clauseParam = searchParams.get("clause");

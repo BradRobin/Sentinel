@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { SentinelMark } from "@/components/SentinelMark";
 import {
@@ -11,6 +11,8 @@ import {
   type RegistryScanBatchStatus,
   type RegistryTrend,
 } from "@/lib/api";
+import { useApiResource } from "@/hooks/useApiResource";
+import { usePolling } from "@/hooks/usePolling";
 import { copyScanUrl } from "@/lib/scan-url-clipboard";
 import {
   LEADERBOARD_METRIC_OPTIONS,
@@ -127,14 +129,14 @@ function StatusChip({
 }
 
 export function RegistryDashboard() {
-  const [items, setItems] = useState<RegistryEntry[]>([]);
-  const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
-  const [orgFilter, setOrgFilter] = useState<OrgFilter>("all");
+  const [request, setRequest] = useState<{ query: string; orgFilter: OrgFilter }>({
+    query: "",
+    orgFilter: "all",
+  });
   const [view, setView] = useState<DashboardView>("registry");
   const [leaderboardMetric, setLeaderboardMetric] =
     useState<LeaderboardMetric>("overall");
-  const [pending, startTransition] = useTransition();
   const [copiedDomainId, setCopiedDomainId] = useState<string | null>(null);
   const [scanStarting, setScanStarting] = useState(false);
   const [scanError, setScanError] = useState<string | null>(null);
@@ -144,10 +146,33 @@ export function RegistryDashboard() {
   );
   const [showFinishedBanner, setShowFinishedBanner] = useState(false);
   const lastRefreshComplete = useRef(0);
-  const queryRef = useRef(query);
-  const orgFilterRef = useRef(orgFilter);
-  queryRef.current = query;
-  orgFilterRef.current = orgFilter;
+  const queryRef = useRef("");
+  const orgFilterRef = useRef<OrgFilter>("all");
+
+  const { data, loading, error, reload } = useApiResource(
+    () =>
+      getRegistry({
+        q: request.query.trim() || undefined,
+        orgType: request.orgFilter === "all" ? undefined : request.orgFilter,
+        limit: 300,
+      }),
+    [request],
+  );
+
+  const items = data?.items ?? [];
+  const errorMessage =
+    error instanceof Error
+      ? error.message
+      : error
+        ? "Failed to load registry"
+        : null;
+
+  function load(nextQuery: string, nextFilter: OrgFilter) {
+    queryRef.current = nextQuery;
+    orgFilterRef.current = nextFilter;
+    setRequest({ query: nextQuery, orgFilter: nextFilter });
+    reload();
+  }
 
   async function onCopyUrl(row: RegistryEntry) {
     await copyScanUrl(row.url);
@@ -159,27 +184,47 @@ export function RegistryDashboard() {
     }, 1600);
   }
 
-  function load(nextQuery: string, nextFilter: OrgFilter) {
-    startTransition(async () => {
-      try {
-        setError(null);
-        const data = await getRegistry({
-          q: nextQuery.trim() || undefined,
-          orgType: nextFilter === "all" ? undefined : nextFilter,
-          limit: 300,
-        });
-        setItems(data.items);
-      } catch (err) {
-        setError(
-          err instanceof Error ? err.message : "Failed to load registry",
-        );
-        setItems([]);
-      }
-    });
-  }
+  usePolling(
+    async () => {
+      const status = await getRegistryScanBatch(batchId!);
+      setBatchStatus(status);
+      setScanError(null);
 
+      const finished = status.counts.complete + status.counts.failed;
+      if (finished > lastRefreshComplete.current || status.done) {
+        lastRefreshComplete.current = finished;
+        load(queryRef.current, orgFilterRef.current);
+      }
+
+      if (status.done) {
+        setShowFinishedBanner(true);
+        try {
+          window.sessionStorage.removeItem(BATCH_STORAGE_KEY);
+        } catch {
+          // ignore
+        }
+        setBatchId(null);
+        return true;
+      }
+      return false;
+    },
+    [batchId],
+    {
+      intervalMs: BATCH_POLL_MS,
+      enabled: batchId !== null,
+      retryOnError: true,
+      onError: (err) => {
+        setScanError(
+          err instanceof Error
+            ? err.message
+            : "Failed to poll registry scan status",
+        );
+      },
+    },
+  );
+
+  // Restore an in-flight batch from a previous visit.
   useEffect(() => {
-    load("", "all");
     try {
       const saved = window.sessionStorage.getItem(BATCH_STORAGE_KEY);
       if (saved) setBatchId(saved);
@@ -187,58 +232,6 @@ export function RegistryDashboard() {
       // ignore storage errors
     }
   }, []);
-
-  useEffect(() => {
-    if (!batchId) return;
-
-    let cancelled = false;
-    let timer: number | undefined;
-
-    async function tick() {
-      try {
-        const status = await getRegistryScanBatch(batchId!);
-        if (cancelled) return;
-        setBatchStatus(status);
-        setScanError(null);
-
-        const finished = status.counts.complete + status.counts.failed;
-        if (finished > lastRefreshComplete.current || status.done) {
-          lastRefreshComplete.current = finished;
-          load(queryRef.current, orgFilterRef.current);
-        }
-
-        if (status.done) {
-          setShowFinishedBanner(true);
-          try {
-            window.sessionStorage.removeItem(BATCH_STORAGE_KEY);
-          } catch {
-            // ignore
-          }
-          setBatchId(null);
-          return;
-        }
-      } catch (err) {
-        if (!cancelled) {
-          setScanError(
-            err instanceof Error
-              ? err.message
-              : "Failed to poll registry scan status",
-          );
-        }
-      }
-      if (!cancelled) {
-        timer = window.setTimeout(() => {
-          void tick();
-        }, BATCH_POLL_MS);
-      }
-    }
-
-    void tick();
-    return () => {
-      cancelled = true;
-      if (timer !== undefined) window.clearTimeout(timer);
-    };
-  }, [batchId]);
 
   async function onScanAll() {
     setScanStarting(true);
@@ -348,7 +341,7 @@ export function RegistryDashboard() {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter") load(query, orgFilter);
+                  if (e.key === "Enter") load(query, request.orgFilter);
                 }}
                 placeholder="Name, alias, or URL…"
                 className={inputBase}
@@ -366,11 +359,11 @@ export function RegistryDashboard() {
               </button>
               <button
                 type="button"
-                onClick={() => load(query, orgFilter)}
-                disabled={pending}
+                onClick={() => load(query, request.orgFilter)}
+                disabled={loading}
                 className={btnSecondary}
               >
-                {pending ? "Refreshing…" : "Refresh list"}
+                {loading ? "Refreshing…" : "Refresh list"}
               </button>
             </div>
           </div>
@@ -393,11 +386,16 @@ export function RegistryDashboard() {
                   key={value}
                   type="button"
                   onClick={() => {
-                    setOrgFilter(value);
+                    setRequest((current) => ({
+                      ...current,
+                      orgFilter: value,
+                    }));
                     load(query, value);
                   }}
                   className={
-                    orgFilter === value ? btnFilterActive : btnFilterIdle
+                    request.orgFilter === value
+                      ? btnFilterActive
+                      : btnFilterIdle
                   }
                 >
                   {label}
@@ -405,8 +403,8 @@ export function RegistryDashboard() {
               ))}
             </div>
             <p className="text-xs tabular-nums text-icta-gray-600">
-              {pending ? "Loading…" : `${items.length} MCDAs`}
-              {!pending && scored > 0 ? ` · ${scored} with scores` : ""}
+              {loading ? "Loading…" : `${items.length} MCDAs`}
+              {!loading && scored > 0 ? ` · ${scored} with scores` : ""}
             </p>
           </div>
 
@@ -574,12 +572,12 @@ export function RegistryDashboard() {
           </div>
         )}
 
-        {error && (
+        {errorMessage && (
           <div
             className="mb-6 rounded-md border border-icta-red/20 bg-icta-red/5 px-4 py-3 text-sm text-icta-red"
             role="alert"
           >
-            {error}
+            {errorMessage}
             <span className="mt-1 block text-icta-gray-600">
               Check that the API is running and can reach Postgres. With Docker,
               <code className="mx-1 text-xs">docker compose up --build</code>
@@ -613,8 +611,8 @@ export function RegistryDashboard() {
             <tbody>
               {view === "registry" &&
                 items.length === 0 &&
-                !pending &&
-                !error && (
+                !loading &&
+                !errorMessage && (
                   <tr>
                     <td
                       colSpan={7}
@@ -627,8 +625,8 @@ export function RegistryDashboard() {
                 )}
               {view === "leaderboard" &&
                 leaderboardRows.length === 0 &&
-                !pending &&
-                !error && (
+                !loading &&
+                !errorMessage && (
                   <tr>
                     <td
                       colSpan={leaderboardMetric === "overall" ? 5 : 6}

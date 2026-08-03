@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { ErrorState } from "@/components/ErrorState";
+import { Skeleton } from "@/components/Skeleton";
 import { STANDARDS_PDF_PATH } from "@/lib/standards";
 
 type HighlightBox = { left: number; top: number; width: number; height: number };
@@ -190,15 +192,15 @@ export function StandardsPdfPage({
   return (
     <div ref={containerRef} className="relative w-full">
       {loading ? (
-        <p className="absolute inset-x-0 top-8 z-10 text-center text-sm text-icta-gray-600">
-          Loading page {pageNumber}…
-        </p>
+        <div
+          className="absolute inset-x-0 top-8 z-10 flex justify-center"
+          role="status"
+          aria-busy="true"
+        >
+          <Skeleton className="h-4 w-40 rounded-md" />
+        </div>
       ) : null}
-      {error ? (
-        <p className="rounded-md border border-icta-red/20 bg-icta-red/5 px-4 py-3 text-sm text-icta-red">
-          {error}
-        </p>
-      ) : null}
+      {error ? <ErrorState message={error} className="mb-3" /> : null}
       <div
         className="relative mx-auto overflow-auto rounded-md border border-icta-gray-200 bg-icta-gray-50"
         style={{ maxHeight: "min(80vh, 900px)" }}

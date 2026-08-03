@@ -39,6 +39,22 @@ export const CHECKING_CATEGORY_LABELS: Record<string, string> = {
 
 export const SCORED_CATEGORY_COUNT = 8;
 
+/** The 8 scored categories (excludes `monitoring`), in display order. */
+export const SCORED_CATEGORIES: readonly string[] = CATEGORY_ORDER.filter(
+  (c) => c !== "monitoring",
+);
+
+/** Status badge copy for a finding, incl. officer-reviewed resolution. */
+export function badgeLabelForFinding(finding: Finding): string {
+  const d = (finding.detail ?? {}) as Record<string, unknown>;
+  if (d.officer_reviewed === true) {
+    const rs = d.officer_resolution_status;
+    if (rs === "flagged") return "Officer-reviewed (Flagged)";
+    return "Officer-reviewed";
+  }
+  return finding.status === "manual_review" ? "review" : finding.status;
+}
+
 export type StatFilter = "fail" | "manual_review" | "pass" | "all";
 
 export interface FindingStats {

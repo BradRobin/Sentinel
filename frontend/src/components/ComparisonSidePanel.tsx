@@ -3,25 +3,13 @@
 import { useEffect, useMemo } from "react";
 
 import type { ComparisonResponse } from "@/lib/api";
-import { labelCategory } from "@/lib/findings";
+import { labelCategory, SCORED_CATEGORIES } from "@/lib/findings";
 import {
   btnGhost,
   panelBackdrop,
   panelHeader,
   panelShell,
 } from "@/lib/ui";
-
-/** Scored categories only — same order as scoring_weights / historical jsonb keys */
-const SCORED_CATEGORIES = [
-  "domain_identity",
-  "security",
-  "interoperability",
-  "accessibility",
-  "design_branding",
-  "multimedia_performance",
-  "legal_content",
-  "seo",
-] as const;
 
 interface ComparisonSidePanelProps {
   open: boolean;

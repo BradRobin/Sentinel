@@ -8,12 +8,16 @@ import {
   type ManualReviewQueueItem,
 } from "@/lib/api";
 import { ClauseLink } from "@/components/ClauseLink";
+import { EmptyState } from "@/components/EmptyState";
+import { ErrorState } from "@/components/ErrorState";
+import { Skeleton } from "@/components/Skeleton";
 import {
   btnPrimary,
   inputBase,
   inputError,
 } from "@/lib/ui";
 import { ManualReviewResolutionPanel } from "@/components/ManualReviewResolutionPanel";
+import { labelCategory, SCORED_CATEGORIES } from "@/lib/findings";
 
 const OFFICER_STORAGE_KEY = "sentinel.officer.id";
 
@@ -35,17 +39,6 @@ type QueueFilters = {
   category: string | "";
   domainQuery: string;
 };
-
-const CATEGORIES = [
-  "domain_identity",
-  "security",
-  "interoperability",
-  "accessibility",
-  "design_branding",
-  "multimedia_performance",
-  "legal_content",
-  "seo",
-] as const;
 
 export default function ReviewQueuePage() {
   const [officerId, setOfficerId] = useState<string>("");
@@ -207,9 +200,9 @@ export default function ReviewQueuePage() {
                 className={inputBase}
               >
                 <option value="">All</option>
-                {CATEGORIES.map((c) => (
+                {SCORED_CATEGORIES.map((c) => (
                   <option key={c} value={c}>
-                    {c.replaceAll("_", " ")}
+                    {labelCategory(c)}
                   </option>
                 ))}
               </select>
@@ -233,14 +226,7 @@ export default function ReviewQueuePage() {
           </div>
         </section>
 
-        {error && (
-          <div
-            className="mb-4 rounded-md border border-icta-red/20 bg-icta-red/5 px-4 py-3 text-sm text-icta-red"
-            role="alert"
-          >
-            {error}
-          </div>
-        )}
+        {error && <ErrorState message={error} className="mb-4" />}
 
         <section className="rounded-md border border-icta-gray-200">
           <div className="border-b border-icta-gray-200 px-4 py-3">
@@ -255,13 +241,20 @@ export default function ReviewQueuePage() {
           </div>
 
           {loading ? (
-            <div className="px-4 py-6 text-sm text-icta-gray-600">
-              Loading…
+            <div
+              className="space-y-2.5 px-4 py-6"
+              role="status"
+              aria-busy="true"
+            >
+              <Skeleton className="h-4 w-2/3 rounded-md" />
+              <Skeleton className="h-4 w-1/2 rounded-md" />
+              <Skeleton className="h-4 w-3/5 rounded-md" />
+              <Skeleton className="h-4 w-2/3 rounded-md" />
             </div>
           ) : items.length === 0 ? (
-            <div className="px-4 py-6 text-sm text-icta-gray-600">
+            <EmptyState variant="inset">
               No pending items match the current filters.
-            </div>
+            </EmptyState>
           ) : (
             <ul className="divide-y divide-icta-gray-100">
               {items.map((it) => (

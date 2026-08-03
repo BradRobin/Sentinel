@@ -20,6 +20,7 @@ import {
   panelShell,
 } from "@/lib/ui";
 import { ClauseLink } from "@/components/ClauseLink";
+import { ErrorState } from "@/components/ErrorState";
 import { getReviewGuide } from "@/lib/manualReviewGuides";
 
 interface ManualReviewResolutionPanelProps {
@@ -354,14 +355,7 @@ export function ManualReviewResolutionPanel({
                 </p>
               </div>
 
-              {error && (
-                <div
-                  className="rounded-md border border-icta-red/20 bg-icta-red/5 px-4 py-3 text-sm text-icta-red"
-                  role="alert"
-                >
-                  {error}
-                </div>
-              )}
+              {error && <ErrorState message={error} />}
 
               <div className="flex flex-wrap gap-2 pt-2">
                 <button

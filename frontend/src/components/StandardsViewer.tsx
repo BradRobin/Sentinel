@@ -13,6 +13,7 @@ import {
   standardsPdfUrl,
 } from "@/lib/standards";
 import { btnSecondarySm } from "@/lib/ui";
+import { Skeleton } from "@/components/Skeleton";
 
 const StandardsPdfPage = dynamic(
   () =>
@@ -20,9 +21,17 @@ const StandardsPdfPage = dynamic(
   {
     ssr: false,
     loading: () => (
-      <p className="px-4 py-16 text-center text-sm text-icta-gray-600">
-        Loading standard…
-      </p>
+      <div
+        className="px-4 py-16"
+        role="status"
+        aria-busy="true"
+      >
+        <div className="mx-auto max-w-3xl space-y-3">
+          <Skeleton className="h-4 w-1/3 rounded-md" />
+          <Skeleton className="h-96 w-full rounded-md" />
+          <Skeleton className="h-4 w-2/3 rounded-md" />
+        </div>
+      </div>
     ),
   },
 );

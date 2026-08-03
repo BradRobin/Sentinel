@@ -3,6 +3,8 @@
 import { FormEvent, KeyboardEvent, useEffect, useRef, useState } from "react";
 
 import { StandardDocLink } from "@/components/ClauseLink";
+import { EmptyState } from "@/components/EmptyState";
+import { ErrorState } from "@/components/ErrorState";
 import { ScanResults } from "@/components/ScanResults";
 import { SentinelMark } from "@/components/SentinelMark";
 import { TypingPlaceholder } from "@/components/TypingPlaceholder";
@@ -108,12 +110,9 @@ interface ScanLevelError {
 
 function EmptyIdle() {
   return (
-    <div className="rounded-md border border-dashed border-icta-gray-200 px-4 py-10 text-center">
-      <p className="text-sm font-medium text-icta-black">No scan yet</p>
-      <p className="mt-1 text-sm text-icta-gray-600">
-        Enter a public .go.ke or .gov.ke URL above to run compliance checks.
-      </p>
-    </div>
+    <EmptyState title="No scan yet">
+      Enter a public .go.ke or .gov.ke URL above to run compliance checks.
+    </EmptyState>
   );
 }
 
@@ -608,29 +607,24 @@ export function ScanWorkspace() {
         </form>
 
         {scanError && markState === "error" && (
-          <div
-            className="mb-8 rounded-md border border-icta-red/20 bg-icta-red/5 px-4 py-4"
-            role="alert"
-          >
-            <p className="text-sm text-icta-gray-600">
-              {scanFailureMessage(scanError.kind)}
-            </p>
-            <button
-              type="button"
-              onClick={onRetry}
-              className={`mt-4 ${btnSecondarySm}`}
-            >
-              Try again
-            </button>
-          </div>
+          <ErrorState
+            className="mb-8"
+            muted
+            message={scanFailureMessage(scanError.kind)}
+            action={
+              <button type="button" onClick={onRetry} className={btnSecondarySm}>
+                Try again
+              </button>
+            }
+          />
         )}
 
         {showEmptyIdle && <EmptyIdle />}
 
         {showEmptyComplete && (
-          <div className="rounded-md border border-dashed border-icta-gray-200 px-4 py-8 text-center text-sm text-icta-gray-600">
+          <EmptyState className="py-8">
             Scan finished, but no findings were returned.
-          </div>
+          </EmptyState>
         )}
 
         {scan && findings.length > 0 && (

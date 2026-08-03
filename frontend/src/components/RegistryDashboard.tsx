@@ -9,7 +9,6 @@ import {
   startRegistryScan,
   type RegistryEntry,
   type RegistryScanBatchStatus,
-  type RegistryTrend,
 } from "@/lib/api";
 import { useApiResource } from "@/hooks/useApiResource";
 import { usePolling } from "@/hooks/usePolling";
@@ -30,32 +29,9 @@ import {
   btnSecondary,
   inputBase,
 } from "@/lib/ui";
-
-function trendLabel(trend: RegistryTrend): string {
-  switch (trend) {
-    case "up":
-      return "Up";
-    case "down":
-      return "Down";
-    case "flat":
-      return "Flat";
-    default:
-      return "—";
-  }
-}
-
-function trendClass(trend: RegistryTrend): string {
-  switch (trend) {
-    case "up":
-      return "text-icta-green";
-    case "down":
-      return "text-icta-red";
-    case "flat":
-      return "text-icta-gray-600";
-    default:
-      return "text-icta-gray-600";
-  }
-}
+import { ErrorState } from "@/components/ErrorState";
+import { Skeleton } from "@/components/Skeleton";
+import { trendClass, trendLabel } from "@/lib/trend";
 
 function formatChecked(iso: string | null): string {
   if (!iso) return "Never";
@@ -403,7 +379,11 @@ export function RegistryDashboard() {
               ))}
             </div>
             <p className="text-xs tabular-nums text-icta-gray-600">
-              {loading ? "Loading…" : `${items.length} MCDAs`}
+              {loading ? (
+                <Skeleton className="h-4 w-32 rounded-md" />
+              ) : (
+                `${items.length} MCDAs`
+              )}
               {!loading && scored > 0 ? ` · ${scored} with scores` : ""}
             </p>
           </div>
@@ -563,27 +543,23 @@ export function RegistryDashboard() {
           </section>
         )}
 
-        {scanError && (
-          <div
-            className="mb-6 rounded-md border border-icta-red/20 bg-icta-red/5 px-4 py-3 text-sm text-icta-red"
-            role="alert"
-          >
-            {scanError}
-          </div>
-        )}
+        {scanError && <ErrorState message={scanError} className="mb-6" />}
 
         {errorMessage && (
-          <div
-            className="mb-6 rounded-md border border-icta-red/20 bg-icta-red/5 px-4 py-3 text-sm text-icta-red"
-            role="alert"
-          >
-            {errorMessage}
-            <span className="mt-1 block text-icta-gray-600">
-              Check that the API is running and can reach Postgres. With Docker,
-              <code className="mx-1 text-xs">docker compose up --build</code>
-              starts a local DB and seeds the MCDA registry automatically.
-            </span>
-          </div>
+          <ErrorState
+            message={errorMessage}
+            className="mb-6"
+            hint={
+              <>
+                Check that the API is running and can reach Postgres. With
+                Docker,{" "}
+                <code className="mx-1 text-xs">
+                  docker compose up --build
+                </code>{" "}
+                starts a local DB and seeds the MCDA registry automatically.
+              </>
+            }
+          />
         )}
 
         <div className="overflow-x-auto">
@@ -609,6 +585,23 @@ export function RegistryDashboard() {
               </tr>
             </thead>
             <tbody>
+              {loading && items.length === 0 && (
+                <tr>
+                  <td
+                    colSpan={view === "leaderboard" ? 6 : 7}
+                    className="px-4 py-8"
+                    role="status"
+                    aria-busy="true"
+                  >
+                    <div className="space-y-3">
+                      <Skeleton className="h-5 w-full rounded-md" />
+                      <Skeleton className="h-5 w-5/6 rounded-md" />
+                      <Skeleton className="h-5 w-2/3 rounded-md" />
+                      <Skeleton className="h-5 w-3/4 rounded-md" />
+                    </div>
+                  </td>
+                </tr>
+              )}
               {view === "registry" &&
                 items.length === 0 &&
                 !loading &&

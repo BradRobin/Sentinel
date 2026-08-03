@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 import { SentinelMark } from "@/components/SentinelMark";
+import { ErrorState } from "@/components/ErrorState";
 import { fetchBackendHealth, type HealthResponse } from "@/lib/api";
 import type { SentinelMarkState } from "@/lib/sentinel-mark-paths";
 
@@ -127,14 +128,7 @@ export function HealthCheck() {
             <p className="text-sm text-icta-gray-600">Fetching status…</p>
           )}
 
-          {error && (
-            <div
-              className="rounded-md border border-icta-red/20 bg-icta-red/5 px-4 py-3 text-sm text-icta-red"
-              role="alert"
-            >
-              {error}
-            </div>
-          )}
+          {error && <ErrorState message={error} />}
 
           {health && markState !== "processing" && (
             <div className="space-y-2">

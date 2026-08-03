@@ -7,6 +7,9 @@ import "leaflet/dist/leaflet.css";
 
 import { useKenyaMapLayers } from "@/hooks/useKenyaMapLayers";
 import { getRegistry, type RegistryEntry } from "@/lib/api";
+import { ErrorState } from "@/components/ErrorState";
+import { Skeleton } from "@/components/Skeleton";
+import { trendClass } from "@/lib/trend";
 import {
   COUNTY_NO_SCORE_FILL,
   COUNTY_STROKE,
@@ -74,17 +77,6 @@ function trendMark(trend: string | null): string {
       return "→ stable";
     default:
       return "";
-  }
-}
-
-function trendClass(trend: string | null): string {
-  switch (trend) {
-    case "up":
-      return "text-icta-green";
-    case "down":
-      return "text-icta-red";
-    default:
-      return "text-icta-gray-600";
   }
 }
 
@@ -226,11 +218,13 @@ export function KenyaMapDashboard() {
         </header>
 
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <p className="text-xs tabular-nums text-icta-gray-600">
-            {pending && !geojson
-              ? "Loading counties…"
-              : `${counties.length} counties · ${scoredCount} with scores`}
-          </p>
+          <div className="text-xs tabular-nums text-icta-gray-600">
+            {pending && !geojson ? (
+              <Skeleton className="h-4 w-44 rounded-md" />
+            ) : (
+              `${counties.length} counties · ${scoredCount} with scores`
+            )}
+          </div>
           <ul className="flex flex-wrap gap-3" aria-label="Score legend">
             {SCORE_BAND_LEGEND.map((band) => (
               <li
@@ -248,14 +242,7 @@ export function KenyaMapDashboard() {
           </ul>
         </div>
 
-        {error && (
-          <div
-            className="mb-4 rounded-md border border-icta-red/20 bg-icta-red/5 px-4 py-3 text-sm text-icta-red"
-            role="alert"
-          >
-            {error}
-          </div>
-        )}
+        {error && <ErrorState message={error} className="mb-4" />}
 
         <div className="grid flex-1 gap-6 lg:grid-cols-[minmax(0,1fr)_16rem]">
           <div className="relative overflow-hidden rounded-md border border-icta-gray-200">

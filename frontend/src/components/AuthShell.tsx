@@ -1,10 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { SentinelMark } from "@/components/SentinelMark";
-import { linkQuiet } from "@/lib/ui";
 
 /** Centered card shell shared by login / register / onboarding pages. */
 export function AuthShell({
@@ -23,10 +21,6 @@ export function AuthShell({
   return (
     <div className="flex flex-1 flex-col">
       <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center px-6 py-12 animate-fade-in-up">
-        <Link href="/" className={`mb-8 inline-block self-start ${linkQuiet}`}>
-          ← Back to home
-        </Link>
-
         <div className="card px-6 py-8 sm:px-8">
           <div className="mb-6 flex flex-col items-center text-center">
             <SentinelMark state="idle" size={72} label={markLabel} />

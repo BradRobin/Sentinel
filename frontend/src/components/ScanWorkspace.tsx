@@ -1,12 +1,18 @@
 ﻿"use client";
 
-import Link from "next/link";
-import { FormEvent, KeyboardEvent, useEffect, useState } from "react";
+import { FormEvent, KeyboardEvent, useEffect, useRef, useState } from "react";
 
 import { StandardDocLink } from "@/components/ClauseLink";
+import { EmptyState } from "@/components/EmptyState";
+import { ErrorState } from "@/components/ErrorState";
 import { ScanResults } from "@/components/ScanResults";
 import { SentinelMark } from "@/components/SentinelMark";
 import { TypingPlaceholder } from "@/components/TypingPlaceholder";
+import { usePolling } from "@/hooks/usePolling";
+import {
+  useRegistrySuggestions,
+  type ScanUrlSuggestion,
+} from "@/hooks/useRegistrySuggestions";
 import {
   ScanApiError,
   createScan,
@@ -19,14 +25,12 @@ import {
   classifyScanError,
   formValidationMessage,
   isFormValidationError,
+  labelCategory,
   scanFailureMessage,
+  SCORED_CATEGORIES,
   type ScanErrorKind,
 } from "@/lib/findings";
-import {
-  matchKnownDomain,
-  SCAN_URL_PLACEHOLDER_EXAMPLES,
-  type KnownDomain,
-} from "@/lib/known-domains";
+import { SCAN_URL_PLACEHOLDER_EXAMPLES } from "@/lib/known-domains";
 import { getCopiedScanUrl } from "@/lib/scan-url-clipboard";
 import {
   clearActiveScan,
@@ -38,6 +42,7 @@ import {
   btnGhost,
   btnPrimary,
   btnSecondarySm,
+  card,
   inputBase,
   inputError,
 } from "@/lib/ui";
@@ -108,12 +113,101 @@ interface ScanLevelError {
 
 function EmptyIdle() {
   return (
-    <div className="rounded-md border border-dashed border-icta-gray-200 px-4 py-10 text-center">
-      <p className="text-sm font-medium text-icta-black">No scan yet</p>
-      <p className="mt-1 text-sm text-icta-gray-600">
-        Enter a public .go.ke or .gov.ke URL above to run compliance checks.
-      </p>
-    </div>
+    <EmptyState title="No scan yet">
+      Enter a public .go.ke or .gov.ke URL above to run compliance checks.
+    </EmptyState>
+  );
+}
+
+type ChecklistState = "done" | "active" | "pending";
+
+function ProgressMark({ state }: { state: ChecklistState }) {
+  if (state === "done") {
+    return (
+      <svg
+        viewBox="0 0 20 20"
+        fill="currentColor"
+        className="size-4 shrink-0 text-icta-green"
+        aria-hidden="true"
+      >
+        <path
+          fillRule="evenodd"
+          d="M16.704 5.29a1 1 0 0 1 .006 1.414l-6.5 6.57a1 1 0 0 1-1.416.006l-3.5-3.5a1 1 0 1 1 1.414-1.415l2.79 2.79 5.79-5.856a1 1 0 0 1 1.416-.009Z"
+          clipRule="evenodd"
+        />
+      </svg>
+    );
+  }
+  if (state === "active") {
+    return (
+      <span
+        className="size-2 shrink-0 animate-pulse rounded-full bg-icta-black"
+        aria-hidden="true"
+      />
+    );
+  }
+  return (
+    <span
+      className="size-2 shrink-0 rounded-full border border-icta-gray-300 bg-white"
+      aria-hidden="true"
+    />
+  );
+}
+
+function ProgressRow({ label, state }: { label: string; state: ChecklistState }) {
+  return (
+    <li className="flex items-center gap-2.5 py-1">
+      <ProgressMark state={state} />
+      <span
+        className={
+          state === "pending"
+            ? "text-sm text-icta-gray-600"
+            : "text-sm font-medium text-icta-black"
+        }
+      >
+        {label}
+      </span>
+    </li>
+  );
+}
+
+function ScanProgressChecklist({
+  completed,
+  current,
+}: {
+  completed: ReadonlySet<string>;
+  current: string | null;
+}) {
+  const completedCount = SCORED_CATEGORIES.filter((cat) => completed.has(cat)).length;
+  return (
+    <section
+      aria-label="Compliance checks progress"
+      className={`${card} mb-8 animate-fade-in-up p-4`}
+    >
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <h2 className="text-sm font-semibold text-icta-black">
+          Compliance checks
+        </h2>
+        <p className="text-xs tabular-nums text-icta-gray-600">
+          {completedCount}/{SCORED_CATEGORIES.length} done
+        </p>
+      </div>
+      <ul className="grid gap-x-6 gap-y-0.5 sm:grid-cols-2">
+        {SCORED_CATEGORIES.map((cat) => (
+          <ProgressRow
+            key={cat}
+            label={labelCategory(cat)}
+            state={
+              completed.has(cat)
+                ? "done"
+                : cat === current
+                  ? "active"
+                  : "pending"
+            }
+          />
+        ))}
+      </ul>
+    </section>
   );
 }
 
@@ -131,10 +225,17 @@ export function ScanWorkspace() {
   const [suggestionDismissed, setSuggestionDismissed] = useState(false);
   const [pendingPasteUrl, setPendingPasteUrl] = useState<string | null>(null);
   const [urlFocused, setUrlFocused] = useState(false);
+  const [pollingJobId, setPollingJobId] = useState<string | null>(null);
+  const [currentCategory, setCurrentCategory] = useState<string | null>(null);
+  const [completedCategories, setCompletedCategories] = useState<string[]>([]);
+  const [highlightIndex, setHighlightIndex] = useState(-1);
+  const lastCategoryRef = useRef<string | null>(null);
+  const lastCategoryAtRef = useRef(0);
 
   const busy = markState === "processing";
-  const suggestion =
-    !busy && !suggestionDismissed ? matchKnownDomain(url) : null;
+  const suggestions = useRegistrySuggestions(url, !busy && !suggestionDismissed);
+  const suggestionCount = suggestions.length;
+  const completedSet = new Set(completedCategories);
   const showPaste =
     Boolean(pendingPasteUrl) &&
     !busy &&
@@ -175,6 +276,7 @@ export function ScanWorkspace() {
     if (!next) return;
     setUrl(next);
     setSuggestionDismissed(false);
+    setHighlightIndex(-1);
     setFieldError(null);
     setPendingPasteUrl(next);
   }
@@ -204,22 +306,30 @@ export function ScanWorkspace() {
     setProgressLabel(null);
   }
 
-  async function pollUntilDone(jobId: string) {
-    let lastCategory: string | null = null;
-    let lastCategoryAt = Date.now();
+  /** Reset per-session category-staleness tracking and begin polling. */
+  function startPolling(jobId: string) {
+    lastCategoryRef.current = null;
+    lastCategoryAtRef.current = Date.now();
+    setCurrentCategory(null);
+    setCompletedCategories([]);
+    setPollingJobId(jobId);
+  }
 
-    for (let i = 0; i < MAX_POLLS; i++) {
-      const status = await getScan(jobId);
+  usePolling(
+    async () => {
+      const status = await getScan(pollingJobId!);
       const now = Date.now();
       const category = status.current_category ?? null;
 
-      if (category !== lastCategory) {
-        lastCategory = category;
-        lastCategoryAt = now;
+      if (category !== lastCategoryRef.current) {
+        lastCategoryRef.current = category;
+        lastCategoryAtRef.current = now;
       }
 
       setScan(status);
       setMarkState(markStateFromStatus(status.status));
+      setCurrentCategory(category);
+      setCompletedCategories(status.categories_completed ?? []);
 
       const nextFindings = status.result?.findings;
       if (nextFindings && nextFindings.length > 0) {
@@ -229,13 +339,12 @@ export function ScanWorkspace() {
       if (status.status === "complete") {
         setFindings(status.result?.findings ?? []);
         setProgressLabel(null);
-        return;
+        return true;
       }
       if (status.status === "failed") {
         if (status.error_category === "duplicate_in_progress") {
           setProgressLabel("A scan for this URL is already in progress…");
-          await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
-          continue;
+          return false;
         }
         const kind = classifyScanError(
           status.error ?? "",
@@ -244,16 +353,52 @@ export function ScanWorkspace() {
         setScanLevelFailure(
           isFormValidationError(kind) ? "internal_error" : kind,
         );
-        return;
+        return true;
       }
 
       setProgressLabel(
-        processingLabel(status, "Queued…", lastCategoryAt, now),
+        processingLabel(status, "Queued…", lastCategoryAtRef.current, now),
       );
-      await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
-    }
-    setScanLevelFailure("timeout");
-  }
+      return false;
+    },
+    [pollingJobId],
+    {
+      intervalMs: POLL_INTERVAL_MS,
+      maxAttempts: MAX_POLLS,
+      enabled: pollingJobId !== null,
+      onDone: () => setPollingJobId(null),
+      onExhausted: () => {
+        setScanLevelFailure("timeout");
+        setPollingJobId(null);
+      },
+      onError: (err) => {
+        const apiErr =
+          err instanceof ScanApiError
+            ? err
+            : err &&
+                typeof err === "object" &&
+                "errorCategory" in err &&
+                typeof (err as { message?: unknown }).message === "string"
+              ? (err as ScanApiError)
+              : null;
+        const category = apiErr?.errorCategory ?? null;
+        const message =
+          apiErr?.message ??
+          (err instanceof Error ? err.message : "Unknown error");
+        const kind = classifyScanError(message, category);
+
+        if (isFormValidationError(kind)) {
+          setFieldError(kind);
+          setMarkState("idle");
+          setProgressLabel(null);
+          setScanError(null);
+        } else {
+          setScanLevelFailure(kind === "generic" ? "internal_error" : kind);
+        }
+        setPollingJobId(null);
+      },
+    },
+  );
 
   // Restore the last scan for this browser tab after navigating away.
   useEffect(() => {
@@ -285,7 +430,7 @@ export function ScanWorkspace() {
           if (status.error_category === "duplicate_in_progress") {
             setProgressLabel("A scan for this URL is already in progress…");
             setMarkState("processing");
-            await pollUntilDone(status.job_id);
+            startPolling(status.job_id);
             return;
           }
           const kind = classifyScanError(
@@ -300,7 +445,7 @@ export function ScanWorkspace() {
 
         setProgressLabel(status.progress ?? "Resuming scan…");
         setMarkState("processing");
-        await pollUntilDone(status.job_id);
+        startPolling(status.job_id);
       } catch {
         if (!cancelled) clearActiveScan();
       }
@@ -310,7 +455,6 @@ export function ScanWorkspace() {
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only resume
   }, []);
 
   async function startScan(options?: {
@@ -324,6 +468,9 @@ export function ScanWorkspace() {
     setScan(null);
     setFindings([]);
     setAttachedNote(false);
+    setPollingJobId(null);
+    setCurrentCategory(null);
+    setCompletedCategories([]);
 
     const trimmed = (options?.urlOverride ?? url).trim();
     if (options?.urlOverride) {
@@ -369,7 +516,7 @@ export function ScanWorkspace() {
         return;
       }
 
-      await pollUntilDone(job.job_id);
+      startPolling(job.job_id);
     } catch (err) {
       const apiErr =
         err instanceof ScanApiError
@@ -400,8 +547,9 @@ export function ScanWorkspace() {
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
-    if (suggestion) {
-      await acceptSuggestion(suggestion);
+    if (suggestionCount > 0) {
+      const target = highlightIndex >= 0 ? highlightIndex : 0;
+      await acceptSuggestion(suggestions[target]);
       return;
     }
     await startScan();
@@ -412,35 +560,42 @@ export function ScanWorkspace() {
     await startScan({ forceFresh: true });
   }
 
-  function acceptSuggestion(entry: KnownDomain) {
+  function acceptSuggestion(entry: ScanUrlSuggestion) {
     setSuggestionDismissed(true);
+    setHighlightIndex(-1);
     setFieldError(null);
     return startScan({ urlOverride: entry.url });
   }
 
   function onUrlKeyDown(e: KeyboardEvent<HTMLInputElement>) {
-    if (busy || !suggestion) return;
+    if (busy || suggestionCount === 0) return;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setHighlightIndex((i) => (i + 1) % suggestionCount);
+      return;
+    }
+    if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setHighlightIndex((i) => (i <= 0 ? suggestionCount - 1 : i - 1));
+      return;
+    }
     if (e.key === "Tab" || e.key === "Enter") {
       e.preventDefault();
-      void acceptSuggestion(suggestion);
+      void acceptSuggestion(
+        suggestions[highlightIndex >= 0 ? highlightIndex : 0],
+      );
       return;
     }
     if (e.key === "Escape") {
       e.preventDefault();
       setSuggestionDismissed(true);
+      setHighlightIndex(-1);
     }
   }
 
   return (
     <div className="flex flex-1 flex-col">
       <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-16 animate-fade-in">
-        <Link
-          href="/"
-          className="mb-8 inline-block text-sm text-icta-gray-600 hover:text-icta-black"
-        >
-          ← Back
-        </Link>
-
         <div className="mb-8 flex flex-col items-center gap-3 animate-fade-in-up">
           <SentinelMark state={markState} size={120} />
           <p className="text-center text-sm text-icta-gray-600">
@@ -502,12 +657,19 @@ export function ScanWorkspace() {
                 disabled={busy}
                 aria-invalid={Boolean(fieldError)}
                 aria-autocomplete="list"
-                aria-expanded={Boolean(suggestion)}
-                aria-controls={suggestion ? "domain-suggestion" : undefined}
+                aria-expanded={suggestionCount > 0}
+                aria-controls={
+                  suggestionCount > 0 ? "scan-suggestions" : undefined
+                }
+                aria-activedescendant={
+                  highlightIndex >= 0
+                    ? `scan-suggestion-${highlightIndex}`
+                    : undefined
+                }
                 aria-describedby={
                   [
                     fieldError ? "url-field-error" : null,
-                    suggestion ? "domain-suggestion" : null,
+                    suggestionCount > 0 ? "scan-suggestions" : null,
                   ]
                     .filter(Boolean)
                     .join(" ") || undefined
@@ -528,25 +690,45 @@ export function ScanWorkspace() {
                 </button>
               )}
             </div>
-            {suggestion && (
-              <button
-                type="button"
-                id="domain-suggestion"
-                onClick={() => void acceptSuggestion(suggestion)}
-                className="mt-1.5 flex w-full items-baseline justify-between gap-3 rounded-md border border-icta-gray-200 bg-icta-gray-50 px-3 py-2 text-left transition-colors hover:border-icta-black/30 hover:bg-white"
+            {suggestionCount > 0 && (
+              <ul
+                id="scan-suggestions"
+                role="listbox"
+                aria-label="Registry suggestions"
+                className="mt-1.5 overflow-hidden rounded-md border border-icta-gray-200 bg-white shadow-sm"
               >
-                <span className="min-w-0">
-                  <span className="block text-sm font-medium text-icta-black">
-                    {suggestion.name}
-                  </span>
-                  <span className="block truncate text-xs text-icta-gray-600">
-                    {suggestion.url}
-                  </span>
-                </span>
-                <span className="shrink-0 text-xs text-icta-gray-600">
-                  Tab / Enter
-                </span>
-              </button>
+                {suggestions.map((entry, i) => (
+                  <li
+                    key={entry.url}
+                    id={`scan-suggestion-${i}`}
+                    role="option"
+                    aria-selected={i === highlightIndex}
+                  >
+                    <button
+                      type="button"
+                      onMouseEnter={() => setHighlightIndex(i)}
+                      onClick={() => void acceptSuggestion(entry)}
+                      className={`flex w-full items-baseline justify-between gap-3 px-3 py-2 text-left transition-colors ${
+                        i === highlightIndex
+                          ? "bg-icta-gray-100"
+                          : "hover:bg-icta-gray-50"
+                      }`}
+                    >
+                      <span className="min-w-0">
+                        <span className="block text-sm font-medium text-icta-black">
+                          {entry.name}
+                        </span>
+                        <span className="block truncate text-xs text-icta-gray-600">
+                          {entry.url}
+                        </span>
+                      </span>
+                      <span className="shrink-0 text-xs text-icta-gray-600">
+                        {entry.source === "registry" ? "Registry" : "Known"}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
             )}
             {fieldError && (
               <p
@@ -572,30 +754,32 @@ export function ScanWorkspace() {
           </button>
         </form>
 
+        {markState === "processing" && (
+          <ScanProgressChecklist
+            completed={completedSet}
+            current={currentCategory}
+          />
+        )}
+
         {scanError && markState === "error" && (
-          <div
-            className="mb-8 rounded-md border border-icta-red/20 bg-icta-red/5 px-4 py-4"
-            role="alert"
-          >
-            <p className="text-sm text-icta-gray-600">
-              {scanFailureMessage(scanError.kind)}
-            </p>
-            <button
-              type="button"
-              onClick={onRetry}
-              className={`mt-4 ${btnSecondarySm}`}
-            >
-              Try again
-            </button>
-          </div>
+          <ErrorState
+            className="mb-8"
+            muted
+            message={scanFailureMessage(scanError.kind)}
+            action={
+              <button type="button" onClick={onRetry} className={btnSecondarySm}>
+                Try again
+              </button>
+            }
+          />
         )}
 
         {showEmptyIdle && <EmptyIdle />}
 
         {showEmptyComplete && (
-          <div className="rounded-md border border-dashed border-icta-gray-200 px-4 py-8 text-center text-sm text-icta-gray-600">
+          <EmptyState className="py-8">
             Scan finished, but no findings were returned.
-          </div>
+          </EmptyState>
         )}
 
         {scan && findings.length > 0 && (

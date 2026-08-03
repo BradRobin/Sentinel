@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
 
 import { AuthShell } from "@/components/AuthShell";
+import { ErrorState } from "@/components/ErrorState";
 import { AuthError, getCurrentUser, loginUser } from "@/lib/auth";
 import { btnPrimary, inputBase, inputError } from "@/lib/ui";
 
@@ -97,11 +98,7 @@ export default function LoginPage() {
           />
         </div>
 
-        {error && (
-          <p className="rounded-md border border-icta-red/20 bg-icta-red/5 px-3 py-2 text-sm text-icta-red" role="alert">
-            {error}
-          </p>
-        )}
+        {error && <ErrorState compact message={error} />}
 
         <button type="submit" disabled={submitting} className={`${btnPrimary} w-full`}>
           {submitting ? "Logging in…" : "Log in"}

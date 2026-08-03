@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { ErrorState } from "@/components/ErrorState";
+import { Skeleton } from "@/components/Skeleton";
 import { STANDARDS_PDF_PATH } from "@/lib/standards";
 
 type HighlightBox = { left: number; top: number; width: number; height: number };
@@ -11,6 +13,8 @@ interface StandardsPdfPageProps {
   /** Exact text to locate and highlight on the page. */
   highlightText?: string | null;
   title: string;
+  /** Reports the loaded document's total page count. */
+  onDocumentInfo?: (info: { pageCount: number; pageNumber: number }) => void;
 }
 
 function compactText(value: string): string {
@@ -83,6 +87,7 @@ export function StandardsPdfPage({
   pageNumber,
   highlightText,
   title,
+  onDocumentInfo,
 }: StandardsPdfPageProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -114,6 +119,7 @@ export function StandardsPdfPage({
         const pdf = await loadingTask.promise;
         destroyPdf = () => pdf.destroy();
         if (cancelled) return;
+        onDocumentInfo?.({ pageCount: pdf.numPages, pageNumber });
 
         const page = await pdf.getPage(pageNumber);
         if (cancelled) return;
@@ -177,7 +183,7 @@ export function StandardsPdfPage({
       cancelled = true;
       void destroyPdf?.();
     };
-  }, [pageNumber, highlightText]);
+  }, [pageNumber, highlightText, onDocumentInfo]);
 
   useEffect(() => {
     if (boxes.length === 0) return;
@@ -190,15 +196,15 @@ export function StandardsPdfPage({
   return (
     <div ref={containerRef} className="relative w-full">
       {loading ? (
-        <p className="absolute inset-x-0 top-8 z-10 text-center text-sm text-icta-gray-600">
-          Loading page {pageNumber}…
-        </p>
+        <div
+          className="absolute inset-x-0 top-8 z-10 flex justify-center"
+          role="status"
+          aria-busy="true"
+        >
+          <Skeleton className="h-4 w-40 rounded-md" />
+        </div>
       ) : null}
-      {error ? (
-        <p className="rounded-md border border-icta-red/20 bg-icta-red/5 px-4 py-3 text-sm text-icta-red">
-          {error}
-        </p>
-      ) : null}
+      {error ? <ErrorState message={error} className="mb-3" /> : null}
       <div
         className="relative mx-auto overflow-auto rounded-md border border-icta-gray-200 bg-icta-gray-50"
         style={{ maxHeight: "min(80vh, 900px)" }}

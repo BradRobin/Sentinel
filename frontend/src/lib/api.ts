@@ -1,5 +1,8 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8001";
 
+/** Fallback timeout for every request; overridable per call via `timeoutMs`. */
+const DEFAULT_TIMEOUT_MS = 15_000;
+
 function formatApiDetail(detail: unknown): string {
   if (typeof detail === "string") return detail;
   if (
@@ -50,13 +53,84 @@ function parseScanErrorBody(body: unknown): {
   return { message, category };
 }
 
+/**
+ * Unified API error. `errorCategory` is a closed classification set
+ * (see `classifyScanError` in lib/findings.ts) so callers can map a failure
+ * to UI copy without parsing raw messages. `status` and `url` carry request
+ * context for diagnostics; raw exceptions/tracebacks never reach callers.
+ */
 export class ScanApiError extends Error {
   errorCategory: string | null;
-  constructor(message: string, errorCategory: string | null = null) {
+  status: number | null;
+  url?: string;
+
+  constructor(
+    message: string,
+    errorCategory: string | null = null,
+    details: { status?: number; url?: string } = {},
+  ) {
     super(message);
     this.name = "ScanApiError";
     this.errorCategory = errorCategory;
+    this.status = details.status ?? null;
+    this.url = details.url;
   }
+}
+
+type ApiRequestInit = RequestInit & { timeoutMs?: number };
+
+/**
+ * Single fetch wrapper for the Sentinel API.
+ * - Aborts after `timeoutMs` (default 15s) and maps it to ScanApiError("timeout").
+ * - Maps network failures to ScanApiError("unreachable").
+ * - Parses FastAPI error bodies into ScanApiError with a closed error set.
+ * - Defaults to `cache: "no-store"` (freshness matters for a live dashboard).
+ */
+async function request<T>(path: string, init: ApiRequestInit = {}): Promise<T> {
+  const { timeoutMs = DEFAULT_TIMEOUT_MS, ...fetchInit } = init;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  const headers = new Headers(fetchInit.headers);
+  if (fetchInit.body != null && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
+
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}${path}`, {
+      ...fetchInit,
+      headers,
+      signal: controller.signal,
+      cache: fetchInit.cache ?? "no-store",
+    });
+  } catch {
+    if (controller.signal.aborted) {
+      throw new ScanApiError(
+        `Request timed out after ${Math.round(timeoutMs / 1000)}s.`,
+        "timeout",
+        { url: `${API_URL}${path}` },
+      );
+    }
+    throw new ScanApiError(
+      "Failed to reach the Sentinel API. Check that Docker is running.",
+      "unreachable",
+      { url: `${API_URL}${path}` },
+    );
+  } finally {
+    clearTimeout(timeoutId);
+  }
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    const { message, category } = parseScanErrorBody(body);
+    throw new ScanApiError(message, category, {
+      status: res.status,
+      url: `${API_URL}${path}`,
+    });
+  }
+
+  if (res.status === 204) return undefined as T;
+  return (await res.json()) as T;
 }
 
 export interface HealthResponse {
@@ -193,87 +267,40 @@ export interface ComparisonAvailability {
   period_labels: Record<string, string>;
 }
 
-export async function fetchBackendHealth(): Promise<HealthResponse> {
-  const res = await fetch(`${API_URL}/health`, {
-    cache: "no-store",
-  });
-  if (!res.ok) {
-    throw new Error(`Backend health check failed: ${res.status}`);
-  }
-  return res.json();
+export function fetchBackendHealth(): Promise<HealthResponse> {
+  return request<HealthResponse>("/health");
 }
 
-export async function createScan(
+export function createScan(
   url: string,
   options?: { force?: boolean },
 ): Promise<ScanJobResponse> {
-  let res: Response;
-  try {
-    res = await fetch(`${API_URL}/api/v1/scans`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url, force: options?.force ?? false }),
-    });
-  } catch {
-    throw new ScanApiError(
-      "Failed to reach the Sentinel API. Check that Docker is running.",
-      "unreachable",
-    );
-  }
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    const { message, category } = parseScanErrorBody(body);
-    throw new ScanApiError(message, category);
-  }
-  return res.json();
-}
-
-export async function getScan(jobId: string): Promise<ScanStatusResponse> {
-  const res = await fetch(`${API_URL}/api/v1/scans/${jobId}`, {
-    cache: "no-store",
+  return request<ScanJobResponse>("/api/v1/scans", {
+    method: "POST",
+    body: JSON.stringify({ url, force: options?.force ?? false }),
   });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    const { message, category } = parseScanErrorBody(body);
-    throw new ScanApiError(message, category);
-  }
-  return res.json();
 }
 
-export async function getScanComparison(
+export function getScan(jobId: string): Promise<ScanStatusResponse> {
+  return request<ScanStatusResponse>(`/api/v1/scans/${jobId}`);
+}
+
+export function getScanComparison(
   jobId: string,
   period: ComparisonPeriod = "quarter",
 ): Promise<ComparisonResponse> {
   const params = new URLSearchParams({ period });
-  const res = await fetch(
-    `${API_URL}/api/v1/scans/${jobId}/comparison?${params}`,
-    { cache: "no-store" },
+  return request<ComparisonResponse>(
+    `/api/v1/scans/${jobId}/comparison?${params}`,
   );
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    const detail = formatApiDetail((body as { detail?: unknown }).detail);
-    throw new Error(
-      `${detail} (GET ${API_URL}/api/v1/scans/${jobId}/comparison)`,
-    );
-  }
-  return res.json();
 }
 
-export async function getScanComparisonAvailability(
+export function getScanComparisonAvailability(
   jobId: string,
 ): Promise<ComparisonAvailability> {
-  const res = await fetch(
-    `${API_URL}/api/v1/scans/${jobId}/comparison/availability`,
-    { cache: "no-store" },
+  return request<ComparisonAvailability>(
+    `/api/v1/scans/${jobId}/comparison/availability`,
   );
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    const detail = formatApiDetail((body as { detail?: unknown }).detail);
-    throw new Error(
-      `${detail} (GET ${API_URL}/api/v1/scans/${jobId}/comparison/availability)`,
-    );
-  }
-  return res.json();
 }
 
 export type RegistryTrend = "up" | "down" | "flat" | "unknown";
@@ -348,7 +375,7 @@ export interface RegistryScanBatchStatus {
   }>;
 }
 
-export async function getRegistry(options?: {
+export function getRegistry(options?: {
   orgType?: string;
   q?: string;
   limit?: number;
@@ -358,48 +385,21 @@ export async function getRegistry(options?: {
   if (options?.q) params.set("q", options.q);
   if (options?.limit) params.set("limit", String(options.limit));
   const qs = params.toString();
-  const res = await fetch(
-    `${API_URL}/api/v1/registry${qs ? `?${qs}` : ""}`,
-    { cache: "no-store" },
+  return request<RegistryListResponse>(
+    `/api/v1/registry${qs ? `?${qs}` : ""}`,
   );
-  if (!res.ok) {
-    throw new Error(`Registry list failed: ${res.status}`);
-  }
-  return res.json();
 }
 
-export async function startRegistryScan(): Promise<RegistryScanEnqueueResponse> {
-  let res: Response;
-  try {
-    res = await fetch(`${API_URL}/api/v1/registry/scan`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-    });
-  } catch {
-    throw new Error(
-      "Failed to reach the Sentinel API. Check that Docker is running.",
-    );
-  }
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    const detail = formatApiDetail((body as { detail?: unknown }).detail);
-    throw new Error(detail || `Registry scan failed: ${res.status}`);
-  }
-  return res.json();
+export function startRegistryScan(): Promise<RegistryScanEnqueueResponse> {
+  return request<RegistryScanEnqueueResponse>("/api/v1/registry/scan", {
+    method: "POST",
+  });
 }
 
-export async function getRegistryScanBatch(
+export function getRegistryScanBatch(
   batchId: string,
 ): Promise<RegistryScanBatchStatus> {
-  const res = await fetch(`${API_URL}/api/v1/registry/scan/${batchId}`, {
-    cache: "no-store",
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    const detail = formatApiDetail((body as { detail?: unknown }).detail);
-    throw new Error(detail || `Registry scan status failed: ${res.status}`);
-  }
-  return res.json();
+  return request<RegistryScanBatchStatus>(`/api/v1/registry/scan/${batchId}`);
 }
 
 export async function getRegistrySuggestions(
@@ -407,18 +407,13 @@ export async function getRegistrySuggestions(
   limit = 5,
 ): Promise<RegistrySuggestion[]> {
   const params = new URLSearchParams({ q, limit: String(limit) });
-  const res = await fetch(
-    `${API_URL}/api/v1/registry/suggestions?${params}`,
-    { cache: "no-store" },
+  const body = await request<{ items: RegistrySuggestion[] }>(
+    `/api/v1/registry/suggestions?${params}`,
   );
-  if (!res.ok) {
-    throw new Error(`Registry suggestions failed: ${res.status}`);
-  }
-  const body = (await res.json()) as { items: RegistrySuggestion[] };
   return body.items ?? [];
 }
 
-export async function getManualReviewQueueItems(args: {
+export function getManualReviewQueueItems(args: {
   officerId: string;
   check_type?: ManualReviewCheckType | "";
   category?: string | "";
@@ -441,45 +436,29 @@ export async function getManualReviewQueueItems(args: {
   if (domain_query?.trim()) params.set("domain_query", domain_query.trim());
   params.set("limit", String(limit));
 
-  const res = await fetch(
-    `${API_URL}/api/v1/manual-review/items?${params}`,
-    {
-      method: "GET",
-      headers: { "x-officer-id": officerId },
-      cache: "no-store",
-    },
+  return request<ManualReviewQueueItem[]>(
+    `/api/v1/manual-review/items?${params}`,
+    { headers: { "x-officer-id": officerId } },
   );
-  if (!res.ok) throw new Error(`Manual review queue load failed: ${res.status}`);
-  return (await res.json()) as ManualReviewQueueItem[];
 }
 
-export async function resolveManualReviewItem(args: {
+export function resolveManualReviewItem(args: {
   officerId: string;
   itemId: string;
   current_status: ManualReviewResolvedStatus;
   justification: string;
 }): Promise<{ ok: boolean; item_id: string }> {
-  const res = await fetch(
-    `${API_URL}/api/v1/manual-review/items/${encodeURIComponent(args.itemId)}/resolve`,
+  return request<{ ok: boolean; item_id: string }>(
+    `/api/v1/manual-review/items/${encodeURIComponent(args.itemId)}/resolve`,
     {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-officer-id": args.officerId,
-      },
+      headers: { "x-officer-id": args.officerId },
       body: JSON.stringify({
         current_status: args.current_status,
         justification: args.justification,
       }),
-      cache: "no-store",
     },
   );
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    const detail = formatApiDetail((body as { detail?: unknown }).detail);
-    throw new Error(detail || `Resolve failed: ${res.status}`);
-  }
-  return (await res.json()) as { ok: boolean; item_id: string };
 }
 
 export { API_URL };

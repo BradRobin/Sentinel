@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { AuthShell } from "@/components/AuthShell";
+import { ErrorState } from "@/components/ErrorState";
 import {
   getCurrentUser,
   updateUser,
@@ -224,14 +225,7 @@ export default function OnboardingPage() {
         </div>
       )}
 
-      {error && (
-        <p
-          className="mt-4 rounded-md border border-icta-red/20 bg-icta-red/5 px-3 py-2 text-sm text-icta-red"
-          role="alert"
-        >
-          {error}
-        </p>
-      )}
+      {error && <ErrorState compact message={error} className="mt-4" />}
 
       <div className="mt-6 flex items-center justify-between gap-3">
         {step > 0 ? (

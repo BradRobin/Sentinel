@@ -1,8 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
-
-import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
 
 import {
   getManualReviewQueueItems,
@@ -10,12 +8,16 @@ import {
   type ManualReviewQueueItem,
 } from "@/lib/api";
 import { ClauseLink } from "@/components/ClauseLink";
+import { EmptyState } from "@/components/EmptyState";
+import { ErrorState } from "@/components/ErrorState";
+import { Skeleton } from "@/components/Skeleton";
 import {
   btnPrimary,
   inputBase,
   inputError,
 } from "@/lib/ui";
 import { ManualReviewResolutionPanel } from "@/components/ManualReviewResolutionPanel";
+import { labelCategory, SCORED_CATEGORIES } from "@/lib/findings";
 
 const OFFICER_STORAGE_KEY = "sentinel.officer.id";
 
@@ -38,17 +40,6 @@ type QueueFilters = {
   domainQuery: string;
 };
 
-const CATEGORIES = [
-  "domain_identity",
-  "security",
-  "interoperability",
-  "accessibility",
-  "design_branding",
-  "multimedia_performance",
-  "legal_content",
-  "seo",
-] as const;
-
 export default function ReviewQueuePage() {
   const [officerId, setOfficerId] = useState<string>("");
   const [authError, setAuthError] = useState<string | null>(null);
@@ -65,6 +56,8 @@ export default function ReviewQueuePage() {
 
   const [selected, setSelected] = useState<ManualReviewQueueItem | null>(null);
   const [panelOpen, setPanelOpen] = useState(false);
+
+  const [summaryItems, setSummaryItems] = useState<ManualReviewQueueItem[]>([]);
 
   useEffect(() => {
     try {
@@ -101,6 +94,66 @@ export default function ReviewQueuePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [officerId, filters.check_type, filters.category, filters.domainQuery]);
 
+  // Whole-queue snapshot (no filters) so the by-type summary stays accurate
+  // while the list below is server-side filtered.
+  useEffect(() => {
+    if (!officerId.trim()) return;
+    let cancelled = false;
+    getManualReviewQueueItems({ officerId, limit: 400 })
+      .then((data) => {
+        if (!cancelled) setSummaryItems(data);
+      })
+      .catch(() => {
+        // Best-effort summary; the list surfaces real errors.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [officerId]);
+
+  const typeCounts = useMemo(() => {
+    const counts: Record<ManualReviewCheckType, number> = {
+      site_inspection: 0,
+      institutional_attestation: 0,
+    };
+    for (const it of summaryItems) {
+      if (it.check_type in counts) counts[it.check_type] += 1;
+    }
+    return counts;
+  }, [summaryItems]);
+
+  const categoryCounts = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const it of summaryItems) {
+      map.set(it.category, (map.get(it.category) ?? 0) + 1);
+    }
+    const ordered: { category: string; label: string; count: number }[] = [];
+    for (const c of SCORED_CATEGORIES) {
+      if (map.has(c)) {
+        ordered.push({ category: c, label: labelCategory(c), count: map.get(c)! });
+        map.delete(c);
+      }
+    }
+    for (const [category, count] of map) {
+      ordered.push({ category, label: labelCategory(category), count });
+    }
+    return ordered;
+  }, [summaryItems]);
+
+  function toggleCheckTypeFilter(type: ManualReviewCheckType) {
+    setFilters((prev) => ({
+      ...prev,
+      check_type: prev.check_type === type ? "" : type,
+    }));
+  }
+
+  function toggleCategoryFilter(category: string) {
+    setFilters((prev) => ({
+      ...prev,
+      category: prev.category === category ? "" : category,
+    }));
+  }
+
   function onOpenItem(item: ManualReviewQueueItem) {
     setSelected(item);
     setPanelOpen(true);
@@ -115,13 +168,7 @@ export default function ReviewQueuePage() {
       <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-10">
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div className="min-w-0">
-            <Link
-              href="/"
-              className="text-sm text-icta-gray-600 transition-colors hover:text-icta-black"
-            >
-              ← Back
-            </Link>
-            <h1 className="mt-2 text-2xl font-bold text-icta-black">
+            <h1 className="text-2xl font-bold text-icta-black">
               Officer manual review queue
             </h1>
             <p className="mt-1 text-sm text-icta-gray-600">
@@ -215,9 +262,9 @@ export default function ReviewQueuePage() {
                 className={inputBase}
               >
                 <option value="">All</option>
-                {CATEGORIES.map((c) => (
+                {SCORED_CATEGORIES.map((c) => (
                   <option key={c} value={c}>
-                    {c.replaceAll("_", " ")}
+                    {labelCategory(c)}
                   </option>
                 ))}
               </select>
@@ -241,13 +288,72 @@ export default function ReviewQueuePage() {
           </div>
         </section>
 
-        {error && (
-          <div
-            className="mb-4 rounded-md border border-icta-red/20 bg-icta-red/5 px-4 py-3 text-sm text-icta-red"
-            role="alert"
+        {error && <ErrorState message={error} className="mb-4" />}
+
+        {officerId.trim() && (
+          <section
+            className="mb-4 rounded-md border border-icta-gray-200 p-4"
+            aria-label="Pending items by type"
           >
-            {error}
-          </div>
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <h2 className="text-sm font-semibold text-icta-black">
+                Pending summary
+              </h2>
+              <p className="text-xs text-icta-gray-600">
+                {summaryItems.length} total pending
+              </p>
+            </div>
+
+            <div className="mt-3 flex flex-wrap gap-2">
+              {(["site_inspection", "institutional_attestation"] as const).map(
+                (type) => {
+                  const active = filters.check_type === type;
+                  const label =
+                    type === "site_inspection"
+                      ? "Site inspection"
+                      : "Institutional attestation";
+                  return (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => toggleCheckTypeFilter(type)}
+                      aria-pressed={active}
+                      className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                        active
+                          ? "border-icta-green bg-icta-green/10 text-icta-green"
+                          : "border-icta-gray-200 bg-white text-icta-gray-600 hover:bg-icta-gray-50"
+                      }`}
+                    >
+                      {label} · {typeCounts[type]}
+                    </button>
+                  );
+                },
+              )}
+            </div>
+
+            {categoryCounts.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {categoryCounts.map((c) => {
+                  const active = filters.category === c.category;
+                  return (
+                    <button
+                      key={c.category}
+                      type="button"
+                      onClick={() => toggleCategoryFilter(c.category)}
+                      aria-pressed={active}
+                      className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                        active
+                          ? "border-icta-green bg-icta-green/10 text-icta-green"
+                          : "border-icta-gray-200 bg-white text-icta-gray-600 hover:bg-icta-gray-50"
+                      }`}
+                    >
+                      {c.label} · {c.count}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </section>
         )}
 
         <section className="rounded-md border border-icta-gray-200">
@@ -263,13 +369,20 @@ export default function ReviewQueuePage() {
           </div>
 
           {loading ? (
-            <div className="px-4 py-6 text-sm text-icta-gray-600">
-              Loading…
+            <div
+              className="space-y-2.5 px-4 py-6"
+              role="status"
+              aria-busy="true"
+            >
+              <Skeleton className="h-4 w-2/3 rounded-md" />
+              <Skeleton className="h-4 w-1/2 rounded-md" />
+              <Skeleton className="h-4 w-3/5 rounded-md" />
+              <Skeleton className="h-4 w-2/3 rounded-md" />
             </div>
           ) : items.length === 0 ? (
-            <div className="px-4 py-6 text-sm text-icta-gray-600">
+            <EmptyState variant="inset">
               No pending items match the current filters.
-            </div>
+            </EmptyState>
           ) : (
             <ul className="divide-y divide-icta-gray-100">
               {items.map((it) => (
@@ -287,9 +400,19 @@ export default function ReviewQueuePage() {
                         Pending {formatPendingAge(it.pending_since)}
                       </span>
                     </div>
-                    <div className="text-xs text-icta-gray-600">
-                      {it.domain_url} ·{" "}
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-icta-gray-600">
+                      <span className="inline-flex rounded-full bg-icta-gray-100 px-2 py-0.5 font-medium text-icta-gray-600">
+                        {labelCategory(it.category)}
+                      </span>
+                      <span className="text-icta-gray-600">{it.domain_url}</span>
+                      <span aria-hidden="true">·</span>
                       <ClauseLink clause={it.clause_reference} showPrefix />
+                      <span aria-hidden="true">·</span>
+                      <span>
+                        {it.check_type === "site_inspection"
+                          ? "Site inspection"
+                          : "Institutional attestation"}
+                      </span>
                     </div>
                   </button>
                 </li>

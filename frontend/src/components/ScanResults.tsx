@@ -4,7 +4,9 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 import { ComparisonSidePanel } from "@/components/ComparisonSidePanel";
 import { ClauseLink, StandardDocLink } from "@/components/ClauseLink";
+import { EmptyState } from "@/components/EmptyState";
 import { FindingsSidePanel } from "@/components/FindingsSidePanel";
+import { Skeleton } from "@/components/Skeleton";
 import { CategoryScoreBars, StatusDonut } from "@/components/ScoreCharts";
 import {
   COMPARISON_PERIOD_OPTIONS,
@@ -16,6 +18,7 @@ import {
   type Finding,
 } from "@/lib/api";
 import {
+  badgeLabelForFinding,
   findingSummaryLine,
   findingVisualWeight,
   groupFindingsByCategory,
@@ -192,16 +195,7 @@ function FindingListItem({
   onOpen: () => void;
 }) {
   const weight = findingVisualWeight(finding.status, finding.severity);
-  const d = (finding.detail ?? {}) as Record<string, unknown>;
-  const officerReviewed = d.officer_reviewed === true;
-  const officerStatus = d.officer_resolution_status;
-  const badgeText = officerReviewed
-    ? officerStatus === "flagged"
-      ? "Officer-reviewed (Flagged)"
-      : "Officer-reviewed"
-    : finding.status === "manual_review"
-      ? "review"
-      : finding.status;
+  const badgeText = badgeLabelForFinding(finding);
   return (
     <li className={`hover:bg-icta-gray-50 ${weight.row}`}>
       <div className="flex items-start gap-3 px-3 py-2.5">
@@ -390,11 +384,7 @@ export function ScanResults({
   }
 
   if (findings.length === 0) {
-    return (
-      <div className="rounded-md border border-dashed border-icta-gray-200 px-4 py-8 text-center text-sm text-icta-gray-600">
-        No findings were returned for this scan.
-      </div>
-    );
+    return <EmptyState>No findings were returned for this scan.</EmptyState>;
   }
 
   return (
@@ -412,9 +402,7 @@ export function ScanResults({
             className="mb-3 rounded-md border border-dashed border-icta-gray-200 px-3 py-4"
             aria-live="polite"
           >
-            <p className="text-sm font-medium text-icta-gray-600">
-              Overall score pending…
-            </p>
+            <Skeleton className="mb-1 h-5 w-24 rounded-md" />
             <p className="mt-1 text-xs text-icta-gray-600">
               Weighted score and summary appear when all checks finish.
             </p>
@@ -565,9 +553,11 @@ export function ScanResults({
       ) : !resultsReady ? (
         <section aria-label="Scan summary pending" aria-busy="true">
           <h2 className="mb-2 text-lg font-semibold text-icta-black">Summary</h2>
-          <p className="text-sm text-icta-gray-600">
-            Summary will appear after scoring finishes.
-          </p>
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-full rounded-md" />
+            <Skeleton className="h-4 w-5/6 rounded-md" />
+            <Skeleton className="h-4 w-2/3 rounded-md" />
+          </div>
         </section>
       ) : null}
 
@@ -619,9 +609,11 @@ export function ScanResults({
           <h2 className="mb-3 text-lg font-semibold text-icta-black">
             Top issues
           </h2>
-          <p className="text-sm text-icta-gray-600">
-            Top issues will be ranked once all categories complete.
-          </p>
+          <div className="space-y-3">
+            <Skeleton className="h-14 w-full rounded-md" />
+            <Skeleton className="h-14 w-full rounded-md" />
+            <Skeleton className="h-14 w-4/5 rounded-md" />
+          </div>
         </section>
       ) : null}
 

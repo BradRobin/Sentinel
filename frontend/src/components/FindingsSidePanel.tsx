@@ -5,23 +5,17 @@ import { useEffect, useMemo } from "react";
 import { FindingDetailView } from "@/components/FindingDetailView";
 import { ClauseLink } from "@/components/ClauseLink";
 import type { Finding } from "@/lib/api";
-import { findingVisualWeight, labelCategory } from "@/lib/findings";
+import {
+  badgeLabelForFinding,
+  findingVisualWeight,
+  labelCategory,
+} from "@/lib/findings";
 import {
   btnGhost,
   panelBackdrop,
   panelHeader,
   panelShell,
 } from "@/lib/ui";
-
-function badgeLabelForFinding(finding: Finding): string {
-  const d = (finding.detail ?? {}) as Record<string, unknown>;
-  if (d.officer_reviewed === true) {
-    const rs = d.officer_resolution_status;
-    if (rs === "flagged") return "Officer-reviewed (Flagged)";
-    return "Officer-reviewed";
-  }
-  return finding.status === "manual_review" ? "review" : finding.status;
-}
 
 interface FindingsSidePanelProps {
   open: boolean;

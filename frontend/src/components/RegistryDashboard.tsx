@@ -1,17 +1,20 @@
 "use client";
 
-import Link from "next/link";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { SentinelMark } from "@/components/SentinelMark";
+import { ErrorState } from "@/components/ErrorState";
+import { RegistryDetailDrawer } from "@/components/RegistryDetailDrawer";
+import { Skeleton } from "@/components/Skeleton";
 import {
   getRegistry,
   getRegistryScanBatch,
   startRegistryScan,
   type RegistryEntry,
   type RegistryScanBatchStatus,
-  type RegistryTrend,
 } from "@/lib/api";
+import { useApiResource } from "@/hooks/useApiResource";
+import { usePolling } from "@/hooks/usePolling";
 import { copyScanUrl } from "@/lib/scan-url-clipboard";
 import {
   LEADERBOARD_METRIC_OPTIONS,
@@ -28,33 +31,90 @@ import {
   btnPrimary,
   btnSecondary,
   inputBase,
-  linkQuiet,
 } from "@/lib/ui";
+import { trendClass, trendLabel } from "@/lib/trend";
 
-function trendLabel(trend: RegistryTrend): string {
-  switch (trend) {
-    case "up":
-      return "Up";
-    case "down":
-      return "Down";
-    case "flat":
-      return "Flat";
-    default:
-      return "—";
+type OrgFilter = "all" | "ministry" | "agency" | "county";
+type DashboardView = "registry" | "leaderboard";
+type SortKey = "name" | "type" | "score" | "trend" | "checked" | "rank";
+type SortDir = "asc" | "desc";
+interface SortState {
+  key: SortKey;
+  dir: SortDir;
+}
+
+function sortedValue(
+  row: RegistryEntry,
+  key: SortKey,
+): string | number | null {
+  switch (key) {
+    case "name":
+      return (row.registered_name || row.org_name).toLowerCase();
+    case "type":
+      return row.org_type;
+    case "score":
+      return row.latest_score;
+    case "trend":
+      return row.trend;
+    case "checked":
+      return row.last_checked_at ?? "";
+    case "rank":
+      return row.latest_score;
   }
 }
 
-function trendClass(trend: RegistryTrend): string {
-  switch (trend) {
-    case "up":
-      return "text-icta-green";
-    case "down":
-      return "text-icta-red";
-    case "flat":
-      return "text-icta-gray-600";
-    default:
-      return "text-icta-gray-600";
-  }
+function compareSorted(a: RegistryEntry, b: RegistryEntry, key: SortKey): number {
+  const va = sortedValue(a, key);
+  const vb = sortedValue(b, key);
+  if (va === null && vb === null) return 0;
+  if (va === null) return 1;
+  if (vb === null) return -1;
+  if (typeof va === "number" && typeof vb === "number") return va - vb;
+  return String(va).localeCompare(String(vb));
+}
+
+function SortableHeader({
+  label,
+  sortKey,
+  sort,
+  onSort,
+  className,
+  right,
+}: {
+  label: string;
+  sortKey: SortKey;
+  sort: SortState | null;
+  onSort: (key: SortKey) => void;
+  className?: string;
+  right?: boolean;
+}) {
+  const active = sort?.key === sortKey;
+  const dir = active ? sort!.dir : null;
+  return (
+    <th
+      scope="col"
+      aria-sort={active ? (dir === "asc" ? "ascending" : "descending") : undefined}
+      className={className}
+    >
+      <button
+        type="button"
+        onClick={() => onSort(sortKey)}
+        className={`inline-flex items-center gap-1 font-medium uppercase tracking-wide transition-colors hover:text-icta-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-icta-black ${
+          right ? "justify-end" : ""
+        }`}
+      >
+        {label}
+        <span
+          className={`text-[10px] tabular-nums ${
+            active ? "text-icta-black" : "text-icta-gray-400"
+          }`}
+          aria-hidden="true"
+        >
+          {active ? (dir === "asc" ? "▲" : "▼") : "▴▾"}
+        </span>
+      </button>
+    </th>
+  );
 }
 
 function formatChecked(iso: string | null): string {
@@ -81,9 +141,6 @@ function formatDelta(delta: number | null): string | null {
 function orgTypeLabel(type: string): string {
   return type.charAt(0).toUpperCase() + type.slice(1);
 }
-
-type OrgFilter = "all" | "ministry" | "agency" | "county";
-type DashboardView = "registry" | "leaderboard";
 
 const BATCH_POLL_MS = 2500;
 const BATCH_STORAGE_KEY = "sentinel.registry.scanBatchId";
@@ -129,14 +186,14 @@ function StatusChip({
 }
 
 export function RegistryDashboard() {
-  const [items, setItems] = useState<RegistryEntry[]>([]);
-  const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
-  const [orgFilter, setOrgFilter] = useState<OrgFilter>("all");
+  const [request, setRequest] = useState<{ query: string; orgFilter: OrgFilter }>({
+    query: "",
+    orgFilter: "all",
+  });
   const [view, setView] = useState<DashboardView>("registry");
   const [leaderboardMetric, setLeaderboardMetric] =
     useState<LeaderboardMetric>("overall");
-  const [pending, startTransition] = useTransition();
   const [copiedDomainId, setCopiedDomainId] = useState<string | null>(null);
   const [scanStarting, setScanStarting] = useState(false);
   const [scanError, setScanError] = useState<string | null>(null);
@@ -145,11 +202,69 @@ export function RegistryDashboard() {
     null,
   );
   const [showFinishedBanner, setShowFinishedBanner] = useState(false);
+  const [drawerEntry, setDrawerEntry] = useState<RegistryEntry | null>(null);
+  const [sort, setSort] = useState<SortState | null>(null);
   const lastRefreshComplete = useRef(0);
-  const queryRef = useRef(query);
-  const orgFilterRef = useRef(orgFilter);
-  queryRef.current = query;
-  orgFilterRef.current = orgFilter;
+  const queryRef = useRef("");
+  const orgFilterRef = useRef<OrgFilter>("all");
+
+  const { data, loading, error, reload } = useApiResource(
+    () =>
+      getRegistry({
+        q: request.query.trim() || undefined,
+        orgType: request.orgFilter === "all" ? undefined : request.orgFilter,
+        limit: 300,
+      }),
+    [request],
+  );
+
+  const items = useMemo(() => data?.items ?? [], [data]);
+  const errorMessage =
+    error instanceof Error
+      ? error.message
+      : error
+        ? "Failed to load registry"
+        : null;
+
+  function load(nextQuery: string, nextFilter: OrgFilter) {
+    queryRef.current = nextQuery;
+    orgFilterRef.current = nextFilter;
+    setRequest({ query: nextQuery, orgFilter: nextFilter });
+    reload();
+  }
+
+  function toggleSort(key: SortKey) {
+    setSort((current) =>
+      current && current.key === key
+        ? { key, dir: current.dir === "asc" ? "desc" : "asc" }
+        : {
+            key,
+            dir:
+              key === "score" || key === "checked" || key === "rank"
+                ? "desc"
+                : "asc",
+          },
+    );
+  }
+
+  const sortedItems = useMemo(() => {
+    if (!sort) return items;
+    const dir = sort.dir === "asc" ? 1 : -1;
+    return [...items].sort(
+      (a, b) => compareSorted(a, b, sort.key) * dir,
+    );
+  }, [items, sort]);
+
+  const sortedLeaderboardRows = useMemo(() => {
+    const rows = rankRegistryEntries(items, leaderboardMetric);
+    if (!sort || sort.key !== "rank") return rows;
+    const dir = sort.dir === "asc" ? 1 : -1;
+    return [...rows].sort((a, b) => (a.rank_score - b.rank_score) * dir);
+  }, [items, leaderboardMetric, sort]);
+
+  function openDetails(row: RegistryEntry) {
+    setDrawerEntry(row);
+  }
 
   async function onCopyUrl(row: RegistryEntry) {
     await copyScanUrl(row.url);
@@ -161,27 +276,47 @@ export function RegistryDashboard() {
     }, 1600);
   }
 
-  function load(nextQuery: string, nextFilter: OrgFilter) {
-    startTransition(async () => {
-      try {
-        setError(null);
-        const data = await getRegistry({
-          q: nextQuery.trim() || undefined,
-          orgType: nextFilter === "all" ? undefined : nextFilter,
-          limit: 300,
-        });
-        setItems(data.items);
-      } catch (err) {
-        setError(
-          err instanceof Error ? err.message : "Failed to load registry",
-        );
-        setItems([]);
-      }
-    });
-  }
+  usePolling(
+    async () => {
+      const status = await getRegistryScanBatch(batchId!);
+      setBatchStatus(status);
+      setScanError(null);
 
+      const finished = status.counts.complete + status.counts.failed;
+      if (finished > lastRefreshComplete.current || status.done) {
+        lastRefreshComplete.current = finished;
+        load(queryRef.current, orgFilterRef.current);
+      }
+
+      if (status.done) {
+        setShowFinishedBanner(true);
+        try {
+          window.sessionStorage.removeItem(BATCH_STORAGE_KEY);
+        } catch {
+          // ignore
+        }
+        setBatchId(null);
+        return true;
+      }
+      return false;
+    },
+    [batchId],
+    {
+      intervalMs: BATCH_POLL_MS,
+      enabled: batchId !== null,
+      retryOnError: true,
+      onError: (err) => {
+        setScanError(
+          err instanceof Error
+            ? err.message
+            : "Failed to poll registry scan status",
+        );
+      },
+    },
+  );
+
+  // Restore an in-flight batch from a previous visit.
   useEffect(() => {
-    load("", "all");
     try {
       const saved = window.sessionStorage.getItem(BATCH_STORAGE_KEY);
       if (saved) setBatchId(saved);
@@ -189,58 +324,6 @@ export function RegistryDashboard() {
       // ignore storage errors
     }
   }, []);
-
-  useEffect(() => {
-    if (!batchId) return;
-
-    let cancelled = false;
-    let timer: number | undefined;
-
-    async function tick() {
-      try {
-        const status = await getRegistryScanBatch(batchId!);
-        if (cancelled) return;
-        setBatchStatus(status);
-        setScanError(null);
-
-        const finished = status.counts.complete + status.counts.failed;
-        if (finished > lastRefreshComplete.current || status.done) {
-          lastRefreshComplete.current = finished;
-          load(queryRef.current, orgFilterRef.current);
-        }
-
-        if (status.done) {
-          setShowFinishedBanner(true);
-          try {
-            window.sessionStorage.removeItem(BATCH_STORAGE_KEY);
-          } catch {
-            // ignore
-          }
-          setBatchId(null);
-          return;
-        }
-      } catch (err) {
-        if (!cancelled) {
-          setScanError(
-            err instanceof Error
-              ? err.message
-              : "Failed to poll registry scan status",
-          );
-        }
-      }
-      if (!cancelled) {
-        timer = window.setTimeout(() => {
-          void tick();
-        }, BATCH_POLL_MS);
-      }
-    }
-
-    void tick();
-    return () => {
-      cancelled = true;
-      if (timer !== undefined) window.clearTimeout(timer);
-    };
-  }, [batchId]);
 
   async function onScanAll() {
     setScanStarting(true);
@@ -288,7 +371,7 @@ export function RegistryDashboard() {
       : "bg-icta-green"
     : "bg-icta-black";
 
-  const leaderboardRows = rankRegistryEntries(items, leaderboardMetric);
+  const leaderboardRows = sortedLeaderboardRows;
   const activeMetric =
     LEADERBOARD_METRIC_OPTIONS.find((m) => m.value === leaderboardMetric) ??
     LEADERBOARD_METRIC_OPTIONS[0];
@@ -298,10 +381,6 @@ export function RegistryDashboard() {
   return (
     <div className="flex flex-1 flex-col">
       <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-12 sm:py-16">
-        <Link href="/" className={`mb-8 inline-block ${linkQuiet}`}>
-          ← Back
-        </Link>
-
         <header className="mb-8">
           <h1 className="mb-2 text-2xl font-bold tracking-tight text-icta-black sm:text-3xl">
             MCDA registry
@@ -354,7 +433,7 @@ export function RegistryDashboard() {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter") load(query, orgFilter);
+                  if (e.key === "Enter") load(query, request.orgFilter);
                 }}
                 placeholder="Name, alias, or URL…"
                 className={inputBase}
@@ -372,11 +451,11 @@ export function RegistryDashboard() {
               </button>
               <button
                 type="button"
-                onClick={() => load(query, orgFilter)}
-                disabled={pending}
+                onClick={() => load(query, request.orgFilter)}
+                disabled={loading}
                 className={btnSecondary}
               >
-                {pending ? "Refreshing…" : "Refresh list"}
+                {loading ? "Refreshing…" : "Refresh list"}
               </button>
             </div>
           </div>
@@ -399,21 +478,30 @@ export function RegistryDashboard() {
                   key={value}
                   type="button"
                   onClick={() => {
-                    setOrgFilter(value);
+                    setRequest((current) => ({
+                      ...current,
+                      orgFilter: value,
+                    }));
                     load(query, value);
                   }}
                   className={
-                    orgFilter === value ? btnFilterActive : btnFilterIdle
+                    request.orgFilter === value
+                      ? btnFilterActive
+                      : btnFilterIdle
                   }
                 >
                   {label}
                 </button>
               ))}
             </div>
-            <p className="text-xs tabular-nums text-icta-gray-600">
-              {pending ? "Loading…" : `${items.length} MCDAs`}
-              {!pending && scored > 0 ? ` · ${scored} with scores` : ""}
-            </p>
+            <div className="text-xs tabular-nums text-icta-gray-600">
+              {loading ? (
+                <Skeleton className="h-4 w-32 rounded-md" />
+              ) : (
+                `${items.length} MCDAs`
+              )}
+              {!loading && scored > 0 ? ` · ${scored} with scores` : ""}
+            </div>
           </div>
 
           {view === "leaderboard" && (
@@ -571,44 +659,75 @@ export function RegistryDashboard() {
           </section>
         )}
 
-        {scanError && (
-          <div
-            className="mb-6 rounded-md border border-icta-red/20 bg-icta-red/5 px-4 py-3 text-sm text-icta-red"
-            role="alert"
-          >
-            {scanError}
-          </div>
-        )}
+        {scanError && <ErrorState message={scanError} className="mb-6" />}
 
-        {error && (
-          <div
-            className="mb-6 rounded-md border border-icta-red/20 bg-icta-red/5 px-4 py-3 text-sm text-icta-red"
-            role="alert"
-          >
-            {error}
-            <span className="mt-1 block text-icta-gray-600">
-              Check that the API is running and can reach Postgres. With Docker,
-              <code className="mx-1 text-xs">docker compose up --build</code>
-              starts a local DB and seeds the MCDA registry automatically.
-            </span>
-          </div>
+        {errorMessage && (
+          <ErrorState
+            message={errorMessage}
+            className="mb-6"
+            hint={
+              <>
+                Check that the API is running and can reach Postgres. With
+                Docker,{" "}
+                <code className="mx-1 text-xs">
+                  docker compose up --build
+                </code>{" "}
+                starts a local DB and seeds the MCDA registry automatically.
+              </>
+            }
+          />
         )}
 
         <div className="overflow-x-auto">
           <table className="w-full min-w-[40rem] text-left text-sm">
             <thead>
               <tr className="border-b border-icta-gray-200 text-xs uppercase tracking-wide text-icta-gray-600">
-                <th className="w-10 py-3 pr-3 font-medium tabular-nums">#</th>
-                <th className="py-3 pr-4 font-medium">Organization</th>
-                <th className="py-3 pr-4 font-medium">Type</th>
-                <th className="py-3 pr-4 font-medium">{scoreColumnLabel}</th>
+                <th
+                  scope="col"
+                  className="w-10 py-3 pr-3 font-medium tabular-nums"
+                >
+                  #
+                </th>
+                <SortableHeader
+                  label="Organization"
+                  sortKey="name"
+                  sort={sort}
+                  onSort={toggleSort}
+                  className="py-3 pr-4"
+                />
+                <SortableHeader
+                  label="Type"
+                  sortKey="type"
+                  sort={sort}
+                  onSort={toggleSort}
+                  className="py-3 pr-4"
+                />
+                <SortableHeader
+                  label={scoreColumnLabel}
+                  sortKey={view === "leaderboard" ? "rank" : "score"}
+                  sort={sort}
+                  onSort={toggleSort}
+                  className="py-3 pr-4"
+                />
                 {view === "leaderboard" && leaderboardMetric !== "overall" && (
                   <th className="py-3 pr-4 font-medium">Overall</th>
                 )}
                 {view === "registry" && (
                   <>
-                    <th className="py-3 pr-4 font-medium">Trend</th>
-                    <th className="py-3 pr-4 font-medium">Last checked</th>
+                    <SortableHeader
+                      label="Trend"
+                      sortKey="trend"
+                      sort={sort}
+                      onSort={toggleSort}
+                      className="py-3 pr-4"
+                    />
+                    <SortableHeader
+                      label="Last checked"
+                      sortKey="checked"
+                      sort={sort}
+                      onSort={toggleSort}
+                      className="py-3 pr-4"
+                    />
                   </>
                 )}
                 <th className="py-3 text-right font-medium">
@@ -617,10 +736,27 @@ export function RegistryDashboard() {
               </tr>
             </thead>
             <tbody>
+              {loading && items.length === 0 && (
+                <tr>
+                  <td
+                    colSpan={view === "leaderboard" ? 6 : 7}
+                    className="px-4 py-8"
+                    role="status"
+                    aria-busy="true"
+                  >
+                    <div className="space-y-3">
+                      <Skeleton className="h-5 w-full rounded-md" />
+                      <Skeleton className="h-5 w-5/6 rounded-md" />
+                      <Skeleton className="h-5 w-2/3 rounded-md" />
+                      <Skeleton className="h-5 w-3/4 rounded-md" />
+                    </div>
+                  </td>
+                </tr>
+              )}
               {view === "registry" &&
                 items.length === 0 &&
-                !pending &&
-                !error && (
+                !loading &&
+                !errorMessage && (
                   <tr>
                     <td
                       colSpan={7}
@@ -633,8 +769,8 @@ export function RegistryDashboard() {
                 )}
               {view === "leaderboard" &&
                 leaderboardRows.length === 0 &&
-                !pending &&
-                !error && (
+                !loading &&
+                !errorMessage && (
                   <tr>
                     <td
                       colSpan={leaderboardMetric === "overall" ? 5 : 6}
@@ -647,7 +783,7 @@ export function RegistryDashboard() {
                   </tr>
                 )}
               {view === "registry" &&
-                items.map((row, index) => (
+                sortedItems.map((row, index) => (
                   <tr
                     key={row.domain_id}
                     className="border-b border-icta-gray-100 align-top transition-colors hover:bg-icta-gray-50/80 animate-fade-in"
@@ -658,9 +794,14 @@ export function RegistryDashboard() {
                     </td>
                     <td className="py-3 pr-4">
                       <div className="flex flex-wrap items-center gap-1.5">
-                        <span className="font-medium text-icta-black">
+                        <button
+                          type="button"
+                          onClick={() => openDetails(row)}
+                          className="font-medium text-icta-black underline decoration-transparent underline-offset-2 transition-colors hover:decoration-icta-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-icta-black"
+                          aria-label={`View details for ${row.registered_name || row.org_name}`}
+                        >
                           {row.registered_name || row.org_name}
-                        </span>
+                        </button>
                         {row.sector && (
                           <span className="rounded-md bg-icta-gray-100 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-icta-gray-600">
                             {row.sector}
@@ -737,9 +878,14 @@ export function RegistryDashboard() {
                       {index + 1}
                     </td>
                     <td className="py-3 pr-4">
-                      <div className="font-medium text-icta-black">
+                      <button
+                        type="button"
+                        onClick={() => openDetails(row)}
+                        className="font-medium text-icta-black underline decoration-transparent underline-offset-2 transition-colors hover:decoration-icta-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-icta-black"
+                        aria-label={`View details for ${row.registered_name || row.org_name}`}
+                      >
                         {row.registered_name || row.org_name}
-                      </div>
+                      </button>
                       <a
                         href={row.url}
                         target="_blank"
@@ -775,6 +921,13 @@ export function RegistryDashboard() {
             </tbody>
           </table>
         </div>
+
+        <RegistryDetailDrawer
+          open={Boolean(drawerEntry)}
+          entry={drawerEntry}
+          peers={items}
+          onClose={() => setDrawerEntry(null)}
+        />
       </main>
     </div>
   );

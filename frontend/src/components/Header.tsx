@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 
 import { SentinelMark } from "@/components/SentinelMark";
 import { authSubscribe, logoutUser, readSession, readSessionServer } from "@/lib/auth";
@@ -16,21 +16,44 @@ const NAV_LINKS = [
   { href: "/review", label: "Review" },
 ] as const;
 
+function isActive(pathname: string, href: string): boolean {
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
 export function Header() {
   const pathname = usePathname();
   const router = useRouter();
   const user = useSyncExternalStore(authSubscribe, readSession, readSessionServer);
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMenuOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [menuOpen]);
 
   function onSignOut() {
+    setMenuOpen(false);
     logoutUser();
     router.push("/");
   }
+
+  const linkClasses = (href: string) =>
+    `rounded-md px-3 py-1.5 text-sm transition-colors ${
+      isActive(pathname, href)
+        ? "bg-icta-gray-100 font-medium text-icta-black"
+        : "text-icta-gray-600 hover:bg-icta-gray-50 hover:text-icta-black"
+    }`;
 
   return (
     <header className="sticky top-0 z-30 border-b border-icta-gray-200 bg-white/90 backdrop-blur">
       <div className="mx-auto flex h-14 w-full max-w-6xl items-center justify-between gap-4 px-6">
         <Link
           href="/"
+          onClick={() => setMenuOpen(false)}
           className="flex shrink-0 items-center gap-2.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-icta-black"
           aria-label="Sentinel home"
         >
@@ -38,26 +61,12 @@ export function Header() {
           <span className="text-base font-bold text-icta-black">Sentinel</span>
         </Link>
 
-        <nav
-          aria-label="Main"
-          className="hidden items-center gap-1 md:flex"
-        >
-          {NAV_LINKS.map((link) => {
-            const active = pathname === link.href || pathname.startsWith(`${link.href}/`);
-            return (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={`rounded-md px-3 py-1.5 text-sm transition-colors ${
-                  active
-                    ? "bg-icta-gray-100 font-medium text-icta-black"
-                    : "text-icta-gray-600 hover:bg-icta-gray-50 hover:text-icta-black"
-                }`}
-              >
-                {link.label}
-              </Link>
-            );
-          })}
+        <nav aria-label="Main" className="hidden items-center gap-1 md:flex">
+          {NAV_LINKS.map((link) => (
+            <Link key={link.href} href={link.href} className={linkClasses(link.href)}>
+              {link.label}
+            </Link>
+          ))}
         </nav>
 
         <div className="flex shrink-0 items-center gap-2">
@@ -87,8 +96,52 @@ export function Header() {
               </Link>
             </>
           )}
+
+          <button
+            type="button"
+            onClick={() => setMenuOpen((open) => !open)}
+            aria-expanded={menuOpen}
+            aria-controls="mobile-nav"
+            aria-label={menuOpen ? "Close menu" : "Open menu"}
+            className="inline-flex size-9 shrink-0 items-center justify-center rounded-md text-icta-gray-600 transition-colors hover:bg-icta-gray-50 hover:text-icta-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-icta-black md:hidden"
+          >
+            {menuOpen ? (
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-5" aria-hidden="true">
+                <path d="M18 6 6 18M6 6l12 12" />
+              </svg>
+            ) : (
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-5" aria-hidden="true">
+                <path d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            )}
+          </button>
         </div>
       </div>
+
+      {menuOpen && (
+        <nav
+          id="mobile-nav"
+          aria-label="Main"
+          className="border-t border-icta-gray-200 bg-white px-4 py-3 md:hidden"
+        >
+          <div className="flex flex-col gap-1">
+            {NAV_LINKS.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                onClick={() => setMenuOpen(false)}
+                className={`rounded-md px-3 py-2 text-sm transition-colors ${
+                  isActive(pathname, link.href)
+                    ? "bg-icta-gray-100 font-medium text-icta-black"
+                    : "text-icta-gray-600 hover:bg-icta-gray-50 hover:text-icta-black"
+                }`}
+              >
+                {link.label}
+              </Link>
+            ))}
+          </div>
+        </nav>
+      )}
     </header>
   );
 }

@@ -3,6 +3,9 @@
 Thumbs.db
 *.swp
 
+# opencode skills
+.opencode/skills/
+
 # Celery runtime artifacts
 celerybeat-schedule
 celerybeat-schedule.db

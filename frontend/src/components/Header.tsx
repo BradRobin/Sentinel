@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, useSyncExternalStore } from "react";
+import { LogOut, Menu, X } from "lucide-react";
 
 import { SentinelMark } from "@/components/SentinelMark";
 import { authSubscribe, logoutUser, readSession, readSessionServer } from "@/lib/auth";
-import { btnGhost, btnPrimary, btnSecondarySm } from "@/lib/ui";
+import { btnGhost, btnPrimary, btnSecondarySm, iconBtn } from "@/lib/ui";
 
 const NAV_LINKS = [
   { href: "/scan", label: "Scan" },
@@ -80,6 +81,7 @@ export function Header() {
                 onClick={onSignOut}
                 className={`${btnGhost} hidden sm:inline-flex`}
               >
+                <LogOut className="size-3.5" aria-hidden="true" />
                 Sign out
               </button>
               <Link href="/scan" className={`${btnPrimary} sm:hidden`}>
@@ -103,16 +105,12 @@ export function Header() {
             aria-expanded={menuOpen}
             aria-controls="mobile-nav"
             aria-label={menuOpen ? "Close menu" : "Open menu"}
-            className="inline-flex size-9 shrink-0 items-center justify-center rounded-md text-icta-gray-600 transition-colors hover:bg-icta-gray-50 hover:text-icta-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-icta-black md:hidden"
+            className={iconBtn}
           >
             {menuOpen ? (
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-5" aria-hidden="true">
-                <path d="M18 6 6 18M6 6l12 12" />
-              </svg>
+              <X className="size-5" aria-hidden="true" />
             ) : (
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-5" aria-hidden="true">
-                <path d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
+              <Menu className="size-5" aria-hidden="true" />
             )}
           </button>
         </div>
@@ -122,7 +120,7 @@ export function Header() {
         <nav
           id="mobile-nav"
           aria-label="Main"
-          className="border-t border-icta-gray-200 bg-white px-4 py-3 md:hidden"
+          className="animate-fade-in-down border-t border-icta-gray-200 bg-white px-4 py-3 md:hidden"
         >
           <div className="flex flex-col gap-1">
             {NAV_LINKS.map((link) => (
@@ -139,6 +137,16 @@ export function Header() {
                 {link.label}
               </Link>
             ))}
+            {user && (
+              <button
+                type="button"
+                onClick={onSignOut}
+                className="flex items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-icta-gray-600 transition-colors hover:bg-icta-gray-50 hover:text-icta-black"
+              >
+                <LogOut className="size-4" aria-hidden="true" />
+                Sign out
+              </button>
+            )}
           </div>
         </nav>
       )}

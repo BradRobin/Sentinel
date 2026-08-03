@@ -6,8 +6,9 @@ import { useEffect, useState, type FormEvent } from "react";
 
 import { AuthShell } from "@/components/AuthShell";
 import { ErrorState } from "@/components/ErrorState";
+import { Spinner } from "@/components/Spinner";
 import { AuthError, getCurrentUser, loginUser } from "@/lib/auth";
-import { btnPrimary, inputBase, inputError } from "@/lib/ui";
+import { btnPrimary, inputBase, inputError, textLink } from "@/lib/ui";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -46,7 +47,7 @@ export default function LoginPage() {
           No account yet?{" "}
           <Link
             href="/register"
-            className="font-medium text-icta-link underline decoration-from-font underline-offset-2 hover:opacity-80"
+            className={`font-medium ${textLink}`}
           >
             Create an account
           </Link>
@@ -101,7 +102,14 @@ export default function LoginPage() {
         {error && <ErrorState compact message={error} />}
 
         <button type="submit" disabled={submitting} className={`${btnPrimary} w-full`}>
-          {submitting ? "Logging in…" : "Log in"}
+          {submitting ? (
+            <>
+              <Spinner size="sm" />
+              Logging in…
+            </>
+          ) : (
+            "Log in"
+          )}
         </button>
       </form>
     </AuthShell>

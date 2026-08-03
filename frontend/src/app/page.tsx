@@ -1,8 +1,23 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import {
+  Activity,
+  ArrowRight,
+  BarChart3,
+  BookOpen,
+  CalendarClock,
+  ClipboardCheck,
+  LayoutGrid,
+  Map,
+  MapPin,
+  MessageSquare,
+  ScanSearch,
+  ShieldCheck,
+} from "lucide-react";
 
 import { StandardDocLink } from "@/components/ClauseLink";
 import { HomeHeroActions } from "@/components/HomeHeroActions";
+import { ScrollReveal } from "@/components/ScrollReveal";
 import { SentinelMark } from "@/components/SentinelMark";
 
 const BENEFITS: Array<{
@@ -14,66 +29,37 @@ const BENEFITS: Array<{
     title: "Automated compliance checks",
     description:
       "Every scan runs the ICTA.6.003:2023 §6.5 checklist automatically — domain identity, security, accessibility, and more.",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="size-5" aria-hidden="true">
-        <path d="m22 12-3-3-2-5H7l-2 5-3 3 3 3 2 5h10l2-5 3-3Z" />
-        <path d="m9 12 2 2 4-4" />
-      </svg>
-    ),
+    icon: <ShieldCheck className="size-5" aria-hidden="true" />,
   },
   {
     title: "Live MCDA registry",
     description:
       "Compliance scores for ministries, counties, and agencies in one dashboard — refreshed by weekly scans.",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="size-5" aria-hidden="true">
-        <path d="M3 3v18h18" />
-        <path d="M7 15l4-5 3 3 5-7" />
-      </svg>
-    ),
+    icon: <BarChart3 className="size-5" aria-hidden="true" />,
   },
   {
     title: "Kenya compliance map",
     description:
       "County websites colour-coded by compliance score, so gaps across the country are visible at a glance.",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="size-5" aria-hidden="true">
-        <path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 1 1 16 0Z" />
-        <circle cx="12" cy="10" r="3" />
-      </svg>
-    ),
+    icon: <MapPin className="size-5" aria-hidden="true" />,
   },
   {
     title: "Officer review workflow",
     description:
       "A guided manual review queue with sign-off steps and audit trail for checks that need a human decision.",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="size-5" aria-hidden="true">
-        <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5Z" />
-      </svg>
-    ),
+    icon: <MessageSquare className="size-5" aria-hidden="true" />,
   },
   {
     title: "Track progress over time",
     description:
       "Compare scans against earlier snapshots — weekly, monthly, quarterly, or yearly — and see what changed.",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="size-5" aria-hidden="true">
-        <rect x="3" y="4" width="18" height="16" rx="2" />
-        <path d="M8 2v4M16 2v4M3 9h18" />
-      </svg>
-    ),
+    icon: <CalendarClock className="size-5" aria-hidden="true" />,
   },
   {
     title: "Standards embedded",
     description:
       "Every finding links straight to the exact clause in the official standard PDF — no more hunting through documents.",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="size-5" aria-hidden="true">
-        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V2H6.5A2.5 2.5 0 0 0 4 4.5v15Z" />
-        <path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5" />
-      </svg>
-    ),
+    icon: <BookOpen className="size-5" aria-hidden="true" />,
   },
 ];
 
@@ -87,67 +73,37 @@ const TOOLS: Array<{
     href: "/scan",
     title: "Scan a site",
     description: "Run compliance checks on a .go.ke / .gov.ke site",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="size-5" aria-hidden="true">
-        <circle cx="11" cy="11" r="7" />
-        <path d="m21 21-4.3-4.3M8 11h6M11 8v6" />
-      </svg>
-    ),
+    icon: <ScanSearch className="size-5" aria-hidden="true" />,
   },
   {
     href: "/registry",
     title: "MCDA registry",
     description: "Compliance scores for ministries, counties & agencies",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="size-5" aria-hidden="true">
-        <rect x="3" y="3" width="7" height="7" rx="1.5" />
-        <rect x="14" y="3" width="7" height="7" rx="1.5" />
-        <rect x="3" y="14" width="7" height="7" rx="1.5" />
-        <rect x="14" y="14" width="7" height="7" rx="1.5" />
-      </svg>
-    ),
+    icon: <LayoutGrid className="size-5" aria-hidden="true" />,
   },
   {
     href: "/map",
     title: "Kenya map",
     description: "County compliance across the country at a glance",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="size-5" aria-hidden="true">
-        <path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 1 1 16 0Z" />
-        <circle cx="12" cy="10" r="3" />
-      </svg>
-    ),
+    icon: <Map className="size-5" aria-hidden="true" />,
   },
   {
     href: "/standards",
     title: "Standards",
     description: "ICTA.6.003:2023 §6.5 — the rulebook behind every scan",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="size-5" aria-hidden="true">
-        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V2H6.5A2.5 2.5 0 0 0 4 4.5v15Z" />
-        <path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5" />
-      </svg>
-    ),
+    icon: <BookOpen className="size-5" aria-hidden="true" />,
   },
   {
     href: "/review",
     title: "Officer review",
     description: "Guided manual review queue for site inspections",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="size-5" aria-hidden="true">
-        <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5Z" />
-      </svg>
-    ),
+    icon: <ClipboardCheck className="size-5" aria-hidden="true" />,
   },
   {
     href: "/health",
     title: "System health",
     description: "Frontend & backend connectivity check",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="size-5" aria-hidden="true">
-        <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
-      </svg>
-    ),
+    icon: <Activity className="size-5" aria-hidden="true" />,
   },
 ];
 
@@ -171,7 +127,7 @@ export default function Home() {
           </p>
 
           <h1
-            className="mb-4 text-4xl font-bold tracking-tight text-icta-black animate-fade-in-up sm:text-6xl"
+            className="mb-4 text-4xl font-bold tracking-tight text-icta-black animate-fade-in-up sm:text-6xl font-serif"
             style={{ animationDelay: "200ms" }}
           >
             Keep government websites compliant
@@ -216,21 +172,19 @@ export default function Home() {
 
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {BENEFITS.map((benefit, index) => (
-              <article
-                key={benefit.title}
-                className="card card-hover px-5 py-5 animate-fade-in-up"
-                style={{ animationDelay: `${index * 60}ms` }}
-              >
-                <span className="mb-3 flex size-10 items-center justify-center rounded-lg bg-icta-gray-50 text-icta-black ring-1 ring-inset ring-icta-gray-200">
-                  {benefit.icon}
-                </span>
-                <h3 className="mb-1.5 font-semibold text-icta-black">
-                  {benefit.title}
-                </h3>
-                <p className="text-sm leading-relaxed text-icta-gray-600">
-                  {benefit.description}
-                </p>
-              </article>
+              <ScrollReveal key={benefit.title} delay={index * 60}>
+                <article className="card card-hover h-full px-5 py-5">
+                  <span className="mb-3 flex size-10 items-center justify-center rounded-lg bg-icta-gray-50 text-icta-black ring-1 ring-inset ring-icta-gray-200">
+                    {benefit.icon}
+                  </span>
+                  <h3 className="mb-1.5 font-semibold text-icta-black">
+                    {benefit.title}
+                  </h3>
+                  <p className="text-sm leading-relaxed text-icta-gray-600">
+                    {benefit.description}
+                  </p>
+                </article>
+              </ScrollReveal>
             ))}
           </div>
         </section>
@@ -252,36 +206,28 @@ export default function Home() {
             className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"
           >
             {TOOLS.map((item, index) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="card card-hover group flex items-start gap-3 px-4 py-4 text-left animate-fade-in-up"
-                style={{ animationDelay: `${index * 60}ms` }}
-              >
-                <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg bg-icta-gray-50 text-icta-black ring-1 ring-inset ring-icta-gray-200 transition-colors group-hover:bg-icta-black group-hover:text-white">
-                  {item.icon}
-                </span>
-                <span className="min-w-0">
-                  <span className="flex items-center gap-1.5 text-sm font-semibold text-icta-black">
-                    {item.title}
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="size-3.5 -translate-x-0.5 text-icta-gray-600 transition-transform group-hover:translate-x-0 group-hover:text-icta-black"
-                      aria-hidden="true"
-                    >
-                      <path d="M5 12h14M13 6l6 6-6 6" />
-                    </svg>
+              <ScrollReveal key={item.href} delay={index * 60}>
+                <Link
+                  href={item.href}
+                  className="card card-hover group flex h-full items-start gap-3 px-4 py-4 text-left"
+                >
+                  <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg bg-icta-gray-50 text-icta-black ring-1 ring-inset ring-icta-gray-200 transition-colors group-hover:bg-icta-black group-hover:text-white">
+                    {item.icon}
                   </span>
-                  <span className="mt-0.5 block text-xs leading-relaxed text-icta-gray-600">
-                    {item.description}
+                  <span className="min-w-0">
+                    <span className="flex items-center gap-1.5 text-sm font-semibold text-icta-black">
+                      {item.title}
+                      <ArrowRight
+                        className="size-3.5 -translate-x-0.5 text-icta-gray-600 transition-transform group-hover:translate-x-0 group-hover:text-icta-black"
+                        aria-hidden="true"
+                      />
+                    </span>
+                    <span className="mt-0.5 block text-xs leading-relaxed text-icta-gray-600">
+                      {item.description}
+                    </span>
                   </span>
-                </span>
-              </Link>
+                </Link>
+              </ScrollReveal>
             ))}
           </nav>
         </section>

@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
+import { Copy, Minus, TrendingDown, TrendingUp, X } from "lucide-react";
 
 import type { RegistryEntry } from "@/lib/api";
 import { labelCategory, SCORED_CATEGORIES } from "@/lib/findings";
@@ -14,6 +15,8 @@ import {
   panelHeader,
   panelShell,
 } from "@/lib/ui";
+import { useSidePanel } from "@/hooks/useSidePanel";
+import { useToast } from "@/components/Toast";
 
 interface RegistryDetailDrawerProps {
   open: boolean;
@@ -62,13 +65,14 @@ function DeltaChip({ delta }: { delta: number | null | undefined }) {
   if (delta === null || delta === undefined) return null;
   const up = delta > 0;
   const down = delta < 0;
+  const Icon = up ? TrendingUp : down ? TrendingDown : Minus;
   return (
     <span
-      className={`inline-flex items-center gap-0.5 text-[11px] font-medium tabular-nums ${
+      className={`inline-flex items-center gap-1 text-[11px] font-medium tabular-nums ${
         up ? "text-icta-green" : down ? "text-icta-red" : "text-icta-gray-600"
       }`}
     >
-      <span aria-hidden="true">{up ? "▲" : down ? "▼" : "•"}</span>
+      <Icon className="size-3" aria-hidden="true" />
       {formatDelta(delta)}
     </span>
   );
@@ -80,14 +84,8 @@ export function RegistryDetailDrawer({
   peers,
   onClose,
 }: RegistryDetailDrawerProps) {
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+  const { toast } = useToast();
+  const panelRef = useSidePanel(open, onClose);
 
   const stats = useMemo(() => {
     if (!entry) return null;
@@ -148,6 +146,7 @@ export function RegistryDetailDrawer({
         aria-hidden={!open}
       />
       <aside
+        ref={panelRef}
         className={`${panelShell} ${
           open ? "translate-x-0" : "translate-x-full"
         }`}
@@ -155,6 +154,7 @@ export function RegistryDetailDrawer({
         aria-modal="true"
         aria-label={title}
         aria-hidden={!open}
+        tabIndex={-1}
       >
         <header className={panelHeader}>
           <div className="min-w-0">
@@ -176,11 +176,12 @@ export function RegistryDetailDrawer({
             className={btnGhost}
             aria-label="Close details"
           >
+            <X className="size-4" aria-hidden="true" />
             Close
           </button>
         </header>
 
-        <div className="flex-1 overflow-y-auto px-5 py-4">
+        <div className="panel-content-in flex-1 overflow-y-auto px-5 py-4">
           <div className="space-y-6">
             <div className="flex flex-wrap items-center gap-2">
               <span className="rounded-md bg-icta-gray-100 px-2 py-1 text-[11px] font-medium uppercase tracking-wide text-icta-gray-600">
@@ -325,7 +326,7 @@ export function RegistryDetailDrawer({
                         aria-label={`${row.label}: ${formatScore(row.score)} percent`}
                       >
                         <div
-                          className={`h-full rounded-sm ${
+                          className={`h-full rounded-sm transition-[width] duration-500 ease-out motion-reduce:transition-none ${
                             row.score === null
                               ? "bg-icta-gray-200"
                               : scoreBarColor(row.score)
@@ -353,8 +354,17 @@ export function RegistryDetailDrawer({
             <button
               type="button"
               className={btnMuted}
-              onClick={() => void copyScanUrl(entry.url)}
+              onClick={() => {
+                void copyScanUrl(entry.url);
+                toast({
+                  title: "Scan URL copied",
+                  description: `Paste into the scan page to check ${entry.url}`,
+                  variant: "info",
+                  duration: 2400,
+                });
+              }}
             >
+              <Copy className="size-3.5" aria-hidden="true" />
               Copy URL
             </button>
           </div>

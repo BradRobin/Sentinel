@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { ExternalLink, MoveRight, ScanSearch, TrendingDown, TrendingUp } from "lucide-react";
+import type { ReactNode } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
@@ -67,16 +69,31 @@ function countyStyle(feature?: GeoJSON.Feature): L.PathOptions {
   };
 }
 
-function trendMark(trend: string | null): string {
+function trendMark(trend: string | null): ReactNode {
   switch (trend) {
     case "up":
-      return "↑ improving";
+      return (
+        <span className="inline-flex items-center gap-1">
+          <TrendingUp className="size-3.5" aria-hidden="true" />
+          improving
+        </span>
+      );
     case "down":
-      return "↓ declining";
+      return (
+        <span className="inline-flex items-center gap-1">
+          <TrendingDown className="size-3.5" aria-hidden="true" />
+          declining
+        </span>
+      );
     case "flat":
-      return "→ stable";
+      return (
+        <span className="inline-flex items-center gap-1">
+          <MoveRight className="size-3.5" aria-hidden="true" />
+          stable
+        </span>
+      );
     default:
-      return "";
+      return null;
   }
 }
 
@@ -253,7 +270,7 @@ export function KenyaMapDashboard() {
 
             {tooltip && (
               <div
-                className="kenya-map-glass-card pointer-events-none absolute z-[1000] max-w-[16rem] rounded-xl border border-white/20 px-3.5 py-2.5 text-xs"
+                className="kenya-map-glass-card pop-in pointer-events-none absolute z-[1000] max-w-[16rem] rounded-xl border border-white/20 px-3.5 py-2.5 text-xs"
                 style={{
                   left: Math.min(
                     tooltip.x + 14,
@@ -320,6 +337,7 @@ export function KenyaMapDashboard() {
                         rel="noreferrer"
                         className={btnSecondarySm}
                       >
+                        <ExternalLink className="size-3.5" aria-hidden="true" />
                         Open site
                       </a>
                       <Link
@@ -329,6 +347,7 @@ export function KenyaMapDashboard() {
                           if (selected.url) void copyScanUrl(selected.url);
                         }}
                       >
+                        <ScanSearch className="size-3.5" aria-hidden="true" />
                         Scan
                       </Link>
                     </div>

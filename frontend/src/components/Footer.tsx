@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSyncExternalStore } from "react";
+import { LogOut } from "lucide-react";
 
 import { SentinelMark } from "@/components/SentinelMark";
 import { authSubscribe, logoutUser, readSession, readSessionServer } from "@/lib/auth";
@@ -107,8 +108,9 @@ export function Footer() {
                   <button
                     type="button"
                     onClick={onSignOut}
-                    className="text-icta-gray-600 transition-colors hover:text-icta-red focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-icta-black"
+                    className="inline-flex items-center gap-1.5 text-icta-gray-600 transition-colors hover:text-icta-red focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-icta-black"
                   >
+                    <LogOut className="size-3.5" aria-hidden="true" />
                     Sign out
                   </button>
                 </li>

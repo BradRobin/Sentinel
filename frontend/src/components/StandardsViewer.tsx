@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { ChevronLeft, ChevronRight, Download, ExternalLink } from "lucide-react";
 
 import {
   CLAUSE_PDF_TARGET,
@@ -40,7 +41,7 @@ const StandardsPdfPage = dynamic(
 );
 
 const pagerBtn =
-  "rounded px-2.5 py-1 text-sm font-medium text-icta-gray-600 transition-colors hover:bg-icta-gray-50 hover:text-icta-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-icta-black disabled:pointer-events-none disabled:opacity-40";
+  "inline-flex items-center gap-0.5 rounded px-2.5 py-1 text-sm font-medium text-icta-gray-600 transition-colors hover:bg-icta-gray-50 hover:text-icta-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-icta-black disabled:pointer-events-none disabled:opacity-40";
 
 function itemClass(active: boolean): string {
   return `block w-full rounded px-2 py-1 text-left text-xs transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-icta-black ${
@@ -213,7 +214,8 @@ export function StandardsViewer() {
                 className={pagerBtn}
                 aria-label="Previous page"
               >
-                ‹ Prev
+                <ChevronLeft className="size-4" aria-hidden="true" />
+                Prev
               </button>
               <input
                 type="number"
@@ -244,7 +246,8 @@ export function StandardsViewer() {
                 className={pagerBtn}
                 aria-label="Next page"
               >
-                Next ›
+                Next
+                <ChevronRight className="size-4" aria-hidden="true" />
               </button>
             </div>
             <a
@@ -253,9 +256,11 @@ export function StandardsViewer() {
               rel="noopener noreferrer"
               className={btnSecondarySm}
             >
+              <ExternalLink className="size-3.5" aria-hidden="true" />
               Open PDF in new tab
             </a>
             <a href={STANDARDS_PDF_PATH} download className={btnSecondarySm}>
+              <Download className="size-3.5" aria-hidden="true" />
               Download
             </a>
           </div>

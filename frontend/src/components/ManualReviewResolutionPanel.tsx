@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { CheckCircle2, ExternalLink, Flag, X, XCircle } from "lucide-react";
 
 import type {
   ManualReviewCheckType,
@@ -21,7 +22,10 @@ import {
 } from "@/lib/ui";
 import { ClauseLink } from "@/components/ClauseLink";
 import { ErrorState } from "@/components/ErrorState";
+import { Spinner } from "@/components/Spinner";
+import { useToast } from "@/components/Toast";
 import { getReviewGuide } from "@/lib/manualReviewGuides";
+import { useSidePanel } from "@/hooks/useSidePanel";
 
 interface ManualReviewResolutionPanelProps {
   open: boolean;
@@ -42,6 +46,8 @@ export function ManualReviewResolutionPanel({
   onClose,
   onResolved,
 }: ManualReviewResolutionPanelProps) {
+  const { toast } = useToast();
+  const panelRef = useSidePanel(open, onClose);
   const [status, setStatus] = useState<ManualReviewResolvedStatus>("pass");
   const [justification, setJustification] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -126,6 +132,11 @@ export function ManualReviewResolutionPanel({
         current_status: status,
         justification: trimmed,
       });
+      toast({
+        title: "Resolution saved",
+        description: `${item!.domain_url} — marked ${status}. The queue has been updated.`,
+        variant: "success",
+      });
       onClose();
       onResolved();
     } catch (err) {
@@ -146,11 +157,13 @@ export function ManualReviewResolutionPanel({
         aria-hidden={!open}
       />
       <aside
+        ref={panelRef}
         className={`${panelShell} ${open ? "translate-x-0" : "translate-x-full"}`}
         role="dialog"
         aria-modal="true"
         aria-label="Resolve manual review item"
         aria-hidden={!open}
+        tabIndex={-1}
       >
         <header className={panelHeader}>
           <div className="min-w-0">
@@ -170,11 +183,12 @@ export function ManualReviewResolutionPanel({
             className={btnGhost}
             aria-label="Close panel"
           >
+            <X className="size-4" aria-hidden="true" />
             Close
           </button>
         </header>
 
-        <div className="flex-1 overflow-y-auto px-5 py-4">
+        <div className="panel-content-in flex-1 overflow-y-auto px-5 py-4">
           {!item || !guide ? (
             <p className="text-sm text-icta-gray-600">Select an item from the queue.</p>
           ) : (
@@ -225,6 +239,7 @@ export function ManualReviewResolutionPanel({
                       setError(null);
                     }}
                   >
+                    <ExternalLink className="size-4" aria-hidden="true" />
                     {liveSiteCta}
                   </a>
                   {liveSiteOpened ? (
@@ -307,24 +322,33 @@ export function ManualReviewResolutionPanel({
                   </p>
                 )}
                 <div className="flex flex-wrap gap-2">
-                  {(["pass", "fail", "flagged"] as const).map((v) => (
-                    <button
-                      key={v}
-                      type="button"
-                      onClick={() => setStatus(v)}
-                      disabled={!allStepsDone}
-                      className={
-                        status === v
-                          ? v === "fail"
-                            ? btnDanger
-                            : btnPrimary
-                          : btnSecondary
-                      }
-                      aria-pressed={status === v}
-                    >
-                      {v === "pass" ? "Pass" : v === "fail" ? "Fail" : "Flagged"}
-                    </button>
-                  ))}
+                  {(["pass", "fail", "flagged"] as const).map((v) => {
+                    const OutcomeIcon =
+                      v === "pass"
+                        ? CheckCircle2
+                        : v === "fail"
+                          ? XCircle
+                          : Flag;
+                    return (
+                      <button
+                        key={v}
+                        type="button"
+                        onClick={() => setStatus(v)}
+                        disabled={!allStepsDone}
+                        className={
+                          status === v
+                            ? v === "fail"
+                              ? btnDanger
+                              : btnPrimary
+                            : btnSecondary
+                        }
+                        aria-pressed={status === v}
+                      >
+                        <OutcomeIcon className="size-4" aria-hidden="true" />
+                        {v === "pass" ? "Pass" : v === "fail" ? "Fail" : "Flagged"}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -363,7 +387,14 @@ export function ManualReviewResolutionPanel({
                   className={btnPrimary}
                   disabled={!allStepsDone || saving}
                 >
-                  {saving ? "Saving…" : "Save resolution"}
+                  {saving ? (
+                    <>
+                      <Spinner size="sm" />
+                      Saving…
+                    </>
+                  ) : (
+                    "Save resolution"
+                  )}
                 </button>
                 <button type="button" className={btnGhost} onClick={onClose}>
                   Cancel

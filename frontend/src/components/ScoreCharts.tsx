@@ -4,6 +4,7 @@ import { useId, useMemo } from "react";
 
 import type { CategoryScore, Finding } from "@/lib/api";
 import { labelCategory, summarizeFindings } from "@/lib/findings";
+import { linkUnderline } from "@/lib/ui";
 
 const GREEN = "var(--icta-green)";
 const RED = "var(--icta-red)";
@@ -177,7 +178,7 @@ export function StatusDonut({
         <li>
           <button
             type="button"
-            className="inline-flex items-center gap-2 text-icta-red underline decoration-from-font underline-offset-2 hover:opacity-80"
+            className={`inline-flex items-center gap-2 text-icta-red ${linkUnderline}`}
             onClick={() => onSelect?.("fail")}
             aria-label={`${counts.fail} failures`}
           >
@@ -191,7 +192,7 @@ export function StatusDonut({
         <li>
           <button
             type="button"
-            className="inline-flex items-center gap-2 text-icta-gray-600 underline decoration-from-font underline-offset-2 hover:opacity-80"
+            className={`inline-flex items-center gap-2 text-icta-gray-600 ${linkUnderline}`}
             onClick={() => onSelect?.("manual_review")}
             aria-label={`${counts.review} needing review`}
           >
@@ -205,7 +206,7 @@ export function StatusDonut({
         <li>
           <button
             type="button"
-            className="inline-flex items-center gap-2 text-icta-green underline decoration-from-font underline-offset-2 hover:opacity-80"
+            className={`inline-flex items-center gap-2 text-icta-green ${linkUnderline}`}
             onClick={() => onSelect?.("pass")}
             aria-label={`${counts.pass} passes`}
           >
@@ -265,7 +266,7 @@ export function CategoryScoreBars({
               <div className="mb-1 flex flex-wrap items-baseline justify-between gap-2">
                 <button
                   type="button"
-                  className="text-left text-sm font-medium text-icta-black underline decoration-from-font underline-offset-2 hover:opacity-80"
+                  className={`text-left text-sm font-medium text-icta-black ${linkUnderline}`}
                   onClick={() => onCategoryClick?.(row.category)}
                 >
                   {row.label}

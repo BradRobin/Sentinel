@@ -1,12 +1,14 @@
 ﻿"use client";
 
 import { FormEvent, KeyboardEvent, useEffect, useRef, useState } from "react";
+import { Check, ClipboardPaste, ScanSearch } from "lucide-react";
 
 import { StandardDocLink } from "@/components/ClauseLink";
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorState } from "@/components/ErrorState";
 import { ScanResults } from "@/components/ScanResults";
 import { SentinelMark } from "@/components/SentinelMark";
+import { Spinner } from "@/components/Spinner";
 import { TypingPlaceholder } from "@/components/TypingPlaceholder";
 import { usePolling } from "@/hooks/usePolling";
 import {
@@ -124,18 +126,11 @@ type ChecklistState = "done" | "active" | "pending";
 function ProgressMark({ state }: { state: ChecklistState }) {
   if (state === "done") {
     return (
-      <svg
-        viewBox="0 0 20 20"
-        fill="currentColor"
+      <Check
         className="size-4 shrink-0 text-icta-green"
+        strokeWidth={2.5}
         aria-hidden="true"
-      >
-        <path
-          fillRule="evenodd"
-          d="M16.704 5.29a1 1 0 0 1 .006 1.414l-6.5 6.57a1 1 0 0 1-1.416.006l-3.5-3.5a1 1 0 1 1 1.414-1.415l2.79 2.79 5.79-5.856a1 1 0 0 1 1.416-.009Z"
-          clipRule="evenodd"
-        />
-      </svg>
+      />
     );
   }
   if (state === "active") {
@@ -595,7 +590,7 @@ export function ScanWorkspace() {
 
   return (
     <div className="flex flex-1 flex-col">
-      <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-16 animate-fade-in">
+      <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-16">
         <div className="mb-8 flex flex-col items-center gap-3 animate-fade-in-up">
           <SentinelMark state={markState} size={120} />
           <p className="text-center text-sm text-icta-gray-600">
@@ -686,6 +681,7 @@ export function ScanWorkspace() {
                   className={`${btnGhost} absolute right-1 top-1/2 -translate-y-1/2`}
                   aria-label="Paste copied registry URL"
                 >
+                  <ClipboardPaste className="size-3.5" aria-hidden="true" />
                   Paste
                 </button>
               )}
@@ -750,7 +746,17 @@ export function ScanWorkspace() {
             Force fresh scan (bypass cache)
           </label>
           <button type="submit" disabled={busy} className={btnPrimary}>
-            Start scan
+            {busy ? (
+              <>
+                <Spinner size="sm" />
+                Scanning…
+              </>
+            ) : (
+              <>
+                <ScanSearch className="size-4" aria-hidden="true" />
+                Start scan
+              </>
+            )}
           </button>
         </form>
 

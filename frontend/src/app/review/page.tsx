@@ -11,7 +11,10 @@ import { ClauseLink } from "@/components/ClauseLink";
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorState } from "@/components/ErrorState";
 import { Skeleton } from "@/components/Skeleton";
+import { Spinner } from "@/components/Spinner";
 import {
+  btnFilterActive,
+  btnFilterIdle,
   btnPrimary,
   inputBase,
   inputError,
@@ -215,7 +218,14 @@ export default function ReviewQueuePage() {
                 void loadQueue();
               }}
             >
-              Load queue
+              {loading ? (
+                <>
+                  <Spinner size="sm" />
+                  Loading…
+                </>
+              ) : (
+                "Load queue"
+              )}
             </button>
             {authError && (
               <p className="text-sm text-icta-red">{authError}</p>
@@ -318,11 +328,7 @@ export default function ReviewQueuePage() {
                       type="button"
                       onClick={() => toggleCheckTypeFilter(type)}
                       aria-pressed={active}
-                      className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
-                        active
-                          ? "border-icta-green bg-icta-green/10 text-icta-green"
-                          : "border-icta-gray-200 bg-white text-icta-gray-600 hover:bg-icta-gray-50"
-                      }`}
+                      className={active ? btnFilterActive : btnFilterIdle}
                     >
                       {label} · {typeCounts[type]}
                     </button>
@@ -341,11 +347,7 @@ export default function ReviewQueuePage() {
                       type="button"
                       onClick={() => toggleCategoryFilter(c.category)}
                       aria-pressed={active}
-                      className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
-                        active
-                          ? "border-icta-green bg-icta-green/10 text-icta-green"
-                          : "border-icta-gray-200 bg-white text-icta-gray-600 hover:bg-icta-gray-50"
-                      }`}
+                      className={active ? btnFilterActive : btnFilterIdle}
                     >
                       {c.label} · {c.count}
                     </button>

@@ -6,8 +6,9 @@ import { useEffect, useState, type FormEvent } from "react";
 
 import { AuthShell } from "@/components/AuthShell";
 import { ErrorState } from "@/components/ErrorState";
+import { Spinner } from "@/components/Spinner";
 import { AuthError, getCurrentUser, registerUser } from "@/lib/auth";
-import { btnPrimary, inputBase, inputError } from "@/lib/ui";
+import { btnPrimary, inputBase, inputError, textLink } from "@/lib/ui";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -54,7 +55,7 @@ export default function RegisterPage() {
           Already have an account?{" "}
           <Link
             href="/login"
-            className="font-medium text-icta-link underline decoration-from-font underline-offset-2 hover:opacity-80"
+            className={`font-medium ${textLink}`}
           >
             Log in
           </Link>
@@ -157,22 +158,23 @@ export default function RegisterPage() {
           disabled={submitting}
           className={`${btnPrimary} w-full`}
         >
-          {submitting ? "Creating account…" : "Create account"}
+          {submitting ? (
+            <>
+              <Spinner size="sm" />
+              Creating account…
+            </>
+          ) : (
+            "Create account"
+          )}
         </button>
 
         <p className="text-center text-xs leading-relaxed text-icta-gray-600">
           By creating an account you agree to our{" "}
-          <Link
-            href="/terms"
-            className="text-icta-link underline decoration-from-font underline-offset-2 hover:opacity-80"
-          >
+          <Link href="/terms" className={textLink}>
             Terms of Service
           </Link>{" "}
           and{" "}
-          <Link
-            href="/privacy"
-            className="text-icta-link underline decoration-from-font underline-offset-2 hover:opacity-80"
-          >
+          <Link href="/privacy" className={textLink}>
             Privacy Policy
           </Link>
           .

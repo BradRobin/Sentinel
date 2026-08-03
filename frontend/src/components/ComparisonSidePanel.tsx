@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
+import { MoveRight, TrendingDown, TrendingUp, X } from "lucide-react";
 
 import type { ComparisonResponse } from "@/lib/api";
 import { labelCategory, SCORED_CATEGORIES } from "@/lib/findings";
@@ -10,6 +11,7 @@ import {
   panelHeader,
   panelShell,
 } from "@/lib/ui";
+import { useSidePanel } from "@/hooks/useSidePanel";
 
 interface ComparisonSidePanelProps {
   open: boolean;
@@ -39,7 +41,7 @@ function formatSnapshotDate(isoDate: string | undefined | null): string {
 function DeltaBadge({ delta }: { delta: number }) {
   const improved = delta > 0;
   const declined = delta < 0;
-  const arrow = improved ? "↑" : declined ? "↓" : "→";
+  const Icon = improved ? TrendingUp : declined ? TrendingDown : MoveRight;
   const tone = improved
     ? "text-icta-green"
     : declined
@@ -48,7 +50,7 @@ function DeltaBadge({ delta }: { delta: number }) {
 
   return (
     <span className={`inline-flex items-center gap-1 font-mono text-sm ${tone}`}>
-      <span aria-hidden="true">{arrow}</span>
+      <Icon className="size-3.5" aria-hidden="true" />
       <span>
         {formatSigned(delta)}
         <span className="sr-only">
@@ -65,14 +67,7 @@ export function ComparisonSidePanel({
   periodLabel = "the selected period",
   onClose,
 }: ComparisonSidePanelProps) {
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+  const panelRef = useSidePanel(open, onClose);
 
   const compared = comparison?.compared_to ?? comparison?.previous;
 
@@ -109,6 +104,7 @@ export function ComparisonSidePanel({
         aria-hidden={!open}
       />
       <aside
+        ref={panelRef}
         className={`${panelShell} ${
           open ? "translate-x-0" : "translate-x-full"
         }`}
@@ -116,6 +112,7 @@ export function ComparisonSidePanel({
         aria-modal="true"
         aria-label={title}
         aria-hidden={!open}
+        tabIndex={-1}
       >
         <header className={panelHeader}>
           <div>
@@ -133,11 +130,12 @@ export function ComparisonSidePanel({
             className={btnGhost}
             aria-label="Close panel"
           >
+            <X className="size-4" aria-hidden="true" />
             Close
           </button>
         </header>
 
-        <div className="flex-1 overflow-y-auto px-5 py-4">
+        <div className="panel-content-in flex-1 overflow-y-auto px-5 py-4">
           {!comparison?.has_history ||
           !comparison.delta ||
           !comparison.current ||

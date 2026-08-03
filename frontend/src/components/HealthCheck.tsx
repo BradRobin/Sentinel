@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { RefreshCw } from "lucide-react";
 
 import { SentinelMark } from "@/components/SentinelMark";
 import { ErrorState } from "@/components/ErrorState";
@@ -125,7 +126,10 @@ export function HealthCheck() {
           </h2>
 
           {markState === "processing" && (
-            <p className="text-sm text-icta-gray-600">Fetching status…</p>
+            <p className="flex items-center gap-2 text-sm text-icta-gray-600">
+              <RefreshCw className="size-3.5 animate-spin" aria-hidden="true" />
+              Fetching status…
+            </p>
           )}
 
           {error && <ErrorState message={error} />}

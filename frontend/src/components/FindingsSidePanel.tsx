@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
+import { X } from "lucide-react";
 
 import { FindingDetailView } from "@/components/FindingDetailView";
 import { ClauseLink } from "@/components/ClauseLink";
@@ -16,6 +17,7 @@ import {
   panelHeader,
   panelShell,
 } from "@/lib/ui";
+import { useSidePanel } from "@/hooks/useSidePanel";
 
 interface FindingsSidePanelProps {
   open: boolean;
@@ -32,14 +34,7 @@ export function FindingsSidePanel({
   findings,
   onClose,
 }: FindingsSidePanelProps) {
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+  const panelRef = useSidePanel(open, onClose);
 
   const headerWeight = useMemo(() => {
     if (findings.length !== 1) return null;
@@ -56,6 +51,7 @@ export function FindingsSidePanel({
         aria-hidden={!open}
       />
       <aside
+        ref={panelRef}
         className={`${panelShell} ${
           open ? "translate-x-0" : "translate-x-full"
         }`}
@@ -63,6 +59,7 @@ export function FindingsSidePanel({
         aria-modal="true"
         aria-label={title}
         aria-hidden={!open}
+        tabIndex={-1}
       >
         <header
           className={`${panelHeader} ${headerWeight?.header ?? ""}`}
@@ -102,11 +99,12 @@ export function FindingsSidePanel({
             className={btnGhost}
             aria-label="Close panel"
           >
+            <X className="size-4" aria-hidden="true" />
             Close
           </button>
         </header>
 
-        <div className="flex-1 overflow-y-auto px-5 py-4">
+        <div className="panel-content-in flex-1 overflow-y-auto px-5 py-4">
           {findings.length === 0 ? (
             <p className="text-sm text-icta-gray-600">No findings in this view.</p>
           ) : (

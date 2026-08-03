@@ -3,14 +3,12 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import { textLink } from "@/lib/ui";
 import {
   standardsHrefForClause,
   standardsViewerHref,
   WEBSITES_SECTION_PAGE,
 } from "@/lib/standards";
-
-const linkClass =
-  "text-icta-link underline decoration-from-font underline-offset-2 transition-opacity hover:opacity-80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-icta-link";
 
 interface ClauseLinkProps {
   clause: string;
@@ -31,7 +29,7 @@ export function ClauseLink({
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className={`${linkClass} ${className}`.trim()}
+      className={`${textLink} ${className}`.trim()}
       title={`Open standard at clause ${clause}`}
       onClick={(e) => e.stopPropagation()}
     >
@@ -55,7 +53,7 @@ export function StandardDocLink({
       href={standardsViewerHref({ page: WEBSITES_SECTION_PAGE })}
       target="_blank"
       rel="noopener noreferrer"
-      className={`${linkClass} ${className}`.trim()}
+      className={`${textLink} ${className}`.trim()}
       title="Open Systems & Applications Standard — Websites section"
     >
       {children}

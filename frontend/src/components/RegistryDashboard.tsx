@@ -1,11 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { ArrowDown, ArrowUp, Check, ChevronsUpDown, Copy } from "lucide-react";
 
 import { SentinelMark } from "@/components/SentinelMark";
 import { ErrorState } from "@/components/ErrorState";
 import { RegistryDetailDrawer } from "@/components/RegistryDetailDrawer";
 import { Skeleton } from "@/components/Skeleton";
+import { Spinner } from "@/components/Spinner";
+import { useToast } from "@/components/Toast";
 import {
   getRegistry,
   getRegistryScanBatch,
@@ -90,6 +93,11 @@ function SortableHeader({
 }) {
   const active = sort?.key === sortKey;
   const dir = active ? sort!.dir : null;
+  const SortIcon = active
+    ? dir === "asc"
+      ? ArrowUp
+      : ArrowDown
+    : ChevronsUpDown;
   return (
     <th
       scope="col"
@@ -104,14 +112,12 @@ function SortableHeader({
         }`}
       >
         {label}
-        <span
-          className={`text-[10px] tabular-nums ${
+        <SortIcon
+          className={`size-3.5 ${
             active ? "text-icta-black" : "text-icta-gray-400"
           }`}
           aria-hidden="true"
-        >
-          {active ? (dir === "asc" ? "▲" : "▼") : "▴▾"}
-        </span>
+        />
       </button>
     </th>
   );
@@ -186,6 +192,7 @@ function StatusChip({
 }
 
 export function RegistryDashboard() {
+  const { toast } = useToast();
   const [query, setQuery] = useState("");
   const [request, setRequest] = useState<{ query: string; orgFilter: OrgFilter }>({
     query: "",
@@ -268,6 +275,12 @@ export function RegistryDashboard() {
 
   async function onCopyUrl(row: RegistryEntry) {
     await copyScanUrl(row.url);
+    toast({
+      title: "Scan URL copied",
+      description: `Paste into the scan page to check ${row.url}`,
+      variant: "info",
+      duration: 2400,
+    });
     setCopiedDomainId(row.domain_id);
     window.setTimeout(() => {
       setCopiedDomainId((current) =>
@@ -340,9 +353,10 @@ export function RegistryDashboard() {
         // ignore
       }
     } catch (err) {
-      setScanError(
-        err instanceof Error ? err.message : "Failed to start registry scan",
-      );
+      const message =
+        err instanceof Error ? err.message : "Failed to start registry scan";
+      setScanError(message);
+      toast({ title: "Scan failed to start", description: message, variant: "error" });
     } finally {
       setScanStarting(false);
     }
@@ -447,7 +461,14 @@ export function RegistryDashboard() {
                 disabled={scanning || items.length === 0}
                 className={btnPrimary}
               >
-                {scanning ? "Scanning…" : "Scan all MCDAs"}
+                {scanning ? (
+                  <>
+                    <Spinner size="sm" />
+                    Scanning…
+                  </>
+                ) : (
+                  "Scan all MCDAs"
+                )}
               </button>
               <button
                 type="button"
@@ -455,7 +476,14 @@ export function RegistryDashboard() {
                 disabled={loading}
                 className={btnSecondary}
               >
-                {loading ? "Refreshing…" : "Refresh list"}
+                {loading ? (
+                  <>
+                    <Spinner size="sm" />
+                    Refreshing…
+                  </>
+                ) : (
+                  "Refresh list"
+                )}
               </button>
             </div>
           </div>
@@ -862,7 +890,17 @@ export function RegistryDashboard() {
                         className={btnMuted}
                         aria-label={`Copy ${row.url} for scanning`}
                       >
-                        {copiedDomainId === row.domain_id ? "Copied" : "Copy"}
+                        {copiedDomainId === row.domain_id ? (
+                          <>
+                            <Check className="size-3.5 text-icta-green" aria-hidden="true" />
+                            Copied
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="size-3.5" aria-hidden="true" />
+                            Copy
+                          </>
+                        )}
                       </button>
                     </td>
                   </tr>
@@ -913,7 +951,17 @@ export function RegistryDashboard() {
                         className={btnMuted}
                         aria-label={`Copy ${row.url} for scanning`}
                       >
-                        {copiedDomainId === row.domain_id ? "Copied" : "Copy"}
+                        {copiedDomainId === row.domain_id ? (
+                          <>
+                            <Check className="size-3.5 text-icta-green" aria-hidden="true" />
+                            Copied
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="size-3.5" aria-hidden="true" />
+                            Copy
+                          </>
+                        )}
                       </button>
                     </td>
                   </tr>

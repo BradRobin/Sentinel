@@ -5,10 +5,13 @@
   --background: #ffffff;
   --foreground: #000000;
   --icta-red: #bb0000;
+  --icta-red-deep: #8b0000;
   --icta-black: #000000;
   --icta-green: #006600;
+  --icta-green-deep: #004d00;
   /* amber — severity / caution only (not a flag colour) */
   --icta-amber: #b45309;
+  --icta-amber-deep: #78350f;
   /* Link / interactive text — distinct from flag colours */
   --icta-link: #0052cc;
   --icta-gray-50: #f9fafb;
@@ -34,11 +37,14 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-icta-red: var(--icta-red);
+  --color-icta-red-deep: var(--icta-red-deep);
   --color-icta-red-tint: var(--icta-red-tint);
   --color-icta-black: var(--icta-black);
   --color-icta-green: var(--icta-green);
+  --color-icta-green-deep: var(--icta-green-deep);
   --color-icta-green-tint: var(--icta-green-tint);
   --color-icta-amber: var(--icta-amber);
+  --color-icta-amber-deep: var(--icta-amber-deep);
   --color-icta-amber-tint: var(--icta-amber-tint);
   --color-icta-link: var(--icta-link);
   --color-icta-gray-50: var(--icta-gray-50);
@@ -48,6 +54,7 @@
   --color-icta-water: var(--icta-water);
   --color-icta-water-deep: var(--icta-water-deep);
   --font-sans: var(--font-geist-sans);
+  --font-serif: var(--font-playfair);
   --font-mono: var(--font-geist-mono);
 }
 
@@ -57,33 +64,32 @@ body {
   font-family: var(--font-sans), system-ui, sans-serif;
 }
 
+h1, h2, h3, h4, .font-serif {
+  font-family: var(--font-serif), serif;
+}
+
 /* ---- Shared chrome -------------------------------------------------------
-   Card: the standard surface across the app (rounded-xl, hairline border,
-   gentle shadow). Hover lifts it slightly; `card` composes cleanly with
-   padding utilities from components. */
+   Card: now more "grounded". Removed the lift-on-hover transform.
+   Using a slightly stronger border for an institutional feel. */
 
 .card {
-  border-radius: 0.75rem;
+  border-radius: 0.5rem;
   border: 1px solid var(--icta-gray-200);
   background: #ffffff;
   box-shadow:
-    0 1px 2px rgb(0 0 0 / 0.04),
-    0 8px 24px -16px rgb(0 0 0 / 0.18);
+    0 1px 2px rgb(0 0 0 / 0.05);
 }
 
 .card-hover {
   transition:
     border-color var(--dur-fast) ease-out,
-    box-shadow var(--dur-base) ease-out,
-    transform var(--dur-base) var(--ease-out-smooth);
+    box-shadow var(--dur-base) ease-out;
 }
 
 .card-hover:hover {
-  transform: translateY(-2px);
-  border-color: rgb(0 0 0 / 0.14);
+  border-color: var(--icta-gray-600);
   box-shadow:
-    0 2px 4px rgb(0 0 0 / 0.05),
-    0 20px 40px -20px rgb(0 0 0 / 0.28);
+    0 4px 12px rgb(0 0 0 / 0.08);
 }
 
 /* Kenya flag tricolour stripe — used on the landing accent bar */
@@ -160,6 +166,39 @@ body {
   }
 }
 
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes panel-content-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
 .animate-fade-in {
   animation: fade-in var(--dur-base) var(--ease-out-smooth) both;
 }
@@ -181,6 +220,18 @@ body {
   transform-origin: left center;
 }
 
+.toast-in {
+  animation: toast-in var(--dur-base) var(--ease-out-spring) both;
+}
+
+.panel-content-in {
+  animation: panel-content-in var(--dur-base) var(--ease-out-smooth) both;
+}
+
+.pop-in {
+  animation: pop-in var(--dur-base) var(--ease-out-spring) both;
+}
+
 /* Shimmer skeleton for pending content */
 .skeleton {
   background: linear-gradient(
@@ -198,13 +249,24 @@ body {
   .animate-fade-in-up,
   .animate-fade-in-down,
   .animate-scale-in,
-  .animate-bar-grow {
+  .animate-bar-grow,
+  .toast-in,
+  .panel-content-in,
+  .pop-in {
     animation: none;
   }
 
   .card-hover {
     transform: none !important;
     transition: none;
+  }
+
+  /* Route transitions — instant swap when motion is reduced */
+  ::view-transition-old(*),
+  ::view-transition-new(*),
+  ::view-transition-group(*) {
+    animation-duration: 0s !important;
+    animation-delay: 0s !important;
   }
 }
 

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useSyncExternalStore } from "react";
+import { LayoutGrid, LogIn, ScanSearch, Sparkles } from "lucide-react";
 
 import { authSubscribe, readSession, readSessionServer } from "@/lib/auth";
 import { btnPrimaryLg, btnSecondaryLg } from "@/lib/ui";
@@ -16,13 +17,33 @@ export function HomeHeroActions() {
         href={user ? "/scan" : "/register"}
         className={btnPrimaryLg}
       >
-        {user ? "Start a scan" : "Get started free"}
+        {user ? (
+          <>
+            <ScanSearch className="size-4" aria-hidden="true" />
+            Start a scan
+          </>
+        ) : (
+          <>
+            <Sparkles className="size-4" aria-hidden="true" />
+            Get started
+          </>
+        )}
       </Link>
       <Link
         href={user ? "/registry" : "/login"}
         className={btnSecondaryLg}
       >
-        {user ? "View the registry" : "Log in"}
+        {user ? (
+          <>
+            <LayoutGrid className="size-4" aria-hidden="true" />
+            View the registry
+          </>
+        ) : (
+          <>
+            <LogIn className="size-4" aria-hidden="true" />
+            Log in
+          </>
+        )}
       </Link>
     </div>
   );

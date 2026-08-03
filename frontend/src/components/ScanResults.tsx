@@ -28,7 +28,7 @@ import {
   topFailFindings,
   type StatFilter,
 } from "@/lib/findings";
-import { btnSecondarySm, inputBase } from "@/lib/ui";
+import { btnSecondarySm, inputBase, linkUnderline, textLink } from "@/lib/ui";
 import {
   findNarrativeStatLinks,
   type NarrativeStatKind,
@@ -68,15 +68,14 @@ function InlineStat({
     <button
       type="button"
       onClick={onClick}
-      className="text-icta-link underline decoration-from-font underline-offset-2 transition-opacity hover:opacity-80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-icta-link"
+      className={textLink}
     >
       {count} {label}
     </button>
   );
 }
 
-const narrativeLinkClass =
-  "text-icta-link underline decoration-from-font underline-offset-2 transition-opacity hover:opacity-80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-icta-link";
+const narrativeLinkClass = textLink;
 
 /** Link ICTA doc citations and clause numbers inside plain narrative text. */
 function linkStandardsInText(text: string, keyPrefix: string): ReactNode[] {
@@ -414,7 +413,7 @@ export function ScanResults({
             <button
               type="button"
               onClick={() => setComparisonOpen(true)}
-              className="text-left underline decoration-from-font underline-offset-2 hover:opacity-80"
+              className={`text-left ${linkUnderline}`}
             >
               Compliance dropped from{" "}
               {comparedSnapshot.overall_score.toFixed(0)}% to{" "}
@@ -645,7 +644,7 @@ export function ScanResults({
                 <h3 className="font-semibold text-icta-black">
                   <button
                     type="button"
-                    className="underline decoration-from-font underline-offset-2 hover:opacity-80"
+                    className={linkUnderline}
                     onClick={() => openPanel("all", group.category)}
                   >
                     {group.label}
@@ -656,7 +655,7 @@ export function ScanResults({
                   {fails > 0 ? (
                     <button
                       type="button"
-                      className="text-icta-link underline decoration-from-font underline-offset-2"
+                      className={textLink}
                       onClick={() =>
                         openFindings(
                           group.findings.filter((f) => f.status === "fail"),

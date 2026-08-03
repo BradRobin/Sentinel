@@ -2,9 +2,11 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { ArrowLeft, ArrowRight } from "lucide-react";
 
 import { AuthShell } from "@/components/AuthShell";
 import { ErrorState } from "@/components/ErrorState";
+import { Spinner } from "@/components/Spinner";
 import {
   getCurrentUser,
   updateUser,
@@ -140,97 +142,100 @@ export default function OnboardingPage() {
         </div>
       </div>
 
-      {step === 0 && (
-        <div className="space-y-3" role="radiogroup" aria-label="Your role">
-          <p className="text-sm font-medium text-icta-black">
-            How will you use Sentinel?
-          </p>
-          {ROLE_OPTIONS.map((option) => {
-            const selected = role === option.value;
-            return (
-              <button
-                key={option.value}
-                type="button"
-                role="radio"
-                aria-checked={selected}
-                onClick={() => {
-                  setRole(option.value);
-                  setError(null);
-                }}
-                className={`w-full rounded-md border px-4 py-3 text-left transition-colors ${
-                  selected
-                    ? "border-icta-green bg-icta-green/5 ring-1 ring-icta-green"
-                    : "border-icta-gray-200 bg-white hover:bg-icta-gray-50"
-                }`}
-              >
-                <span className="block font-medium text-icta-black">
-                  {option.title}
-                </span>
-                <span className="mt-0.5 block text-sm text-icta-gray-600">
-                  {option.description}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      )}
+      <div key={step} className="animate-fade-in-up">
+        {step === 0 && (
+          <div className="space-y-3" role="radiogroup" aria-label="Your role">
+            <p className="text-sm font-medium text-icta-black">
+              How will you use Sentinel?
+            </p>
+            {ROLE_OPTIONS.map((option) => {
+              const selected = role === option.value;
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  role="radio"
+                  aria-checked={selected}
+                  onClick={() => {
+                    setRole(option.value);
+                    setError(null);
+                  }}
+                  className={`w-full rounded-md border px-4 py-3 text-left transition-colors ${
+                    selected
+                      ? "border-icta-green bg-icta-green/5 ring-1 ring-icta-green"
+                      : "border-icta-gray-200 bg-white hover:bg-icta-gray-50"
+                  }`}
+                >
+                  <span className="block font-medium text-icta-black">
+                    {option.title}
+                  </span>
+                  <span className="mt-0.5 block text-sm text-icta-gray-600">
+                    {option.description}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
 
-      {step === 1 && (
-        <div>
-          <label
-            htmlFor="onboard-org"
-            className="mb-1.5 block text-sm font-medium text-icta-black"
-          >
-            Organisation name
-          </label>
-          <input
-            id="onboard-org"
-            type="text"
-            value={organization}
-            onChange={(e) => {
-              setOrganization(e.target.value);
-              setError(null);
-            }}
-            className={inputBase}
-            placeholder="e.g. ICT Authority"
-          />
-          <p className="mt-1.5 text-xs text-icta-gray-600">
-            Optional — used to personalise your account.
-          </p>
-        </div>
-      )}
+        {step === 1 && (
+          <div>
+            <label
+              htmlFor="onboard-org"
+              className="mb-1.5 block text-sm font-medium text-icta-black"
+            >
+              Organisation name
+            </label>
+            <input
+              id="onboard-org"
+              type="text"
+              value={organization}
+              onChange={(e) => {
+                setOrganization(e.target.value);
+                setError(null);
+              }}
+              className={inputBase}
+              placeholder="e.g. ICT Authority"
+            />
+            <p className="mt-1.5 text-xs text-icta-gray-600">
+              Optional — used to personalise your account.
+            </p>
+          </div>
+        )}
 
-      {step === 2 && (
-        <div className="rounded-md border border-icta-gray-200 bg-icta-gray-50 p-4 text-sm">
-          <dl className="space-y-2">
-            <div className="flex items-baseline justify-between gap-3">
-              <dt className="text-icta-gray-600">Name</dt>
-              <dd className="font-medium text-icta-black">
-                {getCurrentUser()?.name ?? "—"}
-              </dd>
-            </div>
-            <div className="flex items-baseline justify-between gap-3">
-              <dt className="text-icta-gray-600">Role</dt>
-              <dd className="font-medium text-icta-black">
-                {ROLE_OPTIONS.find((r) => r.value === role)?.title ?? "—"}
-              </dd>
-            </div>
-            <div className="flex items-baseline justify-between gap-3">
-              <dt className="text-icta-gray-600">Organisation</dt>
-              <dd className="font-medium text-icta-black">
-                {organization.trim() || "Not set"}
-              </dd>
-            </div>
-          </dl>
-        </div>
-      )}
+        {step === 2 && (
+          <div className="rounded-md border border-icta-gray-200 bg-icta-gray-50 p-4 text-sm">
+            <dl className="space-y-2">
+              <div className="flex items-baseline justify-between gap-3">
+                <dt className="text-icta-gray-600">Name</dt>
+                <dd className="font-medium text-icta-black">
+                  {getCurrentUser()?.name ?? "—"}
+                </dd>
+              </div>
+              <div className="flex items-baseline justify-between gap-3">
+                <dt className="text-icta-gray-600">Role</dt>
+                <dd className="font-medium text-icta-black">
+                  {ROLE_OPTIONS.find((r) => r.value === role)?.title ?? "—"}
+                </dd>
+              </div>
+              <div className="flex items-baseline justify-between gap-3">
+                <dt className="text-icta-gray-600">Organisation</dt>
+                <dd className="font-medium text-icta-black">
+                  {organization.trim() || "Not set"}
+                </dd>
+              </div>
+            </dl>
+          </div>
+        )}
+      </div>
 
       {error && <ErrorState compact message={error} className="mt-4" />}
 
       <div className="mt-6 flex items-center justify-between gap-3">
         {step > 0 ? (
           <button type="button" onClick={back} className={btnGhost}>
-            ← Back
+            <ArrowLeft className="size-4" aria-hidden="true" />
+            Back
           </button>
         ) : (
           <span />
@@ -238,6 +243,7 @@ export default function OnboardingPage() {
         {step < TOTAL_STEPS - 1 ? (
           <button type="button" onClick={next} className={btnPrimary}>
             Continue
+            <ArrowRight className="size-4" aria-hidden="true" />
           </button>
         ) : (
           <button
@@ -246,7 +252,14 @@ export default function OnboardingPage() {
             disabled={saving}
             className={btnPrimary}
           >
-            {saving ? "Finishing…" : "Start using Sentinel"}
+            {saving ? (
+              <>
+                <Spinner size="sm" />
+                Finishing…
+              </>
+            ) : (
+              "Start using Sentinel"
+            )}
           </button>
         )}
       </div>

@@ -183,7 +183,7 @@ export default function Home() {
           </h1>
 
           <p
-            className="mx-auto mb-2 max-w-2xl text-lg text-icta-gray-600 animate-fade-in-up sm:text-xl"
+            className="mx-auto mb-2 max-w-2xl text-base text-icta-gray-600 animate-fade-in-up sm:text-lg"
             style={{ animationDelay: "280ms" }}
           >
             Sentinel scans public{" "}

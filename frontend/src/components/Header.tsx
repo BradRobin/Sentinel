@@ -99,7 +99,7 @@ export function Header() {
     }
     return `rounded-md px-3 py-1.5 text-sm transition-colors ${
       active
-        ? "bg-icta-gray-100 font-medium text-icta-black"
+        ? "bg-icta-black font-medium text-white"
         : "text-icta-gray-600 hover:bg-icta-gray-50 hover:text-icta-black"
     }`;
   }

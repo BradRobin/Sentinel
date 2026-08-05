@@ -18,9 +18,14 @@ from app.core.ssrf import SSRFError
 from app.services.scan_errors import (
     ScanAbortError,
     classify_fetch_failure,
+    classify_ssrf_error,
     is_tls_failure,
     looks_blocked,
 )
+
+# Same-site Location hops before giving up (gov portals often chain www → apex → login)
+_MAX_REDIRECT_HOPS = 5
+_REDIRECT_STATUSES = frozenset({301, 302, 303, 307, 308})
 
 
 @dataclass
@@ -70,7 +75,8 @@ def _fetch_with_optional_insecure(
 ) -> FetchResult:
     """
     Fetch page content. TLS/cert failures degrade (retry insecure) so other
-    categories can still run; DNS/connect failures abort the whole scan.
+    categories can still run; DNS/connect failures raise ``ScanAbortError``
+    for the caller to soft-continue.
     """
     try:
         return fetch_url(
@@ -103,6 +109,14 @@ def _fetch_with_optional_insecure(
         raise ScanAbortError("unreachable") from exc
 
 
+def _soft_fail(snap: PageSnapshot, category: str, result: FetchResult | None = None) -> PageSnapshot:
+    """Record a fetch-level problem and return so the check suite can still run."""
+    if result is not None:
+        snap.fetch = result
+    snap.error = category
+    return snap
+
+
 def load_page_snapshot(
     url: str,
     *,
@@ -113,10 +127,12 @@ def load_page_snapshot(
     """
     Fetch the landing page once (SSRF-validated). Optionally probe sensitive paths.
 
-    Redirects are not auto-followed; a single Location hop is followed after re-validation.
+    Redirects are followed hop-by-hop (each Location re-validated for SSRF).
 
-    Total unreachability / blocking raises ``ScanAbortError``. TLS problems alone
-    do not abort — content is fetched insecurely so checks can still run.
+    Fetch failures (unreachable, timeout, WAF blocks) soft-continue: the snapshot
+    carries ``error`` and checks still run (domain/DNS/TLS findings, fail-closed
+    HTML checks). Only policy violations that abort submission use ``ScanAbortError``
+    at the API layer — page load itself always returns a snapshot.
     """
     target = _normalize_scan_url(url)
     parsed = urlparse(target)
@@ -135,36 +151,45 @@ def load_page_snapshot(
             allow_tld_bypass=allow_tld_bypass,
             snap=snap,
         )
+    except ScanAbortError as exc:
+        return _soft_fail(snap, exc.category)
     except SSRFError as exc:
-        msg = str(exc).lower()
-        if "unable to resolve" in msg or "no dns" in msg:
-            raise ScanAbortError("unreachable") from exc
-        raise ScanAbortError("unreachable") from exc
+        category = classify_ssrf_error(str(exc))
+        if category == "domain_not_allowed":
+            # Still soft-continue: domain checks / scoring should report, not blank UI
+            return _soft_fail(snap, category)
+        return _soft_fail(snap, "unreachable" if category == "unreachable" else category)
 
-    # Follow one redirect hop if Location is same-site and SSRF-safe
-    if result.status_code in (301, 302, 303, 307, 308):
+    # Follow redirect chain (gov sites: apex → www → login portals)
+    hops = 0
+    while result.status_code in _REDIRECT_STATUSES and hops < _MAX_REDIRECT_HOPS:
         location = result.headers.get("location")
-        if location:
-            next_url = urljoin(result.final_url, location)
-            try:
-                result = _fetch_with_optional_insecure(
-                    next_url,
-                    allowed_tlds=allowed_tlds,
-                    allow_tld_bypass=allow_tld_bypass,
-                    snap=snap,
-                )
-            except ScanAbortError:
-                raise
-            except (SSRFError, httpx.HTTPError):
-                pass
+        if not location:
+            break
+        next_url = urljoin(result.final_url, location)
+        try:
+            result = _fetch_with_optional_insecure(
+                next_url,
+                allowed_tlds=allowed_tlds,
+                allow_tld_bypass=allow_tld_bypass,
+                snap=snap,
+            )
+        except ScanAbortError as exc:
+            return _soft_fail(snap, exc.category, result)
+        except SSRFError:
+            break
+        except httpx.HTTPError:
+            break
+        hops += 1
 
     if looks_blocked(result.status_code, result.text, result.headers):
-        raise ScanAbortError("blocked_by_target")
+        # Keep response body/headers for evidence; checks fail-closed on snap.error
+        return _soft_fail(snap, "blocked_by_target", result)
 
     snap.fetch = result
 
     paths = list(probe_paths or [])
-    if paths:
+    if paths and snap.ok:
         # Short-timeout probes in parallel — don't serialize 15s waits per path
         from concurrent.futures import ThreadPoolExecutor, as_completed
 

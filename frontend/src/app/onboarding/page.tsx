@@ -29,9 +29,10 @@ const ROLE_OPTIONS: Array<{
     description: "Resolve the manual review queue and sign off findings.",
   },
   {
-    value: "admin",
-    title: "Administrator",
-    description: "Run scans, manage the registry, and monitor compliance.",
+    value: "viewer",
+    title: "Casual user",
+    description:
+      "Log in to check recent scans, analyse reports, and see which websites perform best.",
   },
 ];
 

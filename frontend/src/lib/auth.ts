@@ -11,7 +11,7 @@
  * for production data. Do not store real credentials with it.
  */
 
-export type SentinelRole = "officer" | "admin";
+export type SentinelRole = "officer" | "viewer";
 
 export interface SentinelUser {
   id: string;
@@ -48,7 +48,14 @@ function loadUsers(): Record<string, StoredUser> {
     if (!raw) return {};
     const parsed = JSON.parse(raw) as unknown;
     if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-      return parsed as Record<string, StoredUser>;
+      const users = parsed as Record<string, StoredUser>;
+      // Prototype previously offered "admin"; map it to viewer.
+      for (const user of Object.values(users)) {
+        if ((user.role as string | null) === "admin") {
+          user.role = "viewer";
+        }
+      }
+      return users;
     }
   } catch {
     // corrupted store — start fresh

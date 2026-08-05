@@ -16,6 +16,7 @@ import psycopg
 
 from app.core.config import settings
 from app.core.database import close_pool
+from app.data.mcda_geo import geo_for_registry_entry
 from app.data.mcda_registry import MCDA_REGISTRY
 from app.services.registry import upsert_registry_entry
 
@@ -154,10 +155,26 @@ def ensure_schema(conn: psycopg.Connection) -> None:
     else:
         print("Schema: manual_review_items already present")
 
+    has_hq_county = conn.execute(
+        """
+        SELECT EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_schema = 'public'
+              AND table_name = 'organizations'
+              AND column_name = 'hq_county'
+        )
+        """
+    ).fetchone()[0]
+    if not has_hq_county:
+        apply_sql_file(conn, migrations / "20260805120000_org_geo.sql")
+    else:
+        print("Schema: organizations.hq_county already present")
+
 
 def seed_registry() -> int:
     count = 0
     for entry in MCDA_REGISTRY:
+        geo = geo_for_registry_entry(entry)
         upsert_registry_entry(
             org_name=entry["org_name"],
             org_type=entry["org_type"],
@@ -165,6 +182,9 @@ def seed_registry() -> int:
             url=entry["url"],
             registered_name=entry["registered_name"],
             aliases=entry["aliases"],
+            hq_county=geo["hq_county"] if geo else None,
+            latitude=geo["latitude"] if geo else None,
+            longitude=geo["longitude"] if geo else None,
         )
         count += 1
     return count

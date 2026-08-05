@@ -240,13 +240,25 @@ export function RegistryDashboard() {
   }
 
   useEffect(() => {
-    load("", "all");
+    let initialFilter: OrgFilter = "all";
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const ot = params.get("org_type");
+      if (ot === "ministry" || ot === "agency" || ot === "county") {
+        initialFilter = ot;
+        setOrgFilter(ot);
+      }
+    } catch {
+      // ignore
+    }
+    load("", initialFilter);
     try {
       const saved = window.sessionStorage.getItem(BATCH_STORAGE_KEY);
       if (saved) setBatchId(saved);
     } catch {
       // ignore storage errors
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -370,7 +382,11 @@ export function RegistryDashboard() {
             weekly scans. Switch to the leaderboard to rank the most compliant
             sites overall or by category. Use{" "}
             <span className="text-icta-black">Scan all</span> to re-check every
-            listed site.
+            listed site. County choropleth and national HQ pins live on the{" "}
+            <Link href="/map" className="text-icta-link hover:underline">
+              Kenya map
+            </Link>
+            .
           </p>
         </header>
 

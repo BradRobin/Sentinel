@@ -287,6 +287,9 @@ export interface RegistryEntry {
   url: string;
   registered_name: string | null;
   aliases: string[];
+  hq_county?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
   latest_score: number | null;
   previous_score: number | null;
   category_breakdown?: Record<string, number>;

@@ -175,6 +175,9 @@ def list_registry_entries(
             o.name AS org_name,
             o.type AS org_type,
             o.sector,
+            o.hq_county,
+            o.latitude,
+            o.longitude,
             latest.overall_score AS latest_score,
             latest.category_breakdown AS category_breakdown,
             latest.checked_at AS last_checked_at,
@@ -240,6 +243,13 @@ def list_registry_entries(
                 "org_name": r["org_name"],
                 "org_type": r["org_type"],
                 "sector": r["sector"],
+                "hq_county": r.get("hq_county"),
+                "latitude": (
+                    float(r["latitude"]) if r.get("latitude") is not None else None
+                ),
+                "longitude": (
+                    float(r["longitude"]) if r.get("longitude") is not None else None
+                ),
                 "url": r["url"],
                 "registered_name": r["registered_name"],
                 "aliases": list(aliases),
@@ -349,6 +359,9 @@ def upsert_registry_entry(
     url: str,
     registered_name: str,
     aliases: list[str],
+    hq_county: str | None = None,
+    latitude: float | None = None,
+    longitude: float | None = None,
 ) -> str:
     """Idempotent org + verified domain upsert. Returns domain id."""
     domain_url = normalize_domain_url(url)
@@ -368,20 +381,34 @@ def upsert_registry_entry(
                 """
                 UPDATE organizations
                 SET type = %s::organization_type,
-                    sector = COALESCE(%s, sector)
+                    sector = COALESCE(%s, sector),
+                    hq_county = %s,
+                    latitude = %s,
+                    longitude = %s
                 WHERE id = %s
                 """,
-                (org_type, sector, str(org["id"])),
+                (
+                    org_type,
+                    sector,
+                    hq_county,
+                    latitude,
+                    longitude,
+                    str(org["id"]),
+                ),
             )
             org_id = str(org["id"])
         else:
             created = conn.execute(
                 """
-                INSERT INTO organizations (name, type, sector)
-                VALUES (%s, %s::organization_type, %s)
+                INSERT INTO organizations (
+                    name, type, sector, hq_county, latitude, longitude
+                )
+                VALUES (
+                    %s, %s::organization_type, %s, %s, %s, %s
+                )
                 RETURNING id
                 """,
-                (org_name, org_type, sector),
+                (org_name, org_type, sector, hq_county, latitude, longitude),
             ).fetchone()
             org_id = str(created["id"])
 

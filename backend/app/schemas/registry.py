@@ -14,6 +14,9 @@ class RegistryEntry(BaseModel):
     url: str
     registered_name: str | None = None
     aliases: list[str] = Field(default_factory=list)
+    hq_county: str | None = None
+    latitude: float | None = None
+    longitude: float | None = None
     latest_score: float | None = None
     previous_score: float | None = None
     category_breakdown: dict[str, float] = Field(default_factory=dict)

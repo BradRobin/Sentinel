@@ -222,3 +222,108 @@ export function enrichCountiesGeoJSON(
     }),
   };
 }
+
+export type MapAsideTab = "counties" | "ministries" | "agencies" | "national";
+
+export const MAP_ASIDE_TABS: Array<{ id: MapAsideTab; label: string }> = [
+  { id: "counties", label: "Counties" },
+  { id: "ministries", label: "Ministries" },
+  { id: "agencies", label: "Agencies" },
+  { id: "national", label: "National" },
+];
+
+export function parseMapAsideTab(raw: string | null | undefined): MapAsideTab {
+  if (raw === "ministries" || raw === "agencies" || raw === "national") {
+    return raw;
+  }
+  return "counties";
+}
+
+export function rankedRegistryEntries(entries: RegistryEntry[]): RegistryEntry[] {
+  return [...entries]
+    .filter((e) => e.latest_score != null)
+    .sort((a, b) => (b.latest_score ?? 0) - (a.latest_score ?? 0));
+}
+
+export function filterRegistryByTab(
+  entries: RegistryEntry[],
+  tab: MapAsideTab,
+): RegistryEntry[] {
+  switch (tab) {
+    case "counties":
+      return entries.filter((e) => e.org_type === "county");
+    case "ministries":
+      return entries.filter((e) => e.org_type === "ministry");
+    case "agencies":
+      return entries.filter((e) => e.org_type === "agency");
+    case "national":
+      return entries.filter(
+        (e) => e.org_type === "ministry" || e.org_type === "agency",
+      );
+  }
+}
+
+/** National MCDAs whose hq_county matches an ADM1 / registry county name. */
+export function orgsHeadquarteredInCounty(
+  entries: RegistryEntry[],
+  countyLabel: string,
+): RegistryEntry[] {
+  const key = normalizeCountyKey(countyLabel);
+  if (!key) return [];
+  return entries.filter((e) => {
+    if (e.org_type === "county") return false;
+    if (!e.hq_county) return false;
+    return normalizeCountyKey(e.hq_county) === key;
+  });
+}
+
+export interface McdaMapMarker {
+  domainId: string;
+  orgName: string;
+  orgType: "ministry" | "agency";
+  url: string;
+  hqCounty: string | null;
+  latitude: number;
+  longitude: number;
+  score: number | null;
+  fill: string;
+  topIssue: string | null;
+  trend: string | null;
+}
+
+export function buildMcdaMarkers(entries: RegistryEntry[]): McdaMapMarker[] {
+  const out: McdaMapMarker[] = [];
+  for (const e of entries) {
+    if (e.org_type !== "ministry" && e.org_type !== "agency") continue;
+    if (e.latitude == null || e.longitude == null) continue;
+    if (!Number.isFinite(e.latitude) || !Number.isFinite(e.longitude)) continue;
+    const band = scoreBand(e.latest_score);
+    out.push({
+      domainId: e.domain_id,
+      orgName: e.registered_name || e.org_name,
+      orgType: e.org_type,
+      url: e.url,
+      hqCounty: e.hq_county ?? null,
+      latitude: e.latitude,
+      longitude: e.longitude,
+      score: e.latest_score,
+      fill: band.fill,
+      topIssue: topIssueFromBreakdown(e.category_breakdown),
+      trend: e.trend,
+    });
+  }
+  return out;
+}
+
+export function orgTypeShortLabel(type: string): string {
+  switch (type) {
+    case "ministry":
+      return "Ministry";
+    case "agency":
+      return "Agency";
+    case "county":
+      return "County";
+    default:
+      return type;
+  }
+}

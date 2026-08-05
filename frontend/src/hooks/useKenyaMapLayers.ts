@@ -3,8 +3,12 @@
 import { useEffect, useRef, useState, type RefObject } from "react";
 import L from "leaflet";
 
-import { kenyaWaterStyle } from "@/lib/kenya-map";
 import { A11Y_TEXT_EVENT } from "@/lib/a11y";
+import {
+  kenyaWaterStyle,
+  normalizeCountyKey,
+  type McdaMapMarker,
+} from "@/lib/kenya-map";
 
 export function splitWaterFeatures(water: GeoJSON.GeoJsonObject): {
   lakes: GeoJSON.Feature[];
@@ -32,12 +36,13 @@ export function orderWaterLayers(
   lakeLayer?.bringToFront();
 }
 
-/** Fixed panes so county hover (bringToFront) cannot cover lakes. */
+/** Fixed panes so county hover (bringToFront) cannot cover lakes / markers. */
 export function ensureKenyaMapPanes(map: L.Map) {
   const panes: Array<[string, string]> = [
     ["kenya-ocean", "350"],
     ["kenya-counties", "400"],
     ["kenya-lakes", "450"],
+    ["kenya-markers", "500"],
   ];
   for (const [name, zIndex] of panes) {
     if (!map.getPane(name)) map.createPane(name);
@@ -56,6 +61,10 @@ interface UseKenyaMapLayersOptions {
     layer: L.Layer,
     layerGroup: L.GeoJSON,
   ) => void;
+  markers?: McdaMapMarker[];
+  showMarkers?: boolean;
+  focusCountyKey?: string | null;
+  onMarkerSelect?: (marker: McdaMapMarker) => void;
 }
 
 export function useKenyaMapLayers({
@@ -64,11 +73,18 @@ export function useKenyaMapLayers({
   waterGeojson,
   countyStyle,
   onEachCountyFeature,
+  markers = [],
+  showMarkers = true,
+  focusCountyKey = null,
+  onMarkerSelect,
 }: UseKenyaMapLayersOptions) {
   const mapRef = useRef<L.Map | null>(null);
   const layerRef = useRef<L.GeoJSON | null>(null);
   const oceanLayerRef = useRef<L.GeoJSON | null>(null);
   const lakeLayerRef = useRef<L.GeoJSON | null>(null);
+  const markersLayerRef = useRef<L.LayerGroup | null>(null);
+  const onMarkerSelectRef = useRef(onMarkerSelect);
+  onMarkerSelectRef.current = onMarkerSelect;
   const [mapReady, setMapReady] = useState(false);
 
   useEffect(() => {
@@ -79,7 +95,7 @@ export function useKenyaMapLayers({
       zoomControl: true,
       attributionControl: true,
       minZoom: 5,
-      maxZoom: 10,
+      maxZoom: 12,
     });
     map.setView([0.35, 37.9], 6);
     map.attributionControl.setPrefix("");
@@ -95,7 +111,6 @@ export function useKenyaMapLayers({
     requestAnimationFrame(() => map.invalidateSize());
 
     function onA11yTextStep() {
-      // Rem root font-size changes chrome height; Leaflet needs a reflow.
       requestAnimationFrame(() => map.invalidateSize());
     }
     window.addEventListener(A11Y_TEXT_EVENT, onA11yTextStep);
@@ -107,6 +122,7 @@ export function useKenyaMapLayers({
       layerRef.current = null;
       oceanLayerRef.current = null;
       lakeLayerRef.current = null;
+      markersLayerRef.current = null;
       map.remove();
       if (mapRef.current === map) mapRef.current = null;
     };
@@ -130,7 +146,7 @@ export function useKenyaMapLayers({
 
     if (ocean.length > 0) {
       const oceanLayer = L.geoJSON(
-        { type: "FeatureCollection", features: ocean },
+        { type: "FeatureCollection", features: ocean } as GeoJSON.FeatureCollection,
         { style, interactive: false, pane: "kenya-ocean" },
       );
       oceanLayer.addTo(map);
@@ -139,7 +155,7 @@ export function useKenyaMapLayers({
 
     if (lakes.length > 0) {
       const lakeLayer = L.geoJSON(
-        { type: "FeatureCollection", features: lakes },
+        { type: "FeatureCollection", features: lakes } as GeoJSON.FeatureCollection,
         { style, interactive: false, pane: "kenya-lakes" },
       );
       lakeLayer.addTo(map);
@@ -164,7 +180,7 @@ export function useKenyaMapLayers({
     });
 
     for (const lyr of layer.getLayers()) {
-      const geoLayer = lyr as L.GeoJSON;
+      const geoLayer = lyr as L.Layer & { feature?: GeoJSON.Feature };
       const feature = geoLayer.feature;
       if (feature) onEachCountyFeature(feature, lyr, layer);
     }
@@ -179,6 +195,62 @@ export function useKenyaMapLayers({
     }
     map.invalidateSize();
   }, [enriched, mapReady, countyStyle, onEachCountyFeature]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!mapReady || !map) return;
+
+    if (markersLayerRef.current) {
+      map.removeLayer(markersLayerRef.current);
+      markersLayerRef.current = null;
+    }
+
+    if (!showMarkers || markers.length === 0) return;
+
+    const group = L.layerGroup([], { pane: "kenya-markers" });
+    for (const marker of markers) {
+      const circle = L.circleMarker([marker.latitude, marker.longitude], {
+        radius: marker.orgType === "ministry" ? 7 : 6,
+        color: "#111111",
+        weight: 1.2,
+        fillColor: marker.fill,
+        fillOpacity: 0.92,
+        pane: "kenya-markers",
+      });
+      circle.bindTooltip(
+        `${marker.orgName}<br/>${
+          marker.score != null ? `Score ${marker.score.toFixed(1)}` : "No score yet"
+        }`,
+        { direction: "top", opacity: 0.95 },
+      );
+      circle.on("click", () => {
+        onMarkerSelectRef.current?.(marker);
+      });
+      group.addLayer(circle);
+    }
+    group.addTo(map);
+    markersLayerRef.current = group;
+  }, [markers, showMarkers, mapReady]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    const layer = layerRef.current;
+    if (!mapReady || !map || !layer || !focusCountyKey) return;
+
+    const target = normalizeCountyKey(focusCountyKey);
+    for (const lyr of layer.getLayers()) {
+      const geoLayer = lyr as L.Layer & { feature?: GeoJSON.Feature };
+      const feature = geoLayer.feature;
+      const shapeName = String(feature?.properties?.shapeName ?? "");
+      if (normalizeCountyKey(shapeName) !== target) continue;
+      const path = lyr as L.Polygon;
+      const bounds = path.getBounds?.();
+      if (bounds?.isValid()) {
+        map.fitBounds(bounds, { padding: [36, 36], maxZoom: 8 });
+      }
+      break;
+    }
+  }, [focusCountyKey, mapReady, enriched]);
 
   return { mapRef, mapReady, layerRef };
 }

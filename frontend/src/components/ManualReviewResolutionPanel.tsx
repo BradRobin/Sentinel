@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import { CheckCircle2, ExternalLink, Flag, X, XCircle } from "lucide-react";
 
 import type {
@@ -60,23 +60,9 @@ export function ManualReviewResolutionPanel({
   const minJustificationLen = 15;
 
   const guide = useMemo(
-    () =>
-      item
-        ? getReviewGuide(item.check_name, item.check_type)
-        : null,
-    [item?.check_name, item?.check_type],
+    () => (item ? getReviewGuide(item.check_name, item.check_type) : null),
+    [item],
   );
-
-  // Reset form when selecting a new item.
-  useEffect(() => {
-    if (!item) return;
-    setStatus("pass");
-    setJustification("");
-    setError(null);
-    setCompletedSteps({});
-    setLiveSiteOpened(false);
-    setSaving(false);
-  }, [item?.id]);
 
   const allStepsDone = useMemo(() => {
     if (!guide) return false;
@@ -167,7 +153,7 @@ export function ManualReviewResolutionPanel({
       >
         <header className={panelHeader}>
           <div className="min-w-0">
-            <h2 className="text-lg font-semibold text-icta-black">
+            <h2 className="text-lg font-semibold text-icta-gray-900">
               Resolve manual review
             </h2>
             {item && (
@@ -194,7 +180,7 @@ export function ManualReviewResolutionPanel({
           ) : (
             <form onSubmit={onSubmit} className="space-y-5">
               <div>
-                <h3 className="text-sm font-semibold text-icta-black">
+                <h3 className="text-sm font-semibold text-icta-gray-900">
                   {item.question_title}
                 </h3>
                 <p className="mt-1 text-xs text-icta-gray-600">
@@ -212,7 +198,7 @@ export function ManualReviewResolutionPanel({
                   <p className="text-xs font-medium uppercase tracking-wide text-icta-gray-600">
                     What to verify
                   </p>
-                  <p className="mt-1 text-sm text-icta-black">{guide.summary}</p>
+                  <p className="mt-1 text-sm text-icta-gray-900">{guide.summary}</p>
                 </div>
                 <div>
                   <p className="text-xs font-medium uppercase tracking-wide text-icta-gray-600">
@@ -289,7 +275,7 @@ export function ManualReviewResolutionPanel({
                             }
                           />
                           <span className="min-w-0">
-                            <span className="font-medium text-icta-black">
+                            <span className="font-medium text-icta-gray-900">
                               Step {index + 1}.{" "}
                             </span>
                             <span className="text-icta-gray-600">{step.label}</span>

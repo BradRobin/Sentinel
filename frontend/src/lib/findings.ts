@@ -450,7 +450,7 @@ export function findingVisualWeight(
     return {
       row: "border-l-2 border-l-transparent",
       header: "border-l-4 border-l-icta-green",
-      name: "font-medium text-icta-black",
+      name: "font-medium text-icta-gray-900",
       badge: "bg-icta-green/10 text-icta-green font-semibold",
       severityLabel: "text-icta-gray-600",
     };
@@ -460,7 +460,7 @@ export function findingVisualWeight(
     return {
       row: "border-l-[3px] border-l-icta-gray-200",
       header: "border-l-4 border-l-icta-gray-200",
-      name: "font-medium text-icta-black",
+      name: "font-medium text-icta-gray-900",
       badge: "bg-icta-gray-100 text-icta-gray-600 font-semibold",
       severityLabel: "text-icta-gray-600",
     };
@@ -471,7 +471,7 @@ export function findingVisualWeight(
     return {
       row: "border-l-4 border-l-icta-red bg-icta-red/[0.04]",
       header: "border-l-4 border-l-icta-red bg-icta-red/[0.04]",
-      name: "font-bold text-icta-black",
+      name: "font-bold text-icta-gray-900",
       badge: "bg-icta-red/15 text-icta-red font-bold",
       severityLabel: "font-semibold text-icta-red",
     };
@@ -480,7 +480,7 @@ export function findingVisualWeight(
     return {
       row: "border-l-[3px] border-l-icta-amber",
       header: "border-l-4 border-l-icta-amber",
-      name: "font-semibold text-icta-black",
+      name: "font-semibold text-icta-gray-900",
       badge: "bg-icta-amber/10 text-icta-amber font-semibold",
       severityLabel: "font-medium text-icta-amber",
     };
@@ -489,7 +489,7 @@ export function findingVisualWeight(
   return {
     row: "border-l-2 border-l-icta-red/45",
     header: "border-l-4 border-l-icta-red/45",
-    name: "font-medium text-icta-black",
+    name: "font-medium text-icta-gray-900",
     badge: "bg-icta-red/10 text-icta-red font-semibold",
     severityLabel: "text-icta-gray-600",
   };

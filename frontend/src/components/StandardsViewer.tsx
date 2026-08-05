@@ -41,13 +41,13 @@ const StandardsPdfPage = dynamic(
 );
 
 const pagerBtn =
-  "inline-flex items-center gap-0.5 rounded px-2.5 py-1 text-sm font-medium text-icta-gray-600 transition-colors hover:bg-icta-gray-50 hover:text-icta-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-icta-black disabled:pointer-events-none disabled:opacity-40";
+  "inline-flex items-center gap-0.5 rounded px-2.5 py-1 text-sm font-medium text-icta-gray-600 transition-colors hover:bg-icta-gray-50 hover:text-icta-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-icta-black disabled:pointer-events-none disabled:opacity-40";
 
 function itemClass(active: boolean): string {
   return `block w-full rounded px-2 py-1 text-left text-xs transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-icta-black ${
     active
-      ? "bg-icta-gray-100 font-semibold text-icta-black"
-      : "text-icta-gray-600 hover:bg-icta-gray-50 hover:text-icta-black"
+      ? "bg-icta-gray-100 font-semibold text-icta-gray-900"
+      : "text-icta-gray-600 hover:bg-icta-gray-50 hover:text-icta-gray-900"
   }`;
 }
 
@@ -188,7 +188,7 @@ export function StandardsViewer() {
       <header className="border-b border-icta-gray-200 px-6 py-4">
         <div className="mx-auto flex w-full max-w-6xl flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div className="min-w-0">
-            <h1 className="text-xl font-bold text-icta-black sm:text-2xl font-serif">
+            <h1 className="text-xl font-bold text-icta-gray-900 sm:text-2xl font-serif">
               {STANDARDS_DOC_LABEL}
             </h1>
             <p className="mt-1 text-sm text-icta-gray-600">
@@ -197,7 +197,7 @@ export function StandardsViewer() {
                 <>
                   {" "}
                   · clause{" "}
-                  <span className="font-medium text-icta-black font-serif">{clause}</span>
+                  <span className="font-medium text-icta-gray-900 font-serif">{clause}</span>
                 </>
               ) : null}
               {" "}
@@ -234,7 +234,7 @@ export function StandardsViewer() {
                   if (Number.isFinite(n) && n !== page) commitJump(e.target.value);
                 }}
                 aria-label="Jump to page"
-                className="w-14 rounded border border-icta-gray-200 bg-icta-gray-50 px-1.5 py-1 text-center text-sm tabular-nums text-icta-black focus:border-icta-black focus:outline-none focus:ring-2 focus:ring-icta-black/10"
+                className="w-14 rounded border border-icta-gray-200 bg-icta-gray-50 px-1.5 py-1 text-center text-sm tabular-nums text-icta-gray-900 focus:border-icta-black focus:outline-none focus:ring-2 focus:ring-icta-black/10"
               />
               <span className="px-1 text-sm tabular-nums text-icta-gray-600" aria-hidden>
                 / {pageCount ?? "…"}
@@ -282,7 +282,7 @@ export function StandardsViewer() {
           </aside>
 
           <details className="mb-2 lg:hidden">
-            <summary className="cursor-pointer select-none text-sm font-semibold text-icta-black">
+            <summary className="cursor-pointer select-none text-sm font-semibold text-icta-gray-900">
               Clause index
             </summary>
             <div className="mt-2">

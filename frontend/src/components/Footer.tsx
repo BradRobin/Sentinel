@@ -97,7 +97,7 @@ export function Footer() {
             {user ? (
               <>
                 <li>
-                  <span className="block text-sm font-medium text-icta-black">
+                  <span className="block text-sm font-medium text-icta-gray-900">
                     {user.name}
                   </span>
                   <span className="mt-0.5 block truncate text-xs text-icta-gray-600">

@@ -21,7 +21,7 @@ supabase/     Migrations and CLI config
 ## Prerequisites
 
 - **Node.js** 20+
-- **Python** 3.11+
+- **Python** 3.12+
 - **Docker** and Docker Compose (Postgres, Redis, API, worker, beat)
 - **Supabase CLI** (optional; required only to push migrations to a hosted project)
 

@@ -99,6 +99,17 @@ function trendMark(trend: string | null): ReactNode {
 
 export function KenyaMapDashboard() {
   const containerRef = useRef<HTMLDivElement>(null);
+  const [containerWidth, setContainerWidth] = useState(320);
+
+  useEffect(() => {
+    const node = containerRef.current;
+    if (!node) return;
+    const observer = new ResizeObserver(() =>
+      setContainerWidth(node.clientWidth),
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
 
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -270,15 +281,12 @@ export function KenyaMapDashboard() {
               <div
                 className="kenya-map-glass-card pop-in pointer-events-none absolute z-[1000] max-w-[16rem] rounded-xl border border-white/20 px-3.5 py-2.5 text-xs"
                 style={{
-                  left: Math.min(
-                    tooltip.x + 14,
-                    (containerRef.current?.clientWidth ?? 320) - 180,
-                  ),
+                  left: Math.min(tooltip.x + 14, containerWidth - 180),
                   top: Math.max(8, tooltip.y - 12),
                 }}
                 role="tooltip"
               >
-                <p className="font-semibold text-icta-black">
+                <p className="font-semibold text-icta-gray-900">
                   {tooltip.props.orgName || tooltip.props.shapeName}
                 </p>
                 <p className="mt-1 tabular-nums text-icta-gray-600">
@@ -307,7 +315,7 @@ export function KenyaMapDashboard() {
               </h2>
               {selected ? (
                 <div className="mt-2 space-y-2 text-sm">
-                  <p className="font-medium text-icta-black">
+                  <p className="font-medium text-icta-gray-900">
                     {selected.orgName || selected.shapeName}
                   </p>
                   <p className="tabular-nums text-icta-gray-600">
@@ -398,7 +406,7 @@ export function KenyaMapDashboard() {
                           }
                         >
                           <span className="flex items-center justify-between gap-2">
-                            <span className="font-medium text-icta-black">
+                            <span className="font-medium text-icta-gray-900">
                               {row.registered_name || row.org_name}
                             </span>
                             <span className="tabular-nums text-icta-gray-600">

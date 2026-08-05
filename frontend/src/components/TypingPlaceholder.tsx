@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 
 const TYPE_MS = 42;
 const DELETE_MS = 28;
@@ -14,32 +14,29 @@ interface TypingPlaceholderProps {
   className?: string;
 }
 
+function subscribeReducedMotion(callback: () => void) {
+  const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+  mq.addEventListener("change", callback);
+  return () => mq.removeEventListener("change", callback);
+}
+
+function getReducedMotionSnapshot() {
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
 /**
- * Animated “typing” placeholder for empty, unfocused inputs.
- * Cycles through example strings; respects prefers-reduced-motion.
+ * Animated “typing” text. Only mounted while the placeholder is active, so its
+ * text state is fresh on every activation.
  */
-export function TypingPlaceholder({
-  examples,
-  active,
-  className = "",
-}: TypingPlaceholderProps) {
+function TypingAnimation({ examples }: { examples: readonly string[] }) {
   const [text, setText] = useState("");
-  const [reduceMotion, setReduceMotion] = useState(false);
+  const reduceMotion = useSyncExternalStore(
+    subscribeReducedMotion,
+    getReducedMotionSnapshot,
+    () => false,
+  );
 
   useEffect(() => {
-    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const sync = () => setReduceMotion(mq.matches);
-    sync();
-    mq.addEventListener("change", sync);
-    return () => mq.removeEventListener("change", sync);
-  }, []);
-
-  useEffect(() => {
-    if (!active || examples.length === 0) {
-      setText("");
-      return;
-    }
-
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let index = 0;
@@ -51,13 +48,12 @@ export function TypingPlaceholder({
     };
 
     if (reduceMotion) {
-      setText(examples[0] ?? "");
       const rotate = () => {
-        index = (index + 1) % examples.length;
         setText(examples[index] ?? "");
+        index = (index + 1) % examples.length;
         schedule(rotate, HOLD_MS + GAP_MS);
       };
-      schedule(rotate, HOLD_MS + GAP_MS);
+      schedule(rotate, 0);
       return () => {
         cancelled = true;
         if (timer) clearTimeout(timer);
@@ -98,8 +94,28 @@ export function TypingPlaceholder({
       cancelled = true;
       if (timer) clearTimeout(timer);
     };
-  }, [active, examples, reduceMotion]);
+  }, [examples, reduceMotion]);
 
+  return (
+    <span className="truncate">
+      {text}
+      <span
+        className="ml-0.5 inline-block h-[1.05em] w-px animate-pulse bg-current align-[-0.15em]"
+        aria-hidden="true"
+      />
+    </span>
+  );
+}
+
+/**
+ * Animated “typing” placeholder for empty, unfocused inputs.
+ * Cycles through example strings; respects prefers-reduced-motion.
+ */
+export function TypingPlaceholder({
+  examples,
+  active,
+  className = "",
+}: TypingPlaceholderProps) {
   if (!active) return null;
 
   return (
@@ -107,13 +123,7 @@ export function TypingPlaceholder({
       className={`pointer-events-none absolute inset-0 flex items-center overflow-hidden px-3 text-sm text-icta-gray-600/70 ${className}`}
       aria-hidden="true"
     >
-      <span className="truncate">
-        {text}
-        <span
-          className="ml-0.5 inline-block h-[1.05em] w-px animate-pulse bg-current align-[-0.15em]"
-          aria-hidden="true"
-        />
-      </span>
+      <TypingAnimation examples={examples} />
     </div>
   );
 }

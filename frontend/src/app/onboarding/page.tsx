@@ -126,7 +126,7 @@ export default function OnboardingPage() {
               key={i}
               className={
                 i === step
-                  ? "font-semibold text-icta-black"
+                  ? "font-semibold text-icta-gray-900"
                   : i < step
                     ? "text-icta-green"
                     : ""
@@ -151,7 +151,7 @@ export default function OnboardingPage() {
       <div key={step} className="animate-fade-in-up">
         {step === 0 && (
           <div className="space-y-3" role="radiogroup" aria-label="Your role">
-            <p className="text-sm font-medium text-icta-black">
+            <p className="text-sm font-medium text-icta-gray-900">
               How will you use Sentinel?
             </p>
             {ROLE_OPTIONS.map((option) => {

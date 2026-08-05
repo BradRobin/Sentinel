@@ -66,7 +66,7 @@ export function FindingsSidePanel({
         >
           <div className="min-w-0">
             <h2
-              className={`text-lg text-icta-black ${
+              className={`text-lg text-icta-gray-900 ${
                 headerWeight?.name ?? "font-semibold"
               }`}
             >

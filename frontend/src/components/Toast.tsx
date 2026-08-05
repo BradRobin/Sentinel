@@ -55,7 +55,7 @@ function ToastCard({ item, onDismiss }: { item: ToastItem; onDismiss: (id: numbe
     >
       <Icon className={`mt-0.5 size-4.5 shrink-0 ${ICON_CLASSES[item.variant]}`} aria-hidden="true" />
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-semibold text-icta-black">{item.title}</p>
+        <p className="text-sm font-semibold text-icta-gray-900">{item.title}</p>
         {item.description ? (
           <p className="mt-0.5 text-sm leading-relaxed text-icta-gray-600">
             {item.description}
@@ -66,7 +66,7 @@ function ToastCard({ item, onDismiss }: { item: ToastItem; onDismiss: (id: numbe
         type="button"
         onClick={() => onDismiss(item.id)}
         aria-label="Dismiss notification"
-        className="shrink-0 rounded-md p-1 text-icta-gray-600 transition-colors hover:bg-icta-gray-50 hover:text-icta-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-icta-black"
+        className="shrink-0 rounded-md p-1 text-icta-gray-600 transition-colors hover:bg-icta-gray-50 hover:text-icta-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-icta-black"
       >
         <X className="size-4" aria-hidden="true" />
       </button>

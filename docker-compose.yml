@@ -40,8 +40,8 @@ services:
     volumes:
       - ./backend:/app
       - ./supabase:/supabase:ro
-    command: python scripts/bootstrap_local_db.py
-    restart: "no"
+    command: python3 scripts/bootstrap_local_db.py
+    restart: "unless stopped"
 
   api:
     build:

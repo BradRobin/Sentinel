@@ -202,7 +202,7 @@ function ScanProgressChecklist({
   return (
     <section
       aria-label="Compliance checks progress"
-      className={`${card} mb-8 animate-fade-in-up p-4`}
+      className={`${card} sticky top-4 z-20 mb-8 animate-fade-in-up p-4 shadow-pop`}
     >
       <div className="mb-2 flex items-center justify-between gap-2">
         <h2 className={`${sectionLabel}`}>Compliance checks</h2>
@@ -672,6 +672,7 @@ export function ScanWorkspace() {
                 onKeyDown={onUrlKeyDown}
                 placeholder=""
                 aria-label="Government website URL"
+                role="combobox"
                 className={`${inputBase} ${showPaste ? "pr-20" : ""} ${fieldError ? inputError : ""}`}
                 disabled={busy}
                 aria-invalid={Boolean(fieldError)}
@@ -735,7 +736,7 @@ export function ScanWorkspace() {
                       }`}
                     >
                       <span className="min-w-0">
-                        <span className="block text-sm font-medium text-icta-black">
+                        <span className="block text-sm font-medium text-icta-gray-900">
                           {entry.name}
                         </span>
                         <span className="block truncate text-xs text-icta-gray-600">

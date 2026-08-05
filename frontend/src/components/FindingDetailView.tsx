@@ -44,7 +44,7 @@ function ScalarRows({
           <dt className="w-[42%] shrink-0 text-icta-gray-600">
             {labelDetailKey(key)}
           </dt>
-          <dd className="min-w-0 break-words font-medium text-icta-black">
+          <dd className="min-w-0 break-words font-medium text-icta-gray-900">
             {formatDetailScalar(key, value)}
           </dd>
         </div>
@@ -58,7 +58,7 @@ function StringList({ items }: { items: string[] }) {
     return <p className="text-sm text-icta-gray-600">None</p>;
   }
   return (
-    <ul className="list-disc space-y-1 pl-4 text-sm text-icta-black">
+    <ul className="list-disc space-y-1 pl-4 text-sm text-icta-gray-900">
       {items.map((item, i) => (
         <li key={`${item}-${i}`} className="break-words">
           {item}
@@ -128,7 +128,7 @@ export function FindingDetailView({ detail }: FindingDetailViewProps) {
         <div className="rounded-md border border-icta-gray-100 bg-icta-gray-50/60 px-3 py-2.5">
           {partitioned.messages.map(({ key, value }) => (
             <DetailSection key={key} label={labelDetailKey(key)}>
-              <p className="text-sm leading-relaxed text-icta-black">{value}</p>
+              <p className="text-sm leading-relaxed text-icta-gray-900">{value}</p>
             </DetailSection>
           ))}
 
@@ -163,10 +163,10 @@ export function FindingDetailView({ detail }: FindingDetailViewProps) {
       )}
 
       <details className="mt-2 group">
-        <summary className="cursor-pointer select-none text-xs font-medium text-icta-gray-600 hover:text-icta-black">
+        <summary className="cursor-pointer select-none text-xs font-medium text-icta-gray-600 hover:text-icta-gray-900">
           View raw data
         </summary>
-        <pre className="mt-1.5 overflow-x-auto rounded bg-icta-gray-50 p-2 text-xs text-icta-black">
+        <pre className="mt-1.5 overflow-x-auto rounded bg-icta-gray-50 p-2 text-xs text-icta-gray-900">
           {JSON.stringify(detail ?? {}, null, 2)}
         </pre>
       </details>

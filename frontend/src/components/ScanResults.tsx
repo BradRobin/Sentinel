@@ -171,7 +171,7 @@ function NarrativeSummary({
   }
 
   return (
-    <p className="text-base leading-relaxed text-icta-black">
+    <p className="text-base leading-relaxed text-icta-gray-900">
       {parts.length > 0 ? parts : linkStandardsInText(text, "all")}
     </p>
   );
@@ -256,26 +256,31 @@ export function ScanResults({
   const [panelSubtitle, setPanelSubtitle] = useState<string | undefined>();
   const [panelFindings, setPanelFindings] = useState<Finding[]>([]);
 
-  const [comparison, setComparison] = useState<ComparisonResponse | null>(null);
+  const [fetchedComparison, setFetchedComparison] = useState<{
+    jobId: string;
+    data: ComparisonResponse;
+  } | null>(null);
   const [comparisonOpen, setComparisonOpen] = useState(false);
   const [comparePeriod, setComparePeriod] =
     useState<ComparisonPeriod>("quarter");
-  const [availablePeriods, setAvailablePeriods] = useState<string[]>([]);
-  const [periodLabels, setPeriodLabels] = useState<Record<string, string>>({});
+  const [availability, setAvailability] = useState<{
+    jobId: string;
+    periods: string[];
+    labels: Record<string, string>;
+  } | null>(null);
 
   useEffect(() => {
-    if (!jobId || !resultsReady) {
-      setComparison(null);
-      setAvailablePeriods([]);
-      return;
-    }
+    if (!jobId || !resultsReady) return;
     let cancelled = false;
     getScanComparisonAvailability(jobId)
       .then((data) => {
         if (cancelled) return;
         const available = data.available_periods ?? [];
-        setAvailablePeriods(available);
-        setPeriodLabels(data.period_labels ?? {});
+        setAvailability({
+          jobId,
+          periods: available,
+          labels: data.period_labels ?? {},
+        });
         setComparePeriod((current) =>
           available.includes(current)
             ? current
@@ -286,8 +291,7 @@ export function ScanResults({
       })
       .catch(() => {
         if (!cancelled) {
-          setAvailablePeriods([]);
-          setPeriodLabels({});
+          setAvailability({ jobId, periods: [], labels: {} });
         }
       });
     return () => {
@@ -295,40 +299,50 @@ export function ScanResults({
     };
   }, [jobId, resultsReady]);
 
+  const jobAvailability =
+    jobId && availability?.jobId === jobId ? availability : null;
+  const availablePeriods = jobAvailability?.periods ?? [];
+  const periodLabels = jobAvailability?.labels ?? {};
+
   useEffect(() => {
-    if (!jobId || !resultsReady) {
-      setComparison(null);
-      return;
-    }
-    if (availablePeriods.length === 0) {
-      setComparison({
-        has_history: false,
-        requested_period: comparePeriod,
-        available_periods: [],
-      });
-      return;
-    }
-    if (!availablePeriods.includes(comparePeriod)) {
-      return;
-    }
+    const periods =
+      jobId && availability?.jobId === jobId ? availability.periods : [];
+    if (!jobId || !resultsReady || periods.length === 0) return;
+    if (!periods.includes(comparePeriod)) return;
     let cancelled = false;
     getScanComparison(jobId, comparePeriod)
       .then((data) => {
-        if (!cancelled) setComparison(data);
+        if (!cancelled) setFetchedComparison({ jobId, data });
       })
       .catch(() => {
         if (!cancelled) {
-          setComparison({
-            has_history: false,
-            requested_period: comparePeriod,
-            available_periods: availablePeriods,
+          setFetchedComparison({
+            jobId,
+            data: {
+              has_history: false,
+              requested_period: comparePeriod,
+              available_periods: periods,
+            },
           });
         }
       });
     return () => {
       cancelled = true;
     };
-  }, [jobId, resultsReady, comparePeriod, availablePeriods]);
+  }, [jobId, resultsReady, comparePeriod, availability]);
+
+  const comparison: ComparisonResponse | null = (() => {
+    if (!jobId || !resultsReady) return null;
+    if (fetchedComparison?.jobId !== jobId) return null;
+    if (availablePeriods.length === 0) {
+      return {
+        has_history: false,
+        requested_period: comparePeriod,
+        available_periods: [],
+      };
+    }
+    return fetchedComparison.data;
+  })();
 
   const comparedSnapshot = comparison?.compared_to ?? comparison?.previous;
   const hasHistory = comparison?.has_history === true;
@@ -390,7 +404,7 @@ export function ScanResults({
     <div className="space-y-8">
       <section className="animate-fade-in-up">
         {resultsReady && overallScore !== null && overallScore !== undefined ? (
-          <div className="mb-3 text-4xl font-bold tracking-tight text-icta-black">
+          <div className="mb-3 text-4xl font-bold tracking-tight text-icta-gray-900">
             {Number(overallScore).toFixed(1)}%
             <span className="ml-2 text-base font-medium text-icta-gray-600">
               compliance
@@ -409,7 +423,7 @@ export function ScanResults({
         ) : null}
 
         {showDeclineHeadline && comparedSnapshot && comparison?.current && (
-          <p className="mb-3 text-base text-icta-black">
+          <p className="mb-3 text-base text-icta-gray-900">
             <button
               type="button"
               onClick={() => setComparisonOpen(true)}
@@ -423,7 +437,7 @@ export function ScanResults({
           </p>
         )}
 
-        <p className="text-base leading-relaxed text-icta-black">
+        <p className="text-base leading-relaxed text-icta-gray-900">
           Scan of{" "}
           <span className="font-medium">{scannedUrl ?? "this site"}</span>
           {cacheHit ? " (cached)" : ""}
@@ -484,7 +498,7 @@ export function ScanResults({
 
         {resultsReady && jobId && comparison !== null && (
           <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-3">
-            <label className="flex flex-wrap items-center gap-2 text-sm text-icta-black">
+            <label className="flex flex-wrap items-center gap-2 text-sm text-icta-gray-900">
               <span className="text-icta-gray-600">Compare to</span>
               <select
                 value={comparePeriod}
@@ -534,7 +548,7 @@ export function ScanResults({
 
       {resultsReady && narrative ? (
         <section aria-label="Scan summary" className="animate-fade-in-up" style={{ animationDelay: "60ms" }}>
-          <h2 className="mb-2 text-lg font-semibold text-icta-black">Summary</h2>
+          <h2 className="mb-2 text-lg font-semibold text-icta-gray-900">Summary</h2>
           <NarrativeSummary
             text={narrative}
             stats={stats}
@@ -551,7 +565,7 @@ export function ScanResults({
         </section>
       ) : !resultsReady ? (
         <section aria-label="Scan summary pending" aria-busy="true">
-          <h2 className="mb-2 text-lg font-semibold text-icta-black">Summary</h2>
+          <h2 className="mb-2 text-lg font-semibold text-icta-gray-900">Summary</h2>
           <div className="space-y-2">
             <Skeleton className="h-4 w-full rounded-md" />
             <Skeleton className="h-4 w-5/6 rounded-md" />
@@ -562,7 +576,7 @@ export function ScanResults({
 
       {resultsReady && topIssues.length > 0 ? (
         <section className="animate-fade-in-up" style={{ animationDelay: "120ms" }}>
-          <h2 className="mb-3 text-lg font-semibold text-icta-black">
+          <h2 className="mb-3 text-lg font-semibold text-icta-gray-900">
             Top issues
           </h2>
           <ul className="space-y-2">
@@ -605,7 +619,7 @@ export function ScanResults({
         </section>
       ) : !resultsReady ? (
         <section aria-busy="true">
-          <h2 className="mb-3 text-lg font-semibold text-icta-black">
+          <h2 className="mb-3 text-lg font-semibold text-icta-gray-900">
             Top issues
           </h2>
           <div className="space-y-3">
@@ -627,7 +641,7 @@ export function ScanResults({
       )}
 
       <section className="space-y-6 animate-fade-in-up" style={{ animationDelay: "240ms" }}>
-        <h2 className="text-lg font-semibold text-icta-black">
+        <h2 className="text-lg font-semibold text-icta-gray-900">
           Findings by category
           {!resultsReady ? (
             <span className="ml-2 text-sm font-normal text-icta-gray-600">
@@ -641,7 +655,7 @@ export function ScanResults({
           return (
             <div key={group.category}>
               <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
-                <h3 className="font-semibold text-icta-black">
+                <h3 className="font-semibold text-icta-gray-900">
                   <button
                     type="button"
                     className={linkUnderline}

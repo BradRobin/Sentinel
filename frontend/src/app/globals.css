@@ -60,19 +60,6 @@
   --dur-slow: 420ms;
 }
 
-.dark {
-  --background: #0a0a0a;
-  --foreground: #ededed;
-  --icta-black: #ffffff;
-  --icta-gray-50: #1a1a1a;
-  --icta-gray-100: #262626;
-  --icta-gray-200: #3f3f46;
-  --icta-gray-600: #a1a1aa;
-  --icta-red-tint: #2d1212;
-  --icta-green-tint: #052e05;
-  --icta-amber-tint: #2d1c0a;
-}
-
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -140,9 +127,9 @@ h1, h2, h3, h4, .font-serif {
 }
 
 .card-hover:hover {
-  border-color: var(--icta-gray-300);
-  box-shadow: var(--shadow-card-hover);
-  transform: translateY(-1px);
+  border-color: rgb(15 23 42 / 0.12);
+  box-shadow: var(--shadow-pop);
+  transform: translateY(-4px);
 }
 
 /* Section panel — the shared "workspace surface" inside pages. */
@@ -195,6 +182,23 @@ h1, h2, h3, h4, .font-serif {
   color: var(--icta-gray-500);
 }
 
+/* Glass surface — translucent blurred card for floating hero elements. */
+.glass-card {
+  background: linear-gradient(160deg, rgb(255 255 255 / 0.92), rgb(255 255 255 / 0.55));
+  -webkit-backdrop-filter: blur(20px) saturate(1.5);
+  backdrop-filter: blur(20px) saturate(1.5);
+  border: 1px solid rgb(255 255 255 / 0.75);
+  box-shadow: var(--shadow-pop), inset 0 1px 0 rgb(255 255 255 / 0.85);
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-9px); }
+}
+.animate-float { animation: float 6s ease-in-out infinite; }
+.animate-float-slow { animation: float 8s ease-in-out infinite; }
+.animate-float-slower { animation: float 10s ease-in-out infinite; }
+
 @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes fade-in-up { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes fade-in-down { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
@@ -224,6 +228,7 @@ h1, h2, h3, h4, .font-serif {
   .animate-fade-in, .animate-fade-in-up, .animate-fade-in-down, .animate-scale-in, .animate-bar-grow, .toast-in, .panel-content-in, .pop-in {
     animation: none;
   }
+  .animate-float, .animate-float-slow, .animate-float-slower { animation: none; }
 }
 
 input[type="checkbox"]:focus-visible { outline: 2px solid var(--icta-black); outline-offset: 2px; }

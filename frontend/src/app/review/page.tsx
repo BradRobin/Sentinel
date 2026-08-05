@@ -25,6 +25,7 @@ import {
 } from "@/lib/ui";
 import { ManualReviewResolutionPanel } from "@/components/ManualReviewResolutionPanel";
 import { labelCategory, SCORED_CATEGORIES } from "@/lib/findings";
+import { useSessionStorageState } from "@/hooks/useSessionStorageState";
 
 const OFFICER_STORAGE_KEY = "sentinel.officer.id";
 
@@ -48,12 +49,16 @@ type QueueFilters = {
 };
 
 export default function ReviewQueuePage() {
-  const [officerId, setOfficerId] = useState<string>("");
+  const [officerId, setOfficerId] = useSessionStorageState(
+    OFFICER_STORAGE_KEY,
+    "",
+  );
   const [authError, setAuthError] = useState<string | null>(null);
 
   const [items, setItems] = useState<ManualReviewQueueItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [hasLoaded, setHasLoaded] = useState(false);
 
   const [filters, setFilters] = useState<QueueFilters>({
     check_type: "",
@@ -66,14 +71,7 @@ export default function ReviewQueuePage() {
 
   const [summaryItems, setSummaryItems] = useState<ManualReviewQueueItem[]>([]);
 
-  useEffect(() => {
-    try {
-      const saved = sessionStorage.getItem(OFFICER_STORAGE_KEY);
-      if (saved) setOfficerId(saved);
-    } catch {
-      // ignore
-    }
-  }, []);
+  const initialLoading = !hasLoaded && Boolean(officerId.trim()) && !error;
 
   async function loadQueue() {
     if (!officerId.trim()) return;
@@ -89,6 +87,7 @@ export default function ReviewQueuePage() {
         limit: 400,
       });
       setItems(data);
+      setHasLoaded(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load queue");
     } finally {
@@ -97,8 +96,30 @@ export default function ReviewQueuePage() {
   }
 
   useEffect(() => {
-    void loadQueue();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (!officerId.trim()) return;
+    let cancelled = false;
+    getManualReviewQueueItems({
+      officerId,
+      check_type: filters.check_type,
+      category: filters.category,
+      domain_query: filters.domainQuery,
+      limit: 400,
+    })
+      .then((data) => {
+        if (cancelled) return;
+        setItems(data);
+        setError(null);
+        setAuthError(null);
+        setHasLoaded(true);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setError(err instanceof Error ? err.message : "Failed to load queue");
+        setHasLoaded(true);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [officerId, filters.check_type, filters.category, filters.domainQuery]);
 
   // Whole-queue snapshot (no filters) so the by-type summary stays accurate
@@ -223,7 +244,7 @@ export default function ReviewQueuePage() {
                 void loadQueue();
               }}
             >
-              {loading ? (
+          {(loading || initialLoading) ? (
                 <>
                   <Spinner size="sm" />
                   Loading…
@@ -401,7 +422,7 @@ export default function ReviewQueuePage() {
                     className="flex w-full flex-col gap-1 px-4 py-3 text-left hover:bg-icta-gray-50"
                   >
                     <div className="flex flex-wrap items-baseline justify-between gap-2">
-                      <span className="font-medium text-icta-black">
+                      <span className="font-medium text-icta-gray-900">
                         {it.question_title}
                       </span>
                       <span className="text-xs text-icta-gray-600">
@@ -431,6 +452,7 @@ export default function ReviewQueuePage() {
       </main>
 
       <ManualReviewResolutionPanel
+        key={selected?.id ?? "none"}
         open={panelOpen}
         item={selected}
         officerId={officerId}

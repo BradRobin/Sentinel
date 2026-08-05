@@ -116,7 +116,7 @@ export function ComparisonSidePanel({
       >
         <header className={panelHeader}>
           <div>
-            <h2 className="text-lg font-semibold text-icta-black">{title}</h2>
+            <h2 className="text-lg font-semibold text-icta-gray-900">{title}</h2>
             {comparison?.has_history && comparison.current && compared && (
               <p className="mt-1 text-sm text-icta-gray-600">
                 Compared to your scan from{" "}
@@ -151,7 +151,7 @@ export function ComparisonSidePanel({
                   Overall compliance
                 </p>
                 <div className="mt-2 flex flex-wrap items-baseline gap-3">
-                  <span className="text-3xl font-bold text-icta-black">
+                  <span className="text-3xl font-bold text-icta-gray-900">
                     {comparison.current.overall_score.toFixed(1)}%
                   </span>
                   <DeltaBadge delta={comparison.delta.overall} />
@@ -166,7 +166,7 @@ export function ComparisonSidePanel({
               </div>
 
               <div>
-                <h3 className="mb-3 text-sm font-semibold text-icta-black">
+                <h3 className="mb-3 text-sm font-semibold text-icta-gray-900">
                   By category
                 </h3>
                 <p className="mb-3 text-xs text-icta-gray-600">
@@ -176,7 +176,7 @@ export function ComparisonSidePanel({
                   {rows.map((row) => (
                     <li key={row.key} className="px-3 py-3 text-sm">
                       <div className="flex flex-wrap items-baseline justify-between gap-2">
-                        <span className="font-medium text-icta-black">
+                        <span className="font-medium text-icta-gray-900">
                           {row.label}
                         </span>
                         <DeltaBadge delta={row.delta} />

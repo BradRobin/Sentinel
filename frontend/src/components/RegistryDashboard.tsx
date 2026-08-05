@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   ArrowDown,
   ArrowUp,
@@ -29,6 +29,7 @@ import {
 } from "@/lib/api";
 import { useApiResource } from "@/hooks/useApiResource";
 import { usePolling } from "@/hooks/usePolling";
+import { useSessionStorageState } from "@/hooks/useSessionStorageState";
 import { copyScanUrl } from "@/lib/scan-url-clipboard";
 import {
   LEADERBOARD_METRIC_OPTIONS,
@@ -120,14 +121,14 @@ function SortableHeader({
       <button
         type="button"
         onClick={() => onSort(sortKey)}
-        className={`inline-flex items-center gap-1 font-medium uppercase tracking-wide transition-colors hover:text-icta-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-icta-black ${
+        className={`inline-flex items-center gap-1 font-medium uppercase tracking-wide transition-colors hover:text-icta-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-icta-black ${
           right ? "justify-end" : ""
         }`}
       >
         {label}
         <SortIcon
           className={`size-3.5 ${
-            active ? "text-icta-black" : "text-icta-gray-400"
+            active ? "text-icta-gray-900" : "text-icta-gray-400"
           }`}
           aria-hidden="true"
         />
@@ -191,7 +192,7 @@ function StatusChip({
 }) {
   const toneClass =
     tone === "running"
-      ? "text-icta-black"
+      ? "text-icta-gray-900"
       : tone === "ok"
         ? "text-icta-green"
         : tone === "bad"
@@ -217,7 +218,7 @@ export function RegistryDashboard() {
   const [copiedDomainId, setCopiedDomainId] = useState<string | null>(null);
   const [scanStarting, setScanStarting] = useState(false);
   const [scanError, setScanError] = useState<string | null>(null);
-  const [batchId, setBatchId] = useState<string | null>(null);
+  const [batchId, setBatchId] = useSessionStorageState(BATCH_STORAGE_KEY, null);
   const [batchStatus, setBatchStatus] = useState<RegistryScanBatchStatus | null>(
     null,
   );
@@ -316,11 +317,6 @@ export function RegistryDashboard() {
 
       if (status.done) {
         setShowFinishedBanner(true);
-        try {
-          window.sessionStorage.removeItem(BATCH_STORAGE_KEY);
-        } catch {
-          // ignore
-        }
         setBatchId(null);
         return true;
       }
@@ -342,14 +338,7 @@ export function RegistryDashboard() {
   );
 
   // Restore an in-flight batch from a previous visit.
-  useEffect(() => {
-    try {
-      const saved = window.sessionStorage.getItem(BATCH_STORAGE_KEY);
-      if (saved) setBatchId(saved);
-    } catch {
-      // ignore storage errors
-    }
-  }, []);
+  // (batchId is sessionStorage-backed via useSessionStorageState.)
 
   async function onScanAll() {
     setScanStarting(true);
@@ -360,11 +349,6 @@ export function RegistryDashboard() {
       lastRefreshComplete.current = 0;
       setBatchId(result.batch_id);
       setBatchStatus(null);
-      try {
-        window.sessionStorage.setItem(BATCH_STORAGE_KEY, result.batch_id);
-      } catch {
-        // ignore
-      }
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Failed to start registry scan";
@@ -554,7 +538,7 @@ export function RegistryDashboard() {
 
           {view === "leaderboard" && (
             <div className="flex flex-col gap-2">
-              <p className="text-sm font-semibold text-icta-black font-serif">
+              <p className="text-sm font-semibold text-icta-gray-900 font-serif">
                 {activeMetric.headline}
               </p>
               <div
@@ -615,7 +599,7 @@ export function RegistryDashboard() {
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div>
-                    <p className="font-semibold text-icta-black">
+                    <p className="font-semibold text-icta-gray-900">
                       {scanDone
                         ? markState === "error"
                           ? "Registry scan finished with errors"
@@ -640,7 +624,7 @@ export function RegistryDashboard() {
                   </div>
                   <div className="flex items-center gap-2">
                     {total > 0 && (
-                      <p className="text-xs font-medium tabular-nums text-icta-black">
+                      <p className="text-xs font-medium tabular-nums text-icta-gray-900">
                         {finished}/{total}
                         <span className="font-normal text-icta-gray-600">
                           {" "}
@@ -850,7 +834,7 @@ export function RegistryDashboard() {
                         <button
                           type="button"
                           onClick={() => openDetails(row)}
-                          className="font-medium text-icta-black underline decoration-transparent underline-offset-2 transition-colors hover:decoration-icta-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-icta-black"
+                          className="font-medium text-icta-gray-900 underline decoration-transparent underline-offset-2 transition-colors hover:decoration-icta-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-icta-black"
                           aria-label={`View details for ${row.registered_name || row.org_name}`}
                         >
                           {row.registered_name || row.org_name}
@@ -877,7 +861,7 @@ export function RegistryDashboard() {
                       {orgTypeLabel(row.org_type)}
                     </td>
                     <td className="py-3 pr-4">
-                      <div className="font-medium tabular-nums text-icta-black">
+                      <div className="font-medium tabular-nums text-icta-gray-900">
                         {formatScore(row.latest_score)}
                       </div>
                       {row.previous_score != null && row.latest_score != null && (
@@ -935,14 +919,14 @@ export function RegistryDashboard() {
                     className="border-b border-icta-gray-100 align-top transition-colors hover:bg-icta-gray-50/80 animate-fade-in"
                     style={{ animationDelay: `${Math.min(index * 20, 300)}ms` }}
                   >
-                    <td className="py-3 pr-3 tabular-nums font-medium text-icta-black">
+                    <td className="py-3 pr-3 tabular-nums font-medium text-icta-gray-900">
                       {index + 1}
                     </td>
                     <td className="py-3 pr-4">
                       <button
                         type="button"
                         onClick={() => openDetails(row)}
-                        className="font-medium text-icta-black underline decoration-transparent underline-offset-2 transition-colors hover:decoration-icta-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-icta-black"
+                        className="font-medium text-icta-gray-900 underline decoration-transparent underline-offset-2 transition-colors hover:decoration-icta-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-icta-black"
                         aria-label={`View details for ${row.registered_name || row.org_name}`}
                       >
                         {row.registered_name || row.org_name}
@@ -959,7 +943,7 @@ export function RegistryDashboard() {
                     <td className="py-3 pr-4 capitalize text-icta-gray-600">
                       {row.org_type}
                     </td>
-                    <td className="py-3 pr-4 font-semibold tabular-nums text-icta-black">
+                    <td className="py-3 pr-4 font-semibold tabular-nums text-icta-gray-900">
                       {formatScore(row.rank_score)}
                     </td>
                     {leaderboardMetric !== "overall" && (

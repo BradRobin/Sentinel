@@ -21,11 +21,19 @@ import { ScrollReveal } from "@/components/ScrollReveal";
 import { SentinelMark } from "@/components/SentinelMark";
 import { Card, CardContent } from "@/components/ui/card";
 import {
+  badgeGreen,
   iconTile,
   iconTileAmber,
   iconTileGreen,
   iconTileInfo,
 } from "@/lib/ui";
+
+const METRICS: Array<{ value: string; label: string }> = [
+  { value: "8", label: "Standard categories" },
+  { value: "47", label: "Counties monitored" },
+  { value: "24h", label: "Fresh results" },
+  { value: "§6.5", label: "The rulebook" },
+];
 
 const BENEFITS: Array<{
   title: string;
@@ -179,8 +187,90 @@ export default function Home() {
             <div className="animate-fade-in-up" style={{ animationDelay: "400ms" }}>
               <HomeHeroActions />
             </div>
+
+            {/* Floating hero cards */}
+            <div
+              className="relative mx-auto mt-14 w-full max-w-xl animate-fade-in-up"
+              style={{ animationDelay: "480ms" }}
+            >
+              <div
+                className="glass-card animate-float-slow absolute -left-32 top-8 hidden w-48 items-center gap-2.5 rounded-2xl p-3 lg:flex"
+                aria-hidden="true"
+              >
+                <SentinelMark state="complete" size={34} />
+                <span className="min-w-0">
+                  <span className="block text-xs font-semibold text-icta-gray-900">
+                    Scan complete
+                  </span>
+                  <span className="block text-[11px] text-icta-gray-600">
+                    8 categories · 41s
+                  </span>
+                </span>
+              </div>
+
+              <div
+                className="glass-card animate-float-slower absolute -right-32 bottom-10 hidden w-48 items-center gap-2.5 rounded-2xl p-3 lg:flex"
+                aria-hidden="true"
+              >
+                <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-icta-amber-tint/70 text-icta-amber">
+                  <ClipboardCheck className="size-4" aria-hidden="true" />
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-xs font-semibold text-icta-gray-900">
+                    Review queue
+                  </span>
+                  <span className="block text-[11px] text-icta-gray-600">
+                    3 findings await sign-off
+                  </span>
+                </span>
+              </div>
+
+              <div className="glass-card animate-float rounded-2xl p-4 text-left sm:p-5">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-icta-gray-500">
+                      <span className="size-1.5 rounded-full bg-icta-green" aria-hidden="true" />
+                      Latest scan · Ministry of Health
+                    </p>
+                    <div className="mt-1 flex items-baseline gap-2">
+                      <span className="font-serif text-3xl font-bold tabular-nums text-icta-gray-900">
+                        92.4
+                      </span>
+                      <span className={badgeGreen}>Up 2.1</span>
+                    </div>
+                  </div>
+                  <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-icta-green-tint/70 text-icta-green">
+                    <ShieldCheck className="size-6" aria-hidden="true" />
+                  </span>
+                </div>
+                <div
+                  className="mt-3 h-2 overflow-hidden rounded-full bg-icta-gray-200/70"
+                  aria-hidden="true"
+                >
+                  <div className="h-full w-[92%] rounded-full bg-gradient-to-r from-icta-green-deep to-icta-green-bright" />
+                </div>
+                <p className="mt-2 flex items-center justify-between text-[11px] text-icta-gray-600">
+                  <span>12 / 12 standards passed</span>
+                  <span className="tabular-nums">Next check: Fri</span>
+                </p>
+              </div>
+            </div>
           </div>
         </div>
+
+        {/* Metrics strip */}
+        <dl className="mx-auto mt-16 grid w-full max-w-3xl grid-cols-2 gap-x-6 gap-y-8 sm:grid-cols-4">
+          {METRICS.map((metric) => (
+            <div key={metric.label} className="text-center">
+              <dd className="font-serif text-3xl font-bold text-icta-gray-900">
+                {metric.value}
+              </dd>
+              <dt className="mt-1 text-xs font-medium uppercase tracking-wide text-icta-gray-500">
+                {metric.label}
+              </dt>
+            </div>
+          ))}
+        </dl>
 
         {/* Benefits */}
         <section

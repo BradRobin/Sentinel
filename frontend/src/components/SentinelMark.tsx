@@ -1,6 +1,11 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import {
+  useEffect,
+  useId,
+  useRef,
+  useSyncExternalStore,
+} from "react";
 
 import {
   CHECK_DASH,
@@ -23,6 +28,19 @@ export interface SentinelMarkProps {
 const MARK_GREEN = "#006600";
 const ERROR_STROKE = "var(--icta-gray-600)";
 
+/** Pop settle animation length in ms — keep in sync with sentinel-pop CSS. */
+const POP_MS = 400;
+
+function subscribeReducedMotion(callback: () => void) {
+  const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+  mq.addEventListener("change", callback);
+  return () => mq.removeEventListener("change", callback);
+}
+
+function getReducedMotionSnapshot() {
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
 export function SentinelMark({
   state,
   size = 160,
@@ -31,22 +49,18 @@ export function SentinelMark({
 }: SentinelMarkProps) {
   const rawId = useId();
   const gradientId = `sentinel-tricolor-${rawId.replace(/:/g, "")}`;
+  const wrapperRef = useRef<HTMLDivElement>(null);
   const ribbonRef = useRef<SVGPathElement>(null);
   const checkRef = useRef<SVGPathElement>(null);
   const rafRef = useRef<number | null>(null);
   const checkTimeoutRef = useRef<number | null>(null);
   const popTimeoutRef = useRef<number | null>(null);
   const prevStateRef = useRef<SentinelMarkState>(state);
-  const [popping, setPopping] = useState(false);
-  const [reducedMotion, setReducedMotion] = useState(false);
-
-  useEffect(() => {
-    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
-    setReducedMotion(mq.matches);
-    const handler = (e: MediaQueryListEvent) => setReducedMotion(e.matches);
-    mq.addEventListener("change", handler);
-    return () => mq.removeEventListener("change", handler);
-  }, []);
+  const reducedMotion = useSyncExternalStore(
+    subscribeReducedMotion,
+    getReducedMotionSnapshot,
+    () => false,
+  );
 
   const clearTimers = () => {
     if (rafRef.current !== null) {
@@ -110,7 +124,7 @@ export function SentinelMark({
       );
     }
     setCheckHidden(true);
-    setPopping(false);
+    wrapperRef.current?.classList.remove("sentinel-mark--pop");
   };
 
   const windIntoAnchor = (duration: number, onDone: () => void) => {
@@ -169,11 +183,11 @@ export function SentinelMark({
       checkTimeoutRef.current = window.setTimeout(() => {
         setCheckDrawn(false);
         checkTimeoutRef.current = window.setTimeout(() => {
-          setPopping(true);
           popTimeoutRef.current = window.setTimeout(() => {
-            setPopping(false);
+            wrapperRef.current?.classList.remove("sentinel-mark--pop");
             popTimeoutRef.current = null;
-          }, 400);
+          }, POP_MS);
+          wrapperRef.current?.classList.add("sentinel-mark--pop");
           checkTimeoutRef.current = null;
         }, WIND_INTO_ANCHOR.checkDrawMs);
       }, WIND_INTO_ANCHOR.checkDelayMs);
@@ -203,7 +217,6 @@ export function SentinelMark({
   const wrapClass = [
     "sentinel-mark",
     `sentinel-mark--${state}`,
-    popping ? "sentinel-mark--pop" : "",
     reducedMotion ? "sentinel-mark--reduced" : "",
     className,
   ]
@@ -222,6 +235,7 @@ export function SentinelMark({
 
   return (
     <div
+      ref={wrapperRef}
       className={wrapClass}
       style={{ width: size, height: size }}
       role="img"

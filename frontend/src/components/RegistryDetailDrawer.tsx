@@ -158,7 +158,7 @@ export function RegistryDetailDrawer({
       >
         <header className={panelHeader}>
           <div className="min-w-0">
-            <h2 className="truncate text-lg font-semibold text-icta-black">
+            <h2 className="truncate text-lg font-semibold text-icta-gray-900">
               {name}
             </h2>
             <a
@@ -206,7 +206,7 @@ export function RegistryDetailDrawer({
                 Latest score
               </p>
               <div className="mt-2 flex flex-wrap items-baseline gap-3">
-                <span className="text-3xl font-bold text-icta-black">
+                <span className="text-3xl font-bold text-icta-gray-900">
                   {entry.latest_score !== null &&
                   entry.latest_score !== undefined
                     ? `${formatScore(entry.latest_score)}%`
@@ -234,7 +234,7 @@ export function RegistryDetailDrawer({
               <dl className="mt-3 grid grid-cols-2 gap-2 border-t border-icta-gray-100 pt-3 text-xs text-icta-gray-600">
                 <div>
                   <dt className="uppercase tracking-wide">Previous</dt>
-                  <dd className="mt-0.5 tabular-nums text-icta-black">
+                  <dd className="mt-0.5 tabular-nums text-icta-gray-900">
                     {entry.previous_score !== null &&
                     entry.previous_score !== undefined
                       ? `${formatScore(entry.previous_score)}%`
@@ -243,7 +243,7 @@ export function RegistryDetailDrawer({
                 </div>
                 <div>
                   <dt className="uppercase tracking-wide">Last checked</dt>
-                  <dd className="mt-0.5 text-icta-black">
+                  <dd className="mt-0.5 text-icta-gray-900">
                     {formatChecked(entry.last_checked_at)}
                   </dd>
                 </div>
@@ -252,7 +252,7 @@ export function RegistryDetailDrawer({
 
             {stats && (
               <section>
-                <h3 className="mb-3 text-sm font-semibold text-icta-black">
+                <h3 className="mb-3 text-sm font-semibold text-icta-gray-900">
                   vs other {orgTypeLabel(entry.org_type)}s
                 </h3>
                 <div className="grid grid-cols-2 gap-3">
@@ -260,7 +260,7 @@ export function RegistryDetailDrawer({
                     <p className="text-xs font-medium text-icta-gray-600">
                       Rank by score
                     </p>
-                    <p className="mt-1 text-lg font-semibold tabular-nums text-icta-black">
+                    <p className="mt-1 text-lg font-semibold tabular-nums text-icta-gray-900">
                       #{stats.rank}
                       <span className="text-sm font-normal text-icta-gray-600">
                         {" "}
@@ -272,7 +272,7 @@ export function RegistryDetailDrawer({
                     <p className="text-xs font-medium text-icta-gray-600">
                       Type average
                     </p>
-                    <p className="mt-1 flex items-baseline gap-1.5 text-lg font-semibold tabular-nums text-icta-black">
+                    <p className="mt-1 flex items-baseline gap-1.5 text-lg font-semibold tabular-nums text-icta-gray-900">
                       {formatScore(stats.typeAvg)}%
                       {stats.overallVsAvg !== null && (
                         <DeltaChip delta={stats.overallVsAvg} />
@@ -293,7 +293,7 @@ export function RegistryDetailDrawer({
             )}
 
             <section>
-              <h3 className="mb-1 text-sm font-semibold text-icta-black">
+              <h3 className="mb-1 text-sm font-semibold text-icta-gray-900">
                 Scores by category
               </h3>
               <p className="mb-3 text-xs text-icta-gray-600">
@@ -308,12 +308,12 @@ export function RegistryDetailDrawer({
                   {categoryRows.map((row) => (
                     <li key={row.key}>
                       <div className="mb-1 flex flex-wrap items-baseline justify-between gap-2">
-                        <span className="text-sm font-medium text-icta-black">
+                        <span className="text-sm font-medium text-icta-gray-900">
                           {row.label}
                         </span>
                         <span className="flex items-baseline gap-2">
                           {row.hasPeers && <DeltaChip delta={row.vsAvg} />}
-                          <span className="font-mono text-sm tabular-nums text-icta-black">
+                          <span className="font-mono text-sm tabular-nums text-icta-gray-900">
                             {row.score !== null
                               ? `${formatScore(row.score)}%`
                               : "—"}

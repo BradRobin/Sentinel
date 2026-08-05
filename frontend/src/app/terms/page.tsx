@@ -7,7 +7,7 @@ function Section({
 }) {
   return (
     <section className="space-y-2">
-      <h2 className="text-lg font-semibold text-icta-black">{title}</h2>
+      <h2 className="text-lg font-semibold text-icta-gray-900">{title}</h2>
       <div className="space-y-2 text-sm leading-relaxed text-icta-gray-600">
         {children}
       </div>
@@ -26,7 +26,7 @@ export default function TermsPage() {
         <p className="mb-2 text-xs font-medium uppercase tracking-[0.2em] text-icta-gray-600">
           ICTA Sentinel
         </p>
-        <h1 className="mb-3 text-3xl font-bold tracking-tight text-icta-black">
+        <h1 className="mb-3 text-3xl font-bold tracking-tight text-icta-gray-900">
           Terms of Service
         </h1>
         <p className="mb-10 text-sm text-icta-gray-600">

@@ -57,6 +57,22 @@ export function scoreBand(score: number | null | undefined): ScoreBandMeta {
   return { band: "weak", ...BANDS.weak };
 }
 
+/** Left-border classes mirroring findings severity treatment (no row fill). */
+export function scoreBandRowBorderClass(
+  score: number | null | undefined,
+): string {
+  switch (scoreBand(score).band) {
+    case "strong":
+      return "border-l-4 border-l-icta-green";
+    case "moderate":
+      return "border-l-[3px] border-l-icta-amber";
+    case "weak":
+      return "border-l-4 border-l-icta-red";
+    default:
+      return "border-l-2 border-l-transparent";
+  }
+}
+
 export const SCORE_BAND_LEGEND: ScoreBandMeta[] = [
   { band: "strong", ...BANDS.strong },
   { band: "moderate", ...BANDS.moderate },

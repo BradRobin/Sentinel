@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 
 import { SentinelMark } from "@/components/SentinelMark";
+import { useCountUp } from "@/hooks/useCountUp";
 import {
   getRegistry,
   getRegistryScanBatch,
@@ -12,6 +13,7 @@ import {
   type RegistryScanBatchStatus,
   type RegistryTrend,
 } from "@/lib/api";
+import { scoreBandRowBorderClass } from "@/lib/kenya-map";
 import { copyScanUrl } from "@/lib/scan-url-clipboard";
 import {
   LEADERBOARD_METRIC_OPTIONS,
@@ -27,6 +29,7 @@ import {
   btnMuted,
   btnPrimary,
   btnSecondary,
+  btnSecondarySm,
   inputBase,
   linkQuiet,
 } from "@/lib/ui";
@@ -128,9 +131,61 @@ function StatusChip({
   );
 }
 
+function RegistrySummaryStrip({ items }: { items: RegistryEntry[] }) {
+  const stats = useMemo(() => {
+    const scored = items.filter((i) => i.latest_score != null);
+    const avg =
+      scored.length > 0
+        ? scored.reduce((sum, i) => sum + (i.latest_score as number), 0) /
+          scored.length
+        : 0;
+    return {
+      total: items.length,
+      avg,
+      hasScores: scored.length > 0,
+      up: items.filter((i) => i.trend === "up").length,
+      down: items.filter((i) => i.trend === "down").length,
+    };
+  }, [items]);
+
+  const total = useCountUp(stats.total, { enabled: stats.total > 0 });
+  const avg = useCountUp(stats.avg, {
+    decimals: 1,
+    enabled: stats.hasScores,
+  });
+  const up = useCountUp(stats.up, { enabled: stats.total > 0 });
+  const down = useCountUp(stats.down, { enabled: stats.total > 0 });
+
+  return (
+    <div
+      className="flex flex-wrap items-baseline gap-x-6 gap-y-2 text-sm"
+      aria-label="Registry summary"
+    >
+      <p className="tabular-nums text-icta-black">
+        <span className="text-lg font-semibold">{total}</span>{" "}
+        <span className="text-icta-gray-600">MCDAs tracked</span>
+      </p>
+      <p className="tabular-nums text-icta-black">
+        <span className="text-lg font-semibold">
+          {stats.hasScores ? avg.toFixed(1) : "—"}
+        </span>{" "}
+        <span className="text-icta-gray-600">avg score</span>
+      </p>
+      <p className="tabular-nums text-icta-gray-600">
+        <span className="font-semibold text-icta-green">{up}</span> up
+        <span className="mx-1.5 text-icta-gray-200">·</span>
+        <span className="font-semibold text-icta-red">{down}</span> down
+        <span className="ml-1">since last check</span>
+      </p>
+    </div>
+  );
+}
+
 export function RegistryDashboard() {
   const [items, setItems] = useState<RegistryEntry[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [errorDetail, setErrorDetail] = useState<string | null>(null);
+  const [showErrorDetail, setShowErrorDetail] = useState(false);
   const [query, setQuery] = useState("");
   const [orgFilter, setOrgFilter] = useState<OrgFilter>("all");
   const [view, setView] = useState<DashboardView>("registry");
@@ -165,6 +220,8 @@ export function RegistryDashboard() {
     startTransition(async () => {
       try {
         setError(null);
+        setErrorDetail(null);
+        setShowErrorDetail(false);
         const data = await getRegistry({
           q: nextQuery.trim() || undefined,
           orgType: nextFilter === "all" ? undefined : nextFilter,
@@ -172,9 +229,11 @@ export function RegistryDashboard() {
         });
         setItems(data.items);
       } catch (err) {
-        setError(
-          err instanceof Error ? err.message : "Failed to load registry",
-        );
+        const detail =
+          err instanceof Error ? err.message : "Failed to load registry";
+        console.error("[registry] load failed:", detail, err);
+        setError("Couldn't load the registry right now.");
+        setErrorDetail(detail);
         setItems([]);
       }
     });
@@ -416,6 +475,10 @@ export function RegistryDashboard() {
             </p>
           </div>
 
+          {!error && !pending && items.length > 0 && view === "registry" && (
+            <RegistrySummaryStrip items={items} />
+          )}
+
           {view === "leaderboard" && (
             <div className="flex flex-col gap-2">
               <p className="text-sm font-medium text-icta-black">
@@ -582,15 +645,35 @@ export function RegistryDashboard() {
 
         {error && (
           <div
-            className="mb-6 rounded-md border border-icta-red/20 bg-icta-red/5 px-4 py-3 text-sm text-icta-red"
+            className="mb-6 rounded-md border border-icta-red/20 bg-icta-red/5 px-4 py-4"
             role="alert"
           >
-            {error}
-            <span className="mt-1 block text-icta-gray-600">
-              Check that the API is running and can reach Postgres. With Docker,
-              <code className="mx-1 text-xs">docker compose up --build</code>
-              starts a local DB and seeds the MCDA registry automatically.
-            </span>
+            <p className="text-sm text-icta-gray-600">{error}</p>
+            <button
+              type="button"
+              onClick={() => load(query, orgFilter)}
+              className={`mt-4 ${btnSecondarySm}`}
+              disabled={pending}
+            >
+              {pending ? "Retrying…" : "Retry"}
+            </button>
+            {errorDetail && (
+              <div className="mt-3">
+                <button
+                  type="button"
+                  className="text-xs font-medium text-icta-gray-600 underline-offset-2 hover:underline"
+                  onClick={() => setShowErrorDetail((v) => !v)}
+                  aria-expanded={showErrorDetail}
+                >
+                  {showErrorDetail ? "Hide technical details" : "Technical details"}
+                </button>
+                {showErrorDetail && (
+                  <pre className="mt-2 overflow-x-auto rounded-md bg-white/80 px-3 py-2 text-[11px] leading-relaxed text-icta-gray-600">
+                    {errorDetail}
+                  </pre>
+                )}
+              </div>
+            )}
           </div>
         )}
 
@@ -650,10 +733,10 @@ export function RegistryDashboard() {
                 items.map((row, index) => (
                   <tr
                     key={row.domain_id}
-                    className="border-b border-icta-gray-100 align-top transition-colors hover:bg-icta-gray-50/80 animate-fade-in"
+                    className={`border-b border-icta-gray-100 align-top transition-colors hover:bg-icta-gray-50/80 animate-fade-in ${scoreBandRowBorderClass(row.latest_score)}`}
                     style={{ animationDelay: `${Math.min(index * 20, 300)}ms` }}
                   >
-                    <td className="py-3 pr-3 tabular-nums text-icta-gray-600">
+                    <td className="py-3 pr-3 pl-3 tabular-nums text-icta-gray-600">
                       {index + 1}
                     </td>
                     <td className="py-3 pr-4">

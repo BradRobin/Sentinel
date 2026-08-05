@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type RefObject } from "react";
 import L from "leaflet";
 
 import { kenyaWaterStyle } from "@/lib/kenya-map";
+import { A11Y_TEXT_EVENT } from "@/lib/a11y";
 
 export function splitWaterFeatures(water: GeoJSON.GeoJsonObject): {
   lakes: GeoJSON.Feature[];
@@ -93,7 +94,14 @@ export function useKenyaMapLayers({
     ro.observe(el);
     requestAnimationFrame(() => map.invalidateSize());
 
+    function onA11yTextStep() {
+      // Rem root font-size changes chrome height; Leaflet needs a reflow.
+      requestAnimationFrame(() => map.invalidateSize());
+    }
+    window.addEventListener(A11Y_TEXT_EVENT, onA11yTextStep);
+
     return () => {
+      window.removeEventListener(A11Y_TEXT_EVENT, onA11yTextStep);
       ro.disconnect();
       setMapReady(false);
       layerRef.current = null;

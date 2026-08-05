@@ -351,6 +351,120 @@ input[type="checkbox"] {
   }
 }
 
+/* ---- Accessibility tools (html class modes) ------------------------------ */
+
+html {
+  --a11y-text-scale: 1;
+}
+
+/* Phase 1: underline links + readable font */
+html.a11y-underline-links a {
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+html.a11y-readable-font body {
+  font-family:
+    "Atkinson Hyperlegible",
+    "Segoe UI",
+    Tahoma,
+    Verdana,
+    sans-serif;
+}
+
+/* Phase 2: token overrides for high contrast / light background */
+html.a11y-high-contrast {
+  --background: #ffffff;
+  --foreground: #000000;
+  --icta-gray-50: #ffffff;
+  --icta-gray-100: #f0f0f0;
+  --icta-gray-200: #000000;
+  --icta-gray-600: #000000;
+  --icta-link: #0000ee;
+  --icta-green-tint: #ffffff;
+  --icta-red-tint: #ffffff;
+  --icta-amber-tint: #ffffff;
+}
+
+html.a11y-high-contrast body {
+  background: #ffffff;
+  color: #000000;
+}
+
+html.a11y-high-contrast .card,
+html.a11y-high-contrast header,
+html.a11y-high-contrast footer {
+  border-color: #000000 !important;
+}
+
+html.a11y-light-background {
+  --background: #ffffff;
+  --foreground: #000000;
+  --icta-gray-50: #ffffff;
+}
+
+html.a11y-light-background body {
+  background: #ffffff;
+  color: #000000;
+}
+
+html.a11y-light-background footer {
+  background: #ffffff !important;
+  color: #000000 !important;
+  border-top: 1px solid var(--icta-gray-200);
+}
+
+html.a11y-light-background footer a,
+html.a11y-light-background footer button,
+html.a11y-light-background footer p,
+html.a11y-light-background footer span,
+html.a11y-light-background footer li {
+  color: #000000 !important;
+}
+
+html.a11y-light-background footer a:hover,
+html.a11y-light-background footer button:hover {
+  color: var(--icta-green) !important;
+}
+
+/*
+ * Filters on #sentinel-app (not html) so the floating widget stays clear.
+ * Negative contrast: double-apply on map restores score colors.
+ * Grayscale cannot be fully undone on children — panel notes this.
+ */
+html.a11y-grayscale #sentinel-app {
+  filter: grayscale(1);
+}
+
+html.a11y-negative-contrast #sentinel-app {
+  filter: invert(1) hue-rotate(180deg);
+}
+
+/* Phase 3: undo invert on map (and keep widget outside #sentinel-app) */
+html.a11y-negative-contrast .kenya-leaflet-map.leaflet-container,
+html.a11y-negative-contrast .a11y-exclude {
+  filter: invert(1) hue-rotate(180deg);
+}
+
+/* Phase 3: disable glass blur under filter modes (muddy compositing) */
+html.a11y-grayscale .kenya-map-glass-card,
+html.a11y-negative-contrast .kenya-map-glass-card {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  background: rgb(255 255 255 / 0.92);
+}
+
+html.a11y-grayscale header,
+html.a11y-negative-contrast header {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+/* Floating widget never inherits app filters */
+.a11y-widget {
+  filter: none !important;
+}
+
 /* Kenya compliance map (Leaflet) */
 .kenya-leaflet-map.leaflet-container {
   background: #e8eef4;

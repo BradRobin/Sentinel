@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
 
 import { AuthShell } from "@/components/AuthShell";
+import { PasswordField } from "@/components/PasswordField";
 import { AuthError, getCurrentUser, registerUser } from "@/lib/auth";
 import { btnPrimary, inputBase, inputError } from "@/lib/ui";
 
@@ -105,49 +106,32 @@ export default function RegisterPage() {
           />
         </div>
 
-        <div>
-          <label
-            htmlFor="reg-password"
-            className="mb-1.5 block text-sm font-medium text-icta-black"
-          >
-            Password
-          </label>
-          <input
-            id="reg-password"
-            type="password"
-            autoComplete="new-password"
-            required
-            value={password}
-            onChange={(e) => {
-              setPassword(e.target.value);
-              if (error) setError(null);
-            }}
-            className={inputBase}
-            placeholder="At least 8 characters"
-          />
-        </div>
+        <PasswordField
+          id="reg-password"
+          label="Password"
+          autoComplete="new-password"
+          required
+          value={password}
+          onChange={(e) => {
+            setPassword(e.target.value);
+            if (error) setError(null);
+          }}
+          placeholder="At least 8 characters"
+        />
 
-        <div>
-          <label
-            htmlFor="reg-confirm"
-            className="mb-1.5 block text-sm font-medium text-icta-black"
-          >
-            Confirm password
-          </label>
-          <input
-            id="reg-confirm"
-            type="password"
-            autoComplete="new-password"
-            required
-            value={confirm}
-            onChange={(e) => {
-              setConfirm(e.target.value);
-              if (error) setError(null);
-            }}
-            className={`${inputBase} ${error ? inputError : ""}`}
-            placeholder="Repeat your password"
-          />
-        </div>
+        <PasswordField
+          id="reg-confirm"
+          label="Confirm password"
+          autoComplete="new-password"
+          required
+          value={confirm}
+          onChange={(e) => {
+            setConfirm(e.target.value);
+            if (error) setError(null);
+          }}
+          inputClassName={error ? inputError : ""}
+          placeholder="Repeat your password"
+        />
 
         {error && (
           <p

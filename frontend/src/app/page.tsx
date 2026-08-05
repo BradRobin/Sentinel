@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { StandardDocLink } from "@/components/ClauseLink";
 import { HomeHeroActions } from "@/components/HomeHeroActions";
 import { SentinelMark } from "@/components/SentinelMark";
+import { SENTINEL_TRICOLOR_GRADIENT_CSS } from "@/lib/sentinel-mark-paths";
 
 const BENEFITS: Array<{
   title: string;
@@ -172,7 +173,13 @@ export default function Home() {
             className="mb-4 text-4xl font-bold tracking-tight text-icta-black animate-fade-in-up sm:text-6xl"
             style={{ animationDelay: "200ms" }}
           >
-            Keep government websites compliant
+            Keep government websites{" "}
+            <span
+              className="bg-clip-text text-transparent"
+              style={{ backgroundImage: SENTINEL_TRICOLOR_GRADIENT_CSS }}
+            >
+              compliant
+            </span>
           </h1>
 
           <p

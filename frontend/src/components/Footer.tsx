@@ -30,7 +30,7 @@ function FooterColumn({
 }) {
   return (
     <nav aria-label={heading} className="space-y-3">
-      <p className="text-xs font-semibold uppercase tracking-wider text-icta-gray-600">
+      <p className="text-xs font-semibold uppercase tracking-wider text-white/60">
         {heading}
       </p>
       <ul className="space-y-2 text-sm">{children}</ul>
@@ -43,7 +43,7 @@ function FooterLink({ href, children }: { href: string; children: React.ReactNod
     <li>
       <Link
         href={href}
-        className="text-icta-gray-600 transition-colors hover:text-icta-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-icta-black"
+        className="text-white/75 transition-colors hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
       >
         {children}
       </Link>
@@ -61,16 +61,16 @@ export function Footer() {
   }
 
   return (
-    <footer className="border-t border-icta-gray-200 bg-icta-gray-50">
+    <footer className="border-t border-white/10 bg-icta-black text-white">
       <div className="flag-stripe h-1" aria-hidden="true" />
       <div className="mx-auto w-full max-w-6xl px-6 py-10">
         <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
           <div className="space-y-3">
             <div className="flex items-center gap-2.5">
               <SentinelMark state="idle" size={32} label="Sentinel" />
-              <span className="text-base font-bold text-icta-black">Sentinel</span>
+              <span className="text-base font-bold text-white">Sentinel</span>
             </div>
-            <p className="max-w-xs text-sm leading-relaxed text-icta-gray-600">
+            <p className="max-w-xs text-sm leading-relaxed text-white/70">
               AI-powered website compliance checking for Kenya&apos;s public
               sector, against ICTA.6.003:2023 §6.5.
             </p>
@@ -96,10 +96,10 @@ export function Footer() {
             {user ? (
               <>
                 <li>
-                  <span className="block text-sm font-medium text-icta-black">
+                  <span className="block text-sm font-medium text-white">
                     {user.name}
                   </span>
-                  <span className="mt-0.5 block truncate text-xs text-icta-gray-600">
+                  <span className="mt-0.5 block truncate text-xs text-white/60">
                     {user.email}
                   </span>
                 </li>
@@ -107,7 +107,7 @@ export function Footer() {
                   <button
                     type="button"
                     onClick={onSignOut}
-                    className="text-icta-gray-600 transition-colors hover:text-icta-red focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-icta-black"
+                    className="text-white/75 transition-colors hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
                   >
                     Sign out
                   </button>
@@ -122,7 +122,7 @@ export function Footer() {
           </FooterColumn>
         </div>
 
-        <div className="mt-10 border-t border-icta-gray-200 pt-5 text-center text-xs text-icta-gray-600">
+        <div className="mt-10 border-t border-white/15 pt-5 text-center text-xs text-white/55">
           © {new Date().getFullYear()} ICT Authority, Kenya · Internal
           compliance tool
         </div>

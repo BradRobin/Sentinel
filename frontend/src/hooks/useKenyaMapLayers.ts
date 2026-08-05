@@ -63,6 +63,8 @@ interface UseKenyaMapLayersOptions {
   ) => void;
   markers?: McdaMapMarker[];
   showMarkers?: boolean;
+  /** When false, county polygons are outlines only (no hover/click). */
+  countiesInteractive?: boolean;
   focusCountyKey?: string | null;
   onMarkerSelect?: (marker: McdaMapMarker) => void;
 }
@@ -75,6 +77,7 @@ export function useKenyaMapLayers({
   onEachCountyFeature,
   markers = [],
   showMarkers = true,
+  countiesInteractive = true,
   focusCountyKey = null,
   onMarkerSelect,
 }: UseKenyaMapLayersOptions) {
@@ -91,6 +94,19 @@ export function useKenyaMapLayers({
     const el = containerRef.current;
     if (!el) return;
 
+    // React Strict Mode remounts effects: clear any leftover Leaflet id on the
+    // container before creating a new map instance.
+    const existingId = (el as HTMLElement & { _leaflet_id?: number })._leaflet_id;
+    if (existingId != null) {
+      const prior = mapRef.current;
+      if (prior) {
+        prior.remove();
+        mapRef.current = null;
+      }
+      delete (el as HTMLElement & { _leaflet_id?: number })._leaflet_id;
+    }
+
+    let disposed = false;
     const map = L.map(el, {
       zoomControl: true,
       attributionControl: true,
@@ -106,16 +122,31 @@ export function useKenyaMapLayers({
     mapRef.current = map;
     setMapReady(true);
 
-    const ro = new ResizeObserver(() => map.invalidateSize());
+    /** Avoid invalidateSize after remove() — Strict Mode races rAF/ResizeObserver. */
+    const safeInvalidate = () => {
+      if (disposed || mapRef.current !== map) return;
+      try {
+        // Leaflet reads _leaflet_pos on the map pane; skip if tear-down started.
+        const container = map.getContainer();
+        if (!container.isConnected) return;
+        map.invalidateSize({ pan: false });
+      } catch {
+        // Map already torn down mid-frame
+      }
+    };
+
+    const ro = new ResizeObserver(() => safeInvalidate());
     ro.observe(el);
-    requestAnimationFrame(() => map.invalidateSize());
+    const rafId = requestAnimationFrame(() => safeInvalidate());
 
     function onA11yTextStep() {
-      requestAnimationFrame(() => map.invalidateSize());
+      requestAnimationFrame(() => safeInvalidate());
     }
     window.addEventListener(A11Y_TEXT_EVENT, onA11yTextStep);
 
     return () => {
+      disposed = true;
+      cancelAnimationFrame(rafId);
       window.removeEventListener(A11Y_TEXT_EVENT, onA11yTextStep);
       ro.disconnect();
       setMapReady(false);
@@ -177,12 +208,13 @@ export function useKenyaMapLayers({
     const layer = L.geoJSON(enriched, {
       pane: "kenya-counties",
       style: countyStyle,
+      interactive: countiesInteractive,
     });
 
     for (const lyr of layer.getLayers()) {
       const geoLayer = lyr as L.Layer & { feature?: GeoJSON.Feature };
       const feature = geoLayer.feature;
-      if (feature) onEachCountyFeature(feature, lyr, layer);
+      if (feature && countiesInteractive) onEachCountyFeature(feature, lyr, layer);
     }
 
     layer.addTo(map);
@@ -193,8 +225,14 @@ export function useKenyaMapLayers({
     if (bounds.isValid()) {
       map.fitBounds(bounds, { padding: [28, 28], maxZoom: 7 });
     }
-    map.invalidateSize();
-  }, [enriched, mapReady, countyStyle, onEachCountyFeature]);
+    try {
+      if (map.getContainer().isConnected) {
+        map.invalidateSize({ pan: false });
+      }
+    } catch {
+      // ignore
+    }
+  }, [enriched, mapReady, countyStyle, onEachCountyFeature, countiesInteractive]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -207,7 +245,7 @@ export function useKenyaMapLayers({
 
     if (!showMarkers || markers.length === 0) return;
 
-    const group = L.layerGroup([], { pane: "kenya-markers" });
+    const group = L.layerGroup();
     for (const marker of markers) {
       const circle = L.circleMarker([marker.latitude, marker.longitude], {
         radius: marker.orgType === "ministry" ? 7 : 6,

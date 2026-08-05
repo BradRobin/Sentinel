@@ -25,6 +25,7 @@ import {
   SCORE_BAND_LEGEND,
   buildMcdaMarkers,
   enrichCountiesGeoJSON,
+  filterMarkersByTab,
   filterRegistryByTab,
   orgTypeShortLabel,
   orgsHeadquarteredInCounty,
@@ -75,13 +76,24 @@ function featureProps(
   };
 }
 
-function countyStyle(feature?: GeoJSON.Feature): L.PathOptions {
+function countyScoreStyle(feature?: GeoJSON.Feature): L.PathOptions {
   return {
     fillColor: String(feature?.properties?.fillColor ?? COUNTY_NO_SCORE_FILL),
     fillOpacity: 0.92,
     color: COUNTY_STROKE,
     weight: 0.8,
     opacity: 0.55,
+  };
+}
+
+/** Muted county outlines while focusing national HQ markers. */
+function countyMutedStyle(): L.PathOptions {
+  return {
+    fillColor: COUNTY_NO_SCORE_FILL,
+    fillOpacity: 0.28,
+    color: COUNTY_STROKE,
+    weight: 0.6,
+    opacity: 0.35,
   };
 }
 
@@ -131,9 +143,9 @@ export function KenyaMapDashboard() {
   const [tooltip, setTooltip] = useState<TooltipState | null>(null);
   const [selected, setSelected] = useState<SelectedEntity | null>(null);
   const [focusCountyKey, setFocusCountyKey] = useState<string | null>(null);
-  const [showMarkers, setShowMarkers] = useState(true);
 
   const tab = parseMapAsideTab(searchParams.get("tab"));
+  const countiesMode = tab === "counties";
 
   const setTab = useCallback(
     (next: MapAsideTab) => {
@@ -146,6 +158,12 @@ export function KenyaMapDashboard() {
     [router, searchParams],
   );
 
+  useEffect(() => {
+    setSelected(null);
+    setFocusCountyKey(null);
+    setTooltip(null);
+  }, [tab]);
+
   const counties = useMemo(
     () => registry.filter((e) => e.org_type === "county"),
     [registry],
@@ -156,7 +174,16 @@ export function KenyaMapDashboard() {
     return enrichCountiesGeoJSON(geojson, counties);
   }, [geojson, counties]);
 
-  const markers = useMemo(() => buildMcdaMarkers(registry), [registry]);
+  const markers = useMemo(
+    () => filterMarkersByTab(buildMcdaMarkers(registry), tab),
+    [registry, tab],
+  );
+
+  const countyStyle = useCallback(
+    (feature?: GeoJSON.Feature): L.PathOptions =>
+      countiesMode ? countyScoreStyle(feature) : countyMutedStyle(),
+    [countiesMode],
+  );
 
   const scoredCounties = useMemo(
     () => counties.filter((c) => c.latest_score != null).length,
@@ -265,7 +292,8 @@ export function KenyaMapDashboard() {
     countyStyle,
     onEachCountyFeature,
     markers,
-    showMarkers,
+    showMarkers: !countiesMode,
+    countiesInteractive: countiesMode,
     focusCountyKey,
     onMarkerSelect: (marker) => {
       const entry = entryFromMarker(marker, registry);
@@ -322,8 +350,14 @@ export function KenyaMapDashboard() {
             Kenya compliance map
           </h1>
           <p className="max-w-2xl text-sm leading-relaxed text-icta-gray-600">
-            County websites are coloured on the map by ICTA score. Ministries
-            and agencies appear as HQ markers and in the side panel — see the{" "}
+            {countiesMode
+              ? "County websites are coloured on the map by ICTA score."
+              : tab === "national"
+                ? "National ministries and agencies appear as HQ markers on a muted county outline."
+                : tab === "ministries"
+                  ? "Ministry HQ markers only — county fills are muted in this view."
+                  : "Agency HQ markers only — county fills are muted in this view."}{" "}
+            See the{" "}
             <Link
               href={
                 tab === "ministries"
@@ -346,18 +380,15 @@ export function KenyaMapDashboard() {
           <p className="text-xs tabular-nums text-icta-gray-600">
             {pending && !geojson
               ? "Loading MCDAs…"
-              : `${counties.length} counties (${scoredCounties} scored) · ${nationalCount} national MCDAs`}
+              : countiesMode
+                ? `${counties.length} counties (${scoredCounties} scored)`
+                : tab === "ministries"
+                  ? `${tabRows.length} scored ministries · ${markers.length} with map pins`
+                  : tab === "agencies"
+                    ? `${tabRows.length} scored agencies · ${markers.length} with map pins`
+                    : `${nationalCount} national MCDAs · ${markers.length} with map pins`}
           </p>
           <div className="flex flex-wrap items-center gap-3">
-            <label className="flex items-center gap-2 text-xs text-icta-gray-600">
-              <input
-                type="checkbox"
-                className="accent-icta-green"
-                checked={showMarkers}
-                onChange={(e) => setShowMarkers(e.target.checked)}
-              />
-              Show HQ markers
-            </label>
             <ul className="flex flex-wrap gap-3" aria-label="Score legend">
               {SCORE_BAND_LEGEND.map((band) => (
                 <li
@@ -433,9 +464,11 @@ export function KenyaMapDashboard() {
                   ? selected.kind === "county"
                     ? "Selected county"
                     : "Selected organisation"
-                  : "Select a county or organisation"}
+                  : countiesMode
+                    ? "Select a county"
+                    : "Select an organisation"}
               </h2>
-              {selected?.kind === "county" ? (
+              {selected?.kind === "county" && countiesMode ? (
                 <div className="mt-2 space-y-2 text-sm">
                   <p className="font-medium text-icta-black">
                     {selected.props.orgName || selected.props.shapeName}
@@ -556,8 +589,9 @@ export function KenyaMapDashboard() {
                 </div>
               ) : (
                 <p className="mt-2 text-xs text-icta-gray-600">
-                  Hover or click a county polygon, an HQ marker, or a row in the
-                  list below.
+                  {countiesMode
+                    ? "Hover or click a county polygon, or a row in the list below."
+                    : "Click an HQ marker on the map, or a row in the list below."}
                 </p>
               )}
             </section>
@@ -566,7 +600,7 @@ export function KenyaMapDashboard() {
               <div
                 className="mb-2 flex flex-wrap gap-1.5"
                 role="tablist"
-                aria-label="MCDA list filter"
+                aria-label="Map view"
               >
                 {MAP_ASIDE_TABS.map((t) => (
                   <button

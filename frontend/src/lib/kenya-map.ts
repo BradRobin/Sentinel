@@ -315,6 +315,23 @@ export function buildMcdaMarkers(entries: RegistryEntry[]): McdaMapMarker[] {
   return out;
 }
 
+/** HQ markers visible for the active aside tab (none on Counties). */
+export function filterMarkersByTab(
+  markers: McdaMapMarker[],
+  tab: MapAsideTab,
+): McdaMapMarker[] {
+  switch (tab) {
+    case "counties":
+      return [];
+    case "ministries":
+      return markers.filter((m) => m.orgType === "ministry");
+    case "agencies":
+      return markers.filter((m) => m.orgType === "agency");
+    case "national":
+      return markers;
+  }
+}
+
 export function orgTypeShortLabel(type: string): string {
   switch (type) {
     case "ministry":

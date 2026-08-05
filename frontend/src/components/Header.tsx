@@ -4,7 +4,6 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useSyncExternalStore } from "react";
 
-import { SentinelMark } from "@/components/SentinelMark";
 import { authSubscribe, logoutUser, readSession, readSessionServer } from "@/lib/auth";
 import { btnGhost, btnPrimary, btnSecondarySm } from "@/lib/ui";
 
@@ -31,11 +30,9 @@ export function Header() {
       <div className="mx-auto flex h-14 w-full max-w-6xl items-center justify-between gap-4 px-6">
         <Link
           href="/"
-          className="flex shrink-0 items-center gap-2.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-icta-black"
-          aria-label="Sentinel home"
+          className="shrink-0 text-base font-bold text-icta-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-icta-black"
         >
-          <SentinelMark state="idle" size={28} label="Sentinel" />
-          <span className="text-base font-bold text-icta-black">Sentinel</span>
+          Sentinel
         </Link>
 
         <nav

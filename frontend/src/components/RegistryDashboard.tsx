@@ -1,9 +1,20 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowDown, ArrowUp, Check, ChevronsUpDown, Copy } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  Check,
+  ChevronsUpDown,
+  Copy,
+  LayoutGrid,
+  RefreshCw,
+  ScanSearch,
+  Trophy,
+} from "lucide-react";
 
 import { SentinelMark } from "@/components/SentinelMark";
+import { EmptyState } from "@/components/EmptyState";
 import { ErrorState } from "@/components/ErrorState";
 import { RegistryDetailDrawer } from "@/components/RegistryDetailDrawer";
 import { Skeleton } from "@/components/Skeleton";
@@ -27,6 +38,7 @@ import {
 } from "@/lib/registry-leaderboard";
 import type { SentinelMarkState } from "@/lib/sentinel-mark-paths";
 import {
+  badgeNeutral,
   btnFilterActive,
   btnFilterIdle,
   btnGhost,
@@ -34,6 +46,7 @@ import {
   btnPrimary,
   btnSecondary,
   inputBase,
+  meta,
 } from "@/lib/ui";
 import { trendClass, trendLabel } from "@/lib/trend";
 
@@ -396,14 +409,15 @@ export function RegistryDashboard() {
     <div className="flex flex-1 flex-col">
       <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-12 sm:py-16">
         <header className="mb-8">
-          <h1 className="mb-2 text-2xl font-bold tracking-tight text-icta-black sm:text-3xl font-serif">
+          <p className={`mb-2 ${meta}`}>Compliance registry · Kenya public sector</p>
+          <h1 className="mb-2 text-2xl font-bold tracking-tight text-icta-gray-900 sm:text-3xl font-serif">
             MCDA registry
           </h1>
           <p className="max-w-2xl text-sm leading-relaxed text-icta-gray-600">
             Ministries, counties, and agencies with compliance scores from
             weekly scans. Switch to the leaderboard to rank the most compliant
             sites overall by category. Use{" "}
-            <span className="text-icta-black font-medium">Scan all</span> to re-check every
+            <span className="text-icta-gray-900 font-medium">Scan all</span> to re-check every
             listed site.
           </p>
         </header>
@@ -467,7 +481,10 @@ export function RegistryDashboard() {
                     Scanning…
                   </>
                 ) : (
-                  "Scan all MCDAs"
+                  <>
+                    <ScanSearch className="size-4" aria-hidden="true" />
+                    Scan all MCDAs
+                  </>
                 )}
               </button>
               <button
@@ -482,7 +499,10 @@ export function RegistryDashboard() {
                     Refreshing…
                   </>
                 ) : (
-                  "Refresh list"
+                  <>
+                    <RefreshCw className="size-4" aria-hidden="true" />
+                    Refresh list
+                  </>
                 )}
               </button>
             </div>
@@ -568,7 +588,7 @@ export function RegistryDashboard() {
 
         {showScanPanel && (
           <section
-            className="mb-6 card border-t-4 border-t-icta-black animate-fade-in-up"
+            className="mb-6 card border-t-4 border-t-icta-green animate-fade-in-up"
             role="status"
             aria-live="polite"
             aria-label={
@@ -786,12 +806,13 @@ export function RegistryDashboard() {
                 !loading &&
                 !errorMessage && (
                   <tr>
-                    <td
-                      colSpan={7}
-                      className="py-10 text-center text-icta-gray-600"
-                    >
-                      No verified MCDAs yet. Seed the registry to populate this
-                      list.
+                    <td colSpan={7} className="px-4 py-8">
+                      <EmptyState
+                        icon={<LayoutGrid className="size-5" aria-hidden="true" />}
+                        title="No verified MCDAs yet"
+                      >
+                        Seed the registry to populate this list.
+                      </EmptyState>
                     </td>
                   </tr>
                 )}
@@ -802,11 +823,15 @@ export function RegistryDashboard() {
                   <tr>
                     <td
                       colSpan={leaderboardMetric === "overall" ? 5 : 6}
-                      className="py-10 text-center text-icta-gray-600"
+                      className="px-4 py-8"
                     >
-                      No scored sites in this view yet. Run{" "}
-                      <span className="text-icta-black">Scan all MCDAs</span>{" "}
-                      to build the leaderboard.
+                      <EmptyState
+                        icon={<Trophy className="size-5" aria-hidden="true" />}
+                        title="No scored sites yet"
+                      >
+                        Run <span className="font-medium text-icta-gray-900">Scan all MCDAs</span>{" "}
+                        to build the leaderboard.
+                      </EmptyState>
                     </td>
                   </tr>
                 )}
@@ -831,9 +856,7 @@ export function RegistryDashboard() {
                           {row.registered_name || row.org_name}
                         </button>
                         {row.sector && (
-                          <span className="rounded-md bg-icta-gray-100 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-icta-gray-600">
-                            {row.sector}
-                          </span>
+                          <span className={badgeNeutral}>{row.sector}</span>
                         )}
                       </div>
                       <a
@@ -845,7 +868,7 @@ export function RegistryDashboard() {
                         {row.url}
                       </a>
                       {row.aliases.length > 0 && (
-                        <span className="mt-1 block truncate text-[11px] text-icta-gray-600">
+                        <span className={`mt-1 block truncate ${meta}`}>
                           {row.aliases.slice(0, 3).join(" · ")}
                         </span>
                       )}
@@ -858,7 +881,7 @@ export function RegistryDashboard() {
                         {formatScore(row.latest_score)}
                       </div>
                       {row.previous_score != null && row.latest_score != null && (
-                        <div className="mt-0.5 text-[11px] tabular-nums text-icta-gray-600">
+                        <div className={`mt-0.5 tabular-nums ${meta}`}>
                           prev {row.previous_score.toFixed(1)}
                         </div>
                       )}
@@ -878,7 +901,7 @@ export function RegistryDashboard() {
                     <td className="py-3 pr-4 text-icta-gray-600">
                       <div>{formatChecked(row.last_checked_at)}</div>
                       {row.last_source && (
-                        <div className="mt-0.5 text-[11px] text-icta-gray-600/80">
+                        <div className={`mt-0.5 ${meta}`}>
                           {row.last_source === "manual" ? "manual scan" : row.last_source}
                         </div>
                       )}

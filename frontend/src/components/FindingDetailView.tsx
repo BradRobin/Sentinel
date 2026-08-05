@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { CheckCircle2, XCircle } from "lucide-react";
 
 import {
   formatDetailScalar,
@@ -82,17 +83,22 @@ function NestedObject({
     return (
       <ul className="space-y-1 text-sm">
         {entries.map(([k, v]) => (
-          <li key={k} className="flex gap-2">
+          <li key={k} className="flex items-center gap-2">
+            {v ? (
+              <CheckCircle2 className="size-4 shrink-0 text-icta-green" aria-hidden="true" />
+            ) : (
+              <XCircle className="size-4 shrink-0 text-icta-red" aria-hidden="true" />
+            )}
             <span
               className={
                 v
-                  ? "font-medium text-icta-green"
-                  : "font-medium text-icta-red"
+                  ? "font-medium text-icta-green-deep"
+                  : "font-medium text-icta-red-deep"
               }
             >
               {v ? "Present" : "Missing"}
             </span>
-            <span className="break-words text-icta-black">{labelDetailKey(k)}</span>
+            <span className="break-words text-icta-gray-900">{labelDetailKey(k)}</span>
           </li>
         ))}
       </ul>

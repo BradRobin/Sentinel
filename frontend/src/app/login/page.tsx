@@ -3,12 +3,16 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
+import { Lock, Mail } from "lucide-react";
 
 import { AuthShell } from "@/components/AuthShell";
 import { ErrorState } from "@/components/ErrorState";
 import { Spinner } from "@/components/Spinner";
 import { AuthError, getCurrentUser, loginUser } from "@/lib/auth";
-import { btnPrimary, inputBase, inputError, textLink } from "@/lib/ui";
+import { btnPrimary, fieldLabel, inputBase, inputError, textLink } from "@/lib/ui";
+
+const iconWrap = "pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-icta-gray-400";
+const inputWithIcon = "pl-9";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -42,6 +46,7 @@ export default function LoginPage() {
       title="Welcome back"
       subtitle="Log in to scan sites, review findings, and track compliance."
       markLabel="Sentinel login"
+      eyebrowLabel="Sentinel"
       footer={
         <>
           No account yet?{" "}
@@ -56,47 +61,47 @@ export default function LoginPage() {
     >
       <form onSubmit={onSubmit} noValidate className="space-y-4">
         <div>
-          <label
-            htmlFor="login-email"
-            className="mb-1.5 block text-sm font-medium text-icta-black"
-          >
+          <label htmlFor="login-email" className={fieldLabel}>
             Email
           </label>
-          <input
-            id="login-email"
-            type="email"
-            autoComplete="email"
-            required
-            value={email}
-            onChange={(e) => {
-              setEmail(e.target.value);
-              if (error) setError(null);
-            }}
-            className={inputBase}
-            placeholder="you@example.com"
-          />
+          <div className="relative">
+            <Mail className={`${iconWrap} size-4`} aria-hidden="true" />
+            <input
+              id="login-email"
+              type="email"
+              autoComplete="email"
+              required
+              value={email}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                if (error) setError(null);
+              }}
+              className={`${inputBase} ${inputWithIcon}`}
+              placeholder="you@example.com"
+            />
+          </div>
         </div>
 
         <div>
-          <label
-            htmlFor="login-password"
-            className="mb-1.5 block text-sm font-medium text-icta-black"
-          >
+          <label htmlFor="login-password" className={fieldLabel}>
             Password
           </label>
-          <input
-            id="login-password"
-            type="password"
-            autoComplete="current-password"
-            required
-            value={password}
-            onChange={(e) => {
-              setPassword(e.target.value);
-              if (error) setError(null);
-            }}
-            className={`${inputBase} ${error ? inputError : ""}`}
-            placeholder="••••••••"
-          />
+          <div className="relative">
+            <Lock className={`${iconWrap} size-4`} aria-hidden="true" />
+            <input
+              id="login-password"
+              type="password"
+              autoComplete="current-password"
+              required
+              value={password}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                if (error) setError(null);
+              }}
+              className={`${inputBase} ${inputWithIcon} ${error ? inputError : ""}`}
+              placeholder="••••••••"
+            />
+          </div>
         </div>
 
         {error && <ErrorState compact message={error} />}

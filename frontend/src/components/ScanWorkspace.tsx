@@ -1,7 +1,22 @@
 ﻿"use client";
 
 import { FormEvent, KeyboardEvent, useEffect, useRef, useState } from "react";
-import { Check, ClipboardPaste, ScanSearch } from "lucide-react";
+import {
+  Accessibility,
+  Check,
+  ClipboardPaste,
+  Fingerprint,
+  Gauge,
+  ListChecks,
+  Palette,
+  Scale,
+  ScanSearch,
+  Search,
+  SearchX,
+  Share2,
+  ShieldCheck,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
 import { StandardDocLink } from "@/components/ClauseLink";
 import { EmptyState } from "@/components/EmptyState";
@@ -47,7 +62,20 @@ import {
   card,
   inputBase,
   inputError,
+  meta,
+  sectionLabel,
 } from "@/lib/ui";
+
+const CATEGORY_ICONS: Record<string, LucideIcon> = {
+  domain_identity: Fingerprint,
+  security: ShieldCheck,
+  interoperability: Share2,
+  accessibility: Accessibility,
+  design_branding: Palette,
+  multimedia_performance: Gauge,
+  legal_content: Scale,
+  seo: Search,
+};
 
 const POLL_INTERVAL_MS = 600;
 const STALE_CATEGORY_MS = 15_000;
@@ -115,7 +143,10 @@ interface ScanLevelError {
 
 function EmptyIdle() {
   return (
-    <EmptyState title="No scan yet">
+    <EmptyState
+      icon={<ScanSearch className="size-5" aria-hidden="true" />}
+      title="No scan yet"
+    >
       Enter a public .go.ke or .gov.ke URL above to run compliance checks.
     </EmptyState>
   );
@@ -123,41 +154,35 @@ function EmptyIdle() {
 
 type ChecklistState = "done" | "active" | "pending";
 
-function ProgressMark({ state }: { state: ChecklistState }) {
-  if (state === "done") {
-    return (
-      <Check
-        className="size-4 shrink-0 text-icta-green"
-        strokeWidth={2.5}
-        aria-hidden="true"
-      />
-    );
-  }
-  if (state === "active") {
-    return (
+function ProgressRow({
+  category,
+  label,
+  state,
+}: {
+  category: string;
+  label: string;
+  state: ChecklistState;
+}) {
+  const Icon = CATEGORY_ICONS[category] ?? ListChecks;
+  const tileClass =
+    state === "done"
+      ? "bg-icta-green-tint text-icta-green"
+      : state === "active"
+        ? "bg-icta-gray-100 text-icta-gray-900 ring-1 ring-inset ring-icta-gray-200 animate-pulse"
+        : "bg-icta-gray-50 text-icta-gray-400 ring-1 ring-inset ring-icta-gray-200/60";
+  return (
+    <li className="flex items-center gap-2.5 py-1.5">
       <span
-        className="size-2 shrink-0 animate-pulse rounded-full bg-icta-black"
+        className={`flex size-7 shrink-0 items-center justify-center rounded-lg transition-colors ${tileClass}`}
         aria-hidden="true"
-      />
-    );
-  }
-  return (
-    <span
-      className="size-2 shrink-0 rounded-full border border-icta-gray-300 bg-white"
-      aria-hidden="true"
-    />
-  );
-}
-
-function ProgressRow({ label, state }: { label: string; state: ChecklistState }) {
-  return (
-    <li className="flex items-center gap-2.5 py-1">
-      <ProgressMark state={state} />
+      >
+        {state === "done" ? <Check className="size-3.5" strokeWidth={2.5} /> : <Icon className="size-3.5" />}
+      </span>
       <span
         className={
           state === "pending"
-            ? "text-sm text-icta-gray-600"
-            : "text-sm font-medium text-icta-black"
+            ? "text-sm text-icta-gray-500"
+            : "text-sm font-medium text-icta-gray-900"
         }
       >
         {label}
@@ -180,10 +205,8 @@ function ScanProgressChecklist({
       className={`${card} mb-8 animate-fade-in-up p-4`}
     >
       <div className="mb-2 flex items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold text-icta-black">
-          Compliance checks
-        </h2>
-        <p className="text-xs tabular-nums text-icta-gray-600">
+        <h2 className={`${sectionLabel}`}>Compliance checks</h2>
+        <p className="tabular-nums text-icta-gray-500">
           {completedCount}/{SCORED_CATEGORIES.length} done
         </p>
       </div>
@@ -191,6 +214,7 @@ function ScanProgressChecklist({
         {SCORED_CATEGORIES.map((cat) => (
           <ProgressRow
             key={cat}
+            category={cat}
             label={labelCategory(cat)}
             state={
               completed.has(cat)
@@ -622,7 +646,7 @@ export function ScanWorkspace() {
           </p>
         </div>
 
-        <h1 className="mb-2 text-2xl font-bold text-icta-black">Scan</h1>
+        <h1 className="mb-2 text-2xl font-bold tracking-tight text-icta-gray-900 font-serif">Scan</h1>
         <p className="mb-6 text-sm text-icta-gray-600">
           <StandardDocLink>ICTA.6.003:2023 §6.5</StandardDocLink> compliance
           checks — results cached for 24 hours
@@ -783,13 +807,17 @@ export function ScanWorkspace() {
         {showEmptyIdle && <EmptyIdle />}
 
         {showEmptyComplete && (
-          <EmptyState className="py-8">
-            Scan finished, but no findings were returned.
+          <EmptyState
+            className="py-8"
+            icon={<SearchX className="size-5" aria-hidden="true" />}
+            title="Scan finished"
+          >
+            No findings were returned.
           </EmptyState>
         )}
 
         {scan && findings.length > 0 && (
-          <div className="mb-4 text-xs text-icta-gray-600">
+          <div className={`mb-4 ${meta}`}>
             Job {scan.job_id}
             {scan.cache_hit ? " · cache" : ""}
             {!resultsReady ? " · results updating…" : ""}

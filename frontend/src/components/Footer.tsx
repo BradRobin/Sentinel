@@ -31,7 +31,7 @@ function FooterColumn({
 }) {
   return (
     <nav aria-label={heading} className="space-y-3">
-      <p className="text-xs font-semibold uppercase tracking-wider text-icta-gray-600">
+      <p className="text-xs font-semibold uppercase tracking-wider text-icta-gray-500">
         {heading}
       </p>
       <ul className="space-y-2 text-sm">{children}</ul>
@@ -44,7 +44,7 @@ function FooterLink({ href, children }: { href: string; children: React.ReactNod
     <li>
       <Link
         href={href}
-        className="text-icta-gray-600 transition-colors hover:text-icta-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-icta-black"
+        className="text-icta-gray-600 transition-colors hover:text-icta-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-icta-gray-800"
       >
         {children}
       </Link>
@@ -69,7 +69,7 @@ export function Footer() {
           <div className="space-y-3">
             <div className="flex items-center gap-2.5">
               <SentinelMark state="idle" size={32} label="Sentinel" />
-              <span className="text-base font-bold text-icta-black">Sentinel</span>
+              <span className="text-base font-bold text-icta-gray-900">Sentinel</span>
             </div>
             <p className="max-w-xs text-sm leading-relaxed text-icta-gray-600">
               AI-powered website compliance checking for Kenya&apos;s public

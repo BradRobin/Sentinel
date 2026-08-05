@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { ArrowLeft, ArrowRight } from "lucide-react";
+import { ArrowLeft, ArrowRight, Settings, ShieldCheck } from "lucide-react";
 
 import { AuthShell } from "@/components/AuthShell";
 import { ErrorState } from "@/components/ErrorState";
@@ -15,8 +15,11 @@ import {
 import {
   btnGhost,
   btnPrimary,
+  fieldLabel,
   inputBase,
   linkQuiet,
+  meta,
+  sectionPanel,
 } from "@/lib/ui";
 
 const TOTAL_STEPS = 3;
@@ -25,16 +28,19 @@ const ROLE_OPTIONS: Array<{
   value: SentinelRole;
   title: string;
   description: string;
+  icon: React.ReactNode;
 }> = [
   {
     value: "officer",
     title: "Compliance officer",
     description: "Resolve the manual review queue and sign off findings.",
+    icon: <ShieldCheck className="size-5" aria-hidden="true" />,
   },
   {
     value: "admin",
     title: "Administrator",
     description: "Run scans, manage the registry, and monitor compliance.",
+    icon: <Settings className="size-5" aria-hidden="true" />,
   },
 ];
 
@@ -160,17 +166,30 @@ export default function OnboardingPage() {
                     setRole(option.value);
                     setError(null);
                   }}
-                  className={`w-full rounded-md border px-4 py-3 text-left transition-colors ${
+                  className={`w-full rounded-xl border px-4 py-3 text-left transition-all ${
                     selected
-                      ? "border-icta-green bg-icta-green/5 ring-1 ring-icta-green"
-                      : "border-icta-gray-200 bg-white hover:bg-icta-gray-50"
+                      ? "border-icta-green bg-icta-green-tint/60 shadow-card-hover"
+                      : "border-icta-gray-200 bg-white shadow-card hover:border-icta-gray-300 hover:bg-icta-gray-50"
                   }`}
                 >
-                  <span className="block font-medium text-icta-black">
-                    {option.title}
-                  </span>
-                  <span className="mt-0.5 block text-sm text-icta-gray-600">
-                    {option.description}
+                  <span className="flex items-center gap-3">
+                    <span
+                      className={`flex size-9 shrink-0 items-center justify-center rounded-lg ${
+                        selected
+                          ? "bg-icta-green text-white"
+                          : "bg-icta-gray-100 text-icta-gray-600"
+                      }`}
+                    >
+                      {option.icon}
+                    </span>
+                    <span>
+                      <span className="block font-medium text-icta-gray-900">
+                        {option.title}
+                      </span>
+                      <span className="mt-0.5 block text-sm text-icta-gray-600">
+                        {option.description}
+                      </span>
+                    </span>
                   </span>
                 </button>
               );
@@ -180,10 +199,7 @@ export default function OnboardingPage() {
 
         {step === 1 && (
           <div>
-            <label
-              htmlFor="onboard-org"
-              className="mb-1.5 block text-sm font-medium text-icta-black"
-            >
+            <label htmlFor="onboard-org" className={fieldLabel}>
               Organisation name
             </label>
             <input
@@ -197,30 +213,30 @@ export default function OnboardingPage() {
               className={inputBase}
               placeholder="e.g. ICT Authority"
             />
-            <p className="mt-1.5 text-xs text-icta-gray-600">
+            <p className={`mt-1.5 ${meta}`}>
               Optional — used to personalise your account.
             </p>
           </div>
         )}
 
         {step === 2 && (
-          <div className="rounded-md border border-icta-gray-200 bg-icta-gray-50 p-4 text-sm">
+          <div className={`${sectionPanel} p-4 text-sm`}>
             <dl className="space-y-2">
               <div className="flex items-baseline justify-between gap-3">
                 <dt className="text-icta-gray-600">Name</dt>
-                <dd className="font-medium text-icta-black">
+                <dd className="font-medium text-icta-gray-900">
                   {getCurrentUser()?.name ?? "—"}
                 </dd>
               </div>
               <div className="flex items-baseline justify-between gap-3">
                 <dt className="text-icta-gray-600">Role</dt>
-                <dd className="font-medium text-icta-black">
+                <dd className="font-medium text-icta-gray-900">
                   {ROLE_OPTIONS.find((r) => r.value === role)?.title ?? "—"}
                 </dd>
               </div>
               <div className="flex items-baseline justify-between gap-3">
                 <dt className="text-icta-gray-600">Organisation</dt>
-                <dd className="font-medium text-icta-black">
+                <dd className="font-medium text-icta-gray-900">
                   {organization.trim() || "Not set"}
                 </dd>
               </div>

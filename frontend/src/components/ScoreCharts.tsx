@@ -159,7 +159,7 @@ export function StatusDonut({
           x="50"
           y="48"
           textAnchor="middle"
-          className="fill-icta-black"
+          className="fill-icta-gray-900"
           style={{ fontSize: 14, fontWeight: 700 }}
         >
           {total}
@@ -250,7 +250,7 @@ export function CategoryScoreBars({
 
   return (
     <div>
-      <h2 className="mb-3 text-lg font-semibold text-icta-black">
+      <h2 className="mb-3 text-lg font-semibold text-icta-gray-900">
         Scores by category
       </h2>
       <p className="mb-4 text-xs text-icta-gray-600">
@@ -266,12 +266,12 @@ export function CategoryScoreBars({
               <div className="mb-1 flex flex-wrap items-baseline justify-between gap-2">
                 <button
                   type="button"
-                  className={`text-left text-sm font-medium text-icta-black ${linkUnderline}`}
+                  className={`text-left text-sm font-medium text-icta-gray-900 ${linkUnderline}`}
                   onClick={() => onCategoryClick?.(row.category)}
                 >
                   {row.label}
                 </button>
-                <span className="font-mono text-sm text-icta-black">
+                <span className="font-mono text-sm text-icta-gray-900">
                   {row.score.toFixed(1)}%
                   {row.weight != null ? (
                     <span className="ml-2 text-xs text-icta-gray-600">

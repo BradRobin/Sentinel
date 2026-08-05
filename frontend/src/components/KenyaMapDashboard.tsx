@@ -26,7 +26,7 @@ import {
   type KenyaCountiesGeoJSON,
 } from "@/lib/kenya-map";
 import { copyScanUrl } from "@/lib/scan-url-clipboard";
-import { btnSecondarySm } from "@/lib/ui";
+import { btnSecondarySm, eyebrow, meta, sectionPanel } from "@/lib/ui";
 
 interface TooltipState {
   x: number;
@@ -217,10 +217,8 @@ export function KenyaMapDashboard() {
     <div className="flex flex-1 flex-col">
       <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-6 py-12 sm:py-16">
         <header className="mb-6">
-          <p className="mb-1 text-xs font-medium uppercase tracking-wider text-icta-gray-600">
-            Showcase
-          </p>
-          <h1 className="mb-2 text-2xl font-bold tracking-tight text-icta-black sm:text-3xl font-serif">
+          <p className={`mb-1 ${eyebrow}`}>Showcase</p>
+          <h1 className="mb-2 text-2xl font-bold tracking-tight text-icta-gray-900 sm:text-3xl font-serif">
             Kenya compliance map
           </h1>
           <p className="max-w-2xl text-sm leading-relaxed text-icta-gray-600">
@@ -262,7 +260,7 @@ export function KenyaMapDashboard() {
         {error && <ErrorState message={error} className="mb-4" />}
 
         <div className="grid flex-1 gap-6 lg:grid-cols-[minmax(0,1fr)_16rem]">
-          <div className="relative overflow-hidden rounded-md border border-icta-gray-200">
+          <div className="relative overflow-hidden rounded-xl border border-icta-gray-200 shadow-card">
             <div
               ref={containerRef}
               className="kenya-leaflet-map h-[28rem] w-full lg:h-[36rem]"
@@ -303,8 +301,8 @@ export function KenyaMapDashboard() {
           </div>
 
           <aside className="flex flex-col gap-4">
-            <section className="rounded-md border border-icta-gray-200 px-4 py-3">
-              <h2 className="text-sm font-semibold text-icta-black font-serif">
+            <section className={`${sectionPanel} px-4 py-3`}>
+              <h2 className="text-sm font-semibold text-icta-gray-900 font-serif">
                 {selected ? "Selected county" : "Hover or click a county"}
               </h2>
               {selected ? (
@@ -360,8 +358,8 @@ export function KenyaMapDashboard() {
               )}
             </section>
 
-            <section className="min-h-0 flex-1 rounded-md border border-icta-gray-200 px-4 py-3">
-              <h2 className="mb-2 text-sm font-semibold text-icta-black font-serif">
+            <section className={`${sectionPanel} min-h-0 flex-1 px-4 py-3`}>
+              <h2 className="mb-2 text-sm font-semibold text-icta-gray-900 font-serif">
                 Scored counties
               </h2>
               {ranked.length === 0 ? (
@@ -420,7 +418,7 @@ export function KenyaMapDashboard() {
               )}
             </section>
 
-            <p className="text-[10px] leading-relaxed text-icta-gray-600">
+            <p className={`leading-relaxed ${meta}`}>
               Boundaries: geoBoundaries Kenya ADM1 (CC / public domain via
               RCMRD). Water: Natural Earth lakes + regional ocean extent.
               Scores: Sentinel MCDA registry.

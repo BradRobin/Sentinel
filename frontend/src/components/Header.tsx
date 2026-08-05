@@ -3,18 +3,27 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, useSyncExternalStore } from "react";
-import { LogOut, Menu, X } from "lucide-react";
+import {
+  BookOpen,
+  ClipboardCheck,
+  LayoutGrid,
+  LogOut,
+  Map,
+  Menu,
+  ScanSearch,
+  X,
+} from "lucide-react";
 
 import { SentinelMark } from "@/components/SentinelMark";
 import { authSubscribe, logoutUser, readSession, readSessionServer } from "@/lib/auth";
 import { btnGhost, btnPrimary, btnSecondarySm, iconBtn } from "@/lib/ui";
 
 const NAV_LINKS = [
-  { href: "/scan", label: "Scan" },
-  { href: "/registry", label: "Registry" },
-  { href: "/map", label: "Map" },
-  { href: "/standards", label: "Standards" },
-  { href: "/review", label: "Review" },
+  { href: "/scan", label: "Scan", icon: ScanSearch },
+  { href: "/registry", label: "Registry", icon: LayoutGrid },
+  { href: "/map", label: "Map", icon: Map },
+  { href: "/standards", label: "Standards", icon: BookOpen },
+  { href: "/review", label: "Review", icon: ClipboardCheck },
 ] as const;
 
 function isActive(pathname: string, href: string): boolean {
@@ -43,31 +52,37 @@ export function Header() {
   }
 
   const linkClasses = (href: string) =>
-    `rounded-md px-3 py-1.5 text-sm transition-colors ${
+    `inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm transition-colors ${
       isActive(pathname, href)
-        ? "bg-icta-gray-100 font-medium text-icta-black"
-        : "text-icta-gray-600 hover:bg-icta-gray-50 hover:text-icta-black"
+        ? "bg-icta-gray-100 font-semibold text-icta-gray-900"
+        : "text-icta-gray-600 hover:bg-icta-gray-50 hover:text-icta-gray-900"
     }`;
 
   return (
-    <header className="sticky top-0 z-30 border-b border-icta-gray-200 bg-white/90 backdrop-blur">
+    <header className="sticky top-0 z-30 border-b border-icta-gray-200 bg-white/85 shadow-card backdrop-blur-md">
       <div className="mx-auto flex h-14 w-full max-w-6xl items-center justify-between gap-4 px-6">
         <Link
           href="/"
           onClick={() => setMenuOpen(false)}
-          className="flex shrink-0 items-center gap-2.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-icta-black"
+          className="flex shrink-0 items-center gap-2.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-icta-gray-800"
           aria-label="Sentinel home"
         >
           <SentinelMark state="idle" size={28} label="Sentinel" />
-          <span className="text-base font-bold text-icta-black font-serif">Sentinel</span>
+          <span className="text-base font-bold text-icta-gray-900 font-serif">
+            Sentinel
+          </span>
         </Link>
 
         <nav aria-label="Main" className="hidden items-center gap-1 md:flex">
-          {NAV_LINKS.map((link) => (
-            <Link key={link.href} href={link.href} className={linkClasses(link.href)}>
-              {link.label}
-            </Link>
-          ))}
+          {NAV_LINKS.map((link) => {
+            const Icon = link.icon;
+            return (
+              <Link key={link.href} href={link.href} className={linkClasses(link.href)}>
+                <Icon className="size-4" aria-hidden="true" />
+                {link.label}
+              </Link>
+            );
+          })}
         </nav>
 
         <div className="flex shrink-0 items-center gap-2">
@@ -123,25 +138,29 @@ export function Header() {
           className="animate-fade-in-down border-t border-icta-gray-200 bg-white px-4 py-3 md:hidden"
         >
           <div className="flex flex-col gap-1">
-            {NAV_LINKS.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                onClick={() => setMenuOpen(false)}
-                className={`rounded-md px-3 py-2 text-sm transition-colors ${
-                  isActive(pathname, link.href)
-                    ? "bg-icta-gray-100 font-medium text-icta-black"
-                    : "text-icta-gray-600 hover:bg-icta-gray-50 hover:text-icta-black"
-                }`}
-              >
-                {link.label}
-              </Link>
-            ))}
+            {NAV_LINKS.map((link) => {
+              const Icon = link.icon;
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  onClick={() => setMenuOpen(false)}
+                  className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
+                    isActive(pathname, link.href)
+                      ? "bg-icta-gray-100 font-semibold text-icta-gray-900"
+                      : "text-icta-gray-600 hover:bg-icta-gray-50 hover:text-icta-gray-900"
+                  }`}
+                >
+                  <Icon className="size-4" aria-hidden="true" />
+                  {link.label}
+                </Link>
+              );
+            })}
             {user && (
               <button
                 type="button"
                 onClick={onSignOut}
-                className="flex items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-icta-gray-600 transition-colors hover:bg-icta-gray-50 hover:text-icta-black"
+                className="flex items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-icta-gray-600 transition-colors hover:bg-icta-gray-50 hover:text-icta-gray-900"
               >
                 <LogOut className="size-4" aria-hidden="true" />
                 Sign out

@@ -4,6 +4,8 @@ interface EmptyStateProps {
   title?: string;
   children?: ReactNode;
   action?: ReactNode;
+  /** Optional leading icon shown in a soft tile above the copy. */
+  icon?: ReactNode;
   /** "box" = dashed-border callout; "inset" = borderless copy inside a card. */
   variant?: "box" | "inset";
   className?: string;
@@ -14,6 +16,7 @@ export function EmptyState({
   title,
   children,
   action,
+  icon,
   variant = "box",
   className,
 }: EmptyStateProps) {
@@ -22,7 +25,7 @@ export function EmptyState({
       <div
         className={`px-4 py-6 text-sm text-icta-gray-600 ${className ?? ""}`.trim()}
       >
-        {title ? <p className="font-medium text-icta-black">{title}</p> : null}
+        {title ? <p className="font-medium text-icta-gray-900">{title}</p> : null}
         {children}
         {action}
       </div>
@@ -30,16 +33,21 @@ export function EmptyState({
   }
   return (
     <div
-      className={`rounded-md border border-dashed border-icta-gray-200 px-4 py-8 text-center ${className ?? ""}`.trim()}
+      className={`flex flex-col items-center rounded-xl border border-dashed border-icta-gray-300 bg-white/60 px-6 py-10 text-center ${className ?? ""}`.trim()}
     >
+      {icon ? (
+        <span className="mb-3 flex size-11 items-center justify-center rounded-full bg-icta-gray-100 text-icta-gray-500 ring-1 ring-inset ring-icta-gray-200/70">
+          {icon}
+        </span>
+      ) : null}
       {title ? (
-        <p className="text-sm font-medium text-icta-black">{title}</p>
+        <p className="text-sm font-medium text-icta-gray-900">{title}</p>
       ) : null}
       {children ? (
-        <div className="mt-1 text-sm text-icta-gray-600">{children}</div>
+        <div className="mt-1 max-w-sm text-sm text-icta-gray-600">{children}</div>
       ) : null}
       {action ? (
-        <div className="mt-3 flex justify-center">{action}</div>
+        <div className="mt-4 flex justify-center">{action}</div>
       ) : null}
     </div>
   );

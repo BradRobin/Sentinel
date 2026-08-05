@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { ClipboardList, Inbox, SlidersHorizontal, UserCircle } from "lucide-react";
 
 import {
   getManualReviewQueueItems,
@@ -13,11 +14,14 @@ import { ErrorState } from "@/components/ErrorState";
 import { Skeleton } from "@/components/Skeleton";
 import { Spinner } from "@/components/Spinner";
 import {
+  badgeNeutral,
   btnFilterActive,
   btnFilterIdle,
   btnPrimary,
   inputBase,
   inputError,
+  meta,
+  sectionPanel,
 } from "@/lib/ui";
 import { ManualReviewResolutionPanel } from "@/components/ManualReviewResolutionPanel";
 import { labelCategory, SCORED_CATEGORIES } from "@/lib/findings";
@@ -171,7 +175,7 @@ export default function ReviewQueuePage() {
       <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-10">
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div className="min-w-0">
-            <h1 className="text-2xl font-bold text-icta-black">
+            <h1 className="text-2xl font-bold tracking-tight text-icta-gray-900 font-serif">
               Officer manual review queue
             </h1>
             <p className="mt-1 text-sm text-icta-gray-600">
@@ -181,8 +185,9 @@ export default function ReviewQueuePage() {
           </div>
         </div>
 
-        <section className="mb-6 rounded-md border border-icta-gray-200 p-4">
-          <h2 className="text-sm font-semibold text-icta-black">
+        <section className={`${sectionPanel} mb-6 p-4`}>
+          <h2 className="flex items-center gap-2 text-sm font-semibold text-icta-gray-900">
+            <UserCircle className="size-4 text-icta-gray-500" aria-hidden="true" />
             Officer identity
           </h2>
           <p className="mt-1 text-xs text-icta-gray-600">
@@ -233,8 +238,11 @@ export default function ReviewQueuePage() {
           </div>
         </section>
 
-        <section className="mb-4 rounded-md border border-icta-gray-200 p-4">
-          <h2 className="text-sm font-semibold text-icta-black">Filters</h2>
+        <section className={`${sectionPanel} mb-4 p-4`}>
+          <h2 className="flex items-center gap-2 text-sm font-semibold text-icta-gray-900">
+            <SlidersHorizontal className="size-4 text-icta-gray-500" aria-hidden="true" />
+            Filters
+          </h2>
           <div className="mt-3 grid gap-3 sm:grid-cols-3">
             <label className="block">
               <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-icta-gray-600">
@@ -302,16 +310,15 @@ export default function ReviewQueuePage() {
 
         {officerId.trim() && (
           <section
-            className="mb-4 rounded-md border border-icta-gray-200 p-4"
+            className={`${sectionPanel} mb-4 p-4`}
             aria-label="Pending items by type"
           >
             <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <h2 className="text-sm font-semibold text-icta-black">
+              <h2 className="flex items-center gap-2 text-sm font-semibold text-icta-gray-900">
+                <ClipboardList className="size-4 text-icta-gray-500" aria-hidden="true" />
                 Pending summary
               </h2>
-              <p className="text-xs text-icta-gray-600">
-                {summaryItems.length} total pending
-              </p>
+              <p className={`${meta}`}>{summaryItems.length} total pending</p>
             </div>
 
             <div className="mt-3 flex flex-wrap gap-2">
@@ -358,15 +365,14 @@ export default function ReviewQueuePage() {
           </section>
         )}
 
-        <section className="rounded-md border border-icta-gray-200">
+        <section className={sectionPanel}>
           <div className="border-b border-icta-gray-200 px-4 py-3">
             <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <h2 className="text-sm font-semibold text-icta-black">
+              <h2 className="flex items-center gap-2 text-sm font-semibold text-icta-gray-900">
+                <Inbox className="size-4 text-icta-gray-500" aria-hidden="true" />
                 Pending items ({items.length})
               </h2>
-              <p className="text-xs text-icta-gray-600">
-                Sort: oldest pending first
-              </p>
+              <p className={`${meta}`}>Sort: oldest pending first</p>
             </div>
           </div>
 
@@ -403,7 +409,7 @@ export default function ReviewQueuePage() {
                       </span>
                     </div>
                     <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-icta-gray-600">
-                      <span className="inline-flex rounded-full bg-icta-gray-100 px-2 py-0.5 font-medium text-icta-gray-600">
+                      <span className={badgeNeutral}>
                         {labelCategory(it.category)}
                       </span>
                       <span className="text-icta-gray-600">{it.domain_url}</span>

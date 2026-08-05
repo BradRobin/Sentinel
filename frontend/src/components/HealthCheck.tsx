@@ -1,47 +1,44 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { RefreshCw } from "lucide-react";
+import { CheckCircle2, RefreshCw, TriangleAlert } from "lucide-react";
 
 import { SentinelMark } from "@/components/SentinelMark";
 import { ErrorState } from "@/components/ErrorState";
 import { fetchBackendHealth, type HealthResponse } from "@/lib/api";
 import type { SentinelMarkState } from "@/lib/sentinel-mark-paths";
+import { badgeAmber, badgeGreen, badgeRed, meta, sectionLabel } from "@/lib/ui";
 
-function statusTone(value: string): {
-  pill: string;
-  dot: string;
-} {
+function statusBadge(value: string) {
   if (value === "ok") {
     return {
-      pill: "bg-icta-green/10 text-icta-green",
+      className: badgeGreen,
+      icon: <CheckCircle2 className="size-3.5 text-icta-green" aria-hidden="true" />,
       dot: "bg-icta-green",
     };
   }
   if (value === "degraded") {
     return {
-      pill: "bg-icta-amber/10 text-icta-amber",
+      className: badgeAmber,
+      icon: <TriangleAlert className="size-3.5 text-icta-amber" aria-hidden="true" />,
       dot: "bg-icta-amber",
     };
   }
   return {
-    pill: "bg-icta-red/10 text-icta-red",
+    className: badgeRed,
+    icon: <TriangleAlert className="size-3.5 text-icta-red" aria-hidden="true" />,
     dot: "bg-icta-red",
   };
 }
 
 function StatusBadge({ label, value }: { label: string; value: string }) {
-  const tone = statusTone(value);
+  const tone = statusBadge(value);
   return (
     <div className="card flex items-center justify-between gap-3 px-4 py-3">
-      <span className="text-sm font-medium text-icta-black">{label}</span>
-      <span
-        className={`inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-semibold uppercase tracking-wide ${tone.pill}`}
-      >
-        <span
-          className={`size-1.5 shrink-0 rounded-full ${tone.dot}`}
-          aria-hidden="true"
-        />
+      <span className="text-sm font-medium text-icta-gray-900">{label}</span>
+      <span className={`${tone.className} gap-1.5`}>
+        {tone.icon}
+        <span className={`size-1.5 rounded-full ${tone.dot}`} aria-hidden="true" />
         {value}
       </span>
     </div>
@@ -51,8 +48,8 @@ function StatusBadge({ label, value }: { label: string; value: string }) {
 function MetaRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="card flex items-center justify-between gap-3 px-4 py-3">
-      <span className="text-sm font-medium text-icta-black">{label}</span>
-      <span className="font-mono text-sm text-icta-gray-600">{value}</span>
+      <span className="text-sm font-medium text-icta-gray-900">{label}</span>
+      <span className={`font-mono text-sm ${meta}`}>{value}</span>
     </div>
   );
 }
@@ -103,7 +100,7 @@ export function HealthCheck() {
           </p>
         </div>
 
-        <h1 className="mb-2 text-2xl font-bold text-icta-black">
+        <h1 className="mb-2 text-2xl font-bold tracking-tight text-icta-gray-900 font-serif">
           System health
         </h1>
         <p className="mb-8 text-sm text-icta-gray-600">
@@ -111,9 +108,7 @@ export function HealthCheck() {
         </p>
 
         <section className="mb-6 card animate-fade-in-up p-4">
-          <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-icta-gray-600">
-            Frontend
-          </h2>
+          <h2 className={`mb-3 ${sectionLabel}`}>Frontend</h2>
           <StatusBadge label="Next.js" value="ok" />
         </section>
 
@@ -121,9 +116,7 @@ export function HealthCheck() {
           className="card animate-fade-in-up p-4"
           style={{ animationDelay: "100ms" }}
         >
-          <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-icta-gray-600">
-            Backend API
-          </h2>
+          <h2 className={`mb-3 ${sectionLabel}`}>Backend API</h2>
 
           {markState === "processing" && (
             <p className="flex items-center gap-2 text-sm text-icta-gray-600">

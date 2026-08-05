@@ -154,8 +154,6 @@ const TOOLS: Array<{
 export default function Home() {
   return (
     <div className="flex flex-1 flex-col">
-      <div className="flag-stripe h-1.5 w-full shrink-0" aria-hidden="true" />
-
       {/* Hero */}
       <main className="flex flex-1 flex-col items-center bg-white px-6 pb-16 pt-16 sm:pt-20">
         <div className="max-w-3xl text-center">

@@ -96,6 +96,16 @@ body {
   );
 }
 
+/* Smooth L→R morph of the same flag colours (nav accent under sticky header) */
+.flag-stripe-smooth {
+  background: linear-gradient(
+    to right,
+    var(--icta-black) 0%,
+    var(--icta-red) 50%,
+    var(--icta-green) 100%
+  );
+}
+
 /* ---- Motion utilities ---------------------------------------------------- */
 
 @keyframes fade-in {

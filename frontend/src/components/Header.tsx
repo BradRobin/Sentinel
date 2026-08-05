@@ -221,7 +221,7 @@ export function Header() {
           </div>
         )}
       </div>
-      <div className="flag-stripe h-0.5" aria-hidden="true" />
+      <div className="flag-stripe-smooth h-0.5" aria-hidden="true" />
     </header>
   );
 }

@@ -469,6 +469,10 @@ html.a11y-negative-contrast header {
 .kenya-leaflet-map.leaflet-container {
   background: #e8eef4;
   font: inherit;
+  /* Keep Leaflet pane z-indexes (200–1000) inside this context so they
+     cannot paint over the sticky header. */
+  isolation: isolate;
+  z-index: 0;
 }
 
 .kenya-leaflet-map .leaflet-control-attribution {

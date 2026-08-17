@@ -171,9 +171,9 @@ function ProgressRow({
         ? "bg-icta-gray-100 text-icta-gray-900 ring-1 ring-inset ring-icta-gray-200 animate-pulse"
         : "bg-icta-gray-50 text-icta-gray-400 ring-1 ring-inset ring-icta-gray-200/60";
   return (
-    <li className="flex items-center gap-2.5 py-1.5">
+    <li className="flex items-center gap-2 py-1.5 sm:gap-2.5">
       <span
-        className={`flex size-7 shrink-0 items-center justify-center rounded-lg transition-colors ${tileClass}`}
+        className={`flex size-6 shrink-0 items-center justify-center rounded-lg transition-colors sm:size-7 ${tileClass}`}
         aria-hidden="true"
       >
         {state === "done" ? <Check className="size-3.5" strokeWidth={2.5} /> : <Icon className="size-3.5" />}
@@ -199,10 +199,10 @@ function ScanProgressChecklist({
   current: string | null;
 }) {
   const completedCount = SCORED_CATEGORIES.filter((cat) => completed.has(cat)).length;
-  return (
+    return (
     <section
       aria-label="Compliance checks progress"
-      className={`${card} sticky top-4 z-20 mb-8 animate-fade-in-up p-4 shadow-pop`}
+      className={`${card} sticky top-12 z-20 mb-6 sm:mb-8 sm:top-4 animate-fade-in-up p-3 shadow-pop sm:p-4`}
     >
       <div className="mb-2 flex items-center justify-between gap-2">
         <h2 className={`${sectionLabel}`}>Compliance checks</h2>
@@ -210,7 +210,7 @@ function ScanProgressChecklist({
           {completedCount}/{SCORED_CATEGORIES.length} done
         </p>
       </div>
-      <ul className="grid gap-x-6 gap-y-0.5 sm:grid-cols-2">
+      <ul className="grid grid-cols-1 gap-x-4 gap-y-0.5 sm:grid-cols-2 sm:gap-x-6">
         {SCORED_CATEGORIES.map((cat) => (
           <ProgressRow
             key={cat}
@@ -614,10 +614,11 @@ export function ScanWorkspace() {
 
   return (
     <div className="flex flex-1 flex-col">
-      <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-16">
-        <div className="mb-8 flex flex-col items-center gap-3 animate-fade-in-up">
-          <SentinelMark state={markState} size={120} />
-          <p className="text-center text-sm text-icta-gray-600">
+      <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10 sm:px-6 sm:py-16">
+        <div className="mb-6 flex flex-col items-center gap-2.5 sm:mb-8 animate-fade-in-up">
+          <SentinelMark state={markState} size={80} className="sm:hidden [&>div]:!w-[80px] [&>div]:!h-[80px]" />
+          <SentinelMark state={markState} size={120} className="hidden sm:block" />
+          <p className="max-w-xs text-center text-xs text-icta-gray-600 sm:max-w-none sm:text-sm">
             {markState === "processing" &&
               (attachedNote
                 ? progressLabel
@@ -646,8 +647,8 @@ export function ScanWorkspace() {
           </p>
         </div>
 
-        <h1 className="mb-2 text-2xl font-bold tracking-tight text-icta-gray-900 font-serif">Scan</h1>
-        <p className="mb-6 text-sm text-icta-gray-600">
+        <h1 className="mb-1.5 text-xl font-bold tracking-tight text-icta-gray-900 sm:mb-2 sm:text-2xl font-serif">Scan</h1>
+        <p className="mb-4 text-xs text-icta-gray-600 sm:mb-6 sm:text-sm">
           <StandardDocLink>ICTA.6.003:2023 §6.5</StandardDocLink> compliance
           checks — results cached for 24 hours
         </p>
@@ -729,7 +730,7 @@ export function ScanWorkspace() {
                       type="button"
                       onMouseEnter={() => setHighlightIndex(i)}
                       onClick={() => void acceptSuggestion(entry)}
-                      className={`flex w-full items-baseline justify-between gap-3 px-3 py-2 text-left transition-colors ${
+                      className={`flex w-full items-baseline justify-between gap-3 px-3 py-2.5 text-left transition-colors sm:py-2 ${
                         i === highlightIndex
                           ? "bg-icta-gray-100"
                           : "hover:bg-icta-gray-50"
@@ -770,7 +771,7 @@ export function ScanWorkspace() {
             />
             Force fresh scan (bypass cache)
           </label>
-          <button type="submit" disabled={busy} className={btnPrimary}>
+          <button type="submit" disabled={busy} className={`${btnPrimary} w-full py-2.5 sm:py-2`}>
             {busy ? (
               <>
                 <Spinner size="sm" />

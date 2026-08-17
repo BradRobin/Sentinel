@@ -64,14 +64,14 @@ export function Footer() {
   return (
     <footer className="border-t border-icta-gray-200 bg-icta-gray-50">
       <div className="flag-stripe h-1" aria-hidden="true" />
-      <div className="mx-auto w-full max-w-6xl px-6 py-10">
-        <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="space-y-3">
-            <div className="flex items-center gap-2.5">
-              <SentinelMark state="idle" size={32} label="Sentinel" />
-              <span className="text-base font-bold text-icta-gray-900">Sentinel</span>
+      <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4 sm:gap-8">
+          <div className="space-y-2.5 sm:space-y-3">
+            <div className="flex items-center gap-2">
+              <SentinelMark state="idle" size={28} label="Sentinel" />
+              <span className="text-sm font-bold text-icta-gray-900 sm:text-base">Sentinel</span>
             </div>
-            <p className="max-w-xs text-sm leading-relaxed text-icta-gray-600">
+            <p className="max-w-xs text-xs leading-relaxed text-icta-gray-600 sm:text-sm">
               AI-powered website compliance checking for Kenya&apos;s public
               sector, against ICTA.6.003:2023 §6.5.
             </p>
@@ -124,7 +124,7 @@ export function Footer() {
           </FooterColumn>
         </div>
 
-        <div className="mt-10 border-t border-icta-gray-200 pt-5 text-center text-xs text-icta-gray-600">
+        <div className="mt-8 border-t border-icta-gray-200 pt-5 text-center text-xs text-icta-gray-600 sm:mt-10">
           © {new Date().getFullYear()} ICT Authority, Kenya · Internal
           compliance tool
         </div>

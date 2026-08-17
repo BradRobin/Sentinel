@@ -60,15 +60,15 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-30 border-b border-icta-gray-200 bg-white/85 shadow-card backdrop-blur-md">
-      <div className="mx-auto flex h-14 w-full max-w-6xl items-center justify-between gap-4 px-6">
+      <div className="mx-auto flex h-12 w-full max-w-6xl items-center justify-between gap-3 px-4 sm:h-14 sm:gap-4 sm:px-6">
         <Link
           href="/"
           onClick={() => setMenuOpen(false)}
-          className="flex shrink-0 items-center gap-2.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-icta-gray-800"
+          className="flex shrink-0 items-center gap-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-icta-gray-800"
           aria-label="Sentinel home"
         >
-          <SentinelMark state="idle" size={28} label="Sentinel" />
-          <span className="text-base font-bold text-icta-gray-900 font-serif">
+          <SentinelMark state="idle" size={26} label="Sentinel" />
+          <span className="text-sm font-bold text-icta-gray-900 sm:text-base font-serif">
             Sentinel
           </span>
         </Link>
@@ -85,7 +85,7 @@ export function Header() {
           })}
         </nav>
 
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
           {user ? (
             <>
               <span className="hidden text-sm text-icta-gray-600 sm:block">
@@ -132,42 +132,61 @@ export function Header() {
       </div>
 
       {menuOpen && (
-        <nav
-          id="mobile-nav"
-          aria-label="Main"
-          className="animate-fade-in-down border-t border-icta-gray-200 bg-white px-4 py-3 md:hidden"
-        >
-          <div className="flex flex-col gap-1">
-            {NAV_LINKS.map((link) => {
-              const Icon = link.icon;
-              return (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  onClick={() => setMenuOpen(false)}
-                  className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
-                    isActive(pathname, link.href)
-                      ? "bg-icta-gray-100 font-semibold text-icta-gray-900"
-                      : "text-icta-gray-600 hover:bg-icta-gray-50 hover:text-icta-gray-900"
-                  }`}
+        <>
+          <div
+            className="fixed inset-0 top-12 z-20 bg-icta-gray-900/20 backdrop-blur-[2px] md:hidden"
+            aria-hidden="true"
+            onClick={() => setMenuOpen(false)}
+          />
+          <nav
+            id="mobile-nav"
+            aria-label="Main"
+            className="absolute inset-x-0 top-12 z-30 border-t border-icta-gray-200 bg-white px-3 py-3 shadow-pop animate-fade-in-down md:hidden"
+          >
+            <div className="flex flex-col gap-0.5">
+              {NAV_LINKS.map((link) => {
+                const Icon = link.icon;
+                return (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    onClick={() => setMenuOpen(false)}
+                    className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors ${
+                      isActive(pathname, link.href)
+                        ? "bg-icta-gray-100 font-semibold text-icta-gray-900"
+                        : "text-icta-gray-600 hover:bg-icta-gray-50 hover:text-icta-gray-900"
+                    }`}
+                  >
+                    <Icon className="size-4" aria-hidden="true" />
+                    {link.label}
+                  </Link>
+                );
+              })}
+              <div className="my-1.5 border-t border-icta-gray-100" aria-hidden="true" />
+              {user && (
+                <button
+                  type="button"
+                  onClick={onSignOut}
+                  className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm text-icta-gray-600 transition-colors hover:bg-icta-gray-50 hover:text-icta-gray-900"
                 >
-                  <Icon className="size-4" aria-hidden="true" />
-                  {link.label}
-                </Link>
-              );
-            })}
-            {user && (
-              <button
-                type="button"
-                onClick={onSignOut}
-                className="flex items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-icta-gray-600 transition-colors hover:bg-icta-gray-50 hover:text-icta-gray-900"
-              >
-                <LogOut className="size-4" aria-hidden="true" />
-                Sign out
-              </button>
-            )}
-          </div>
-        </nav>
+                  <LogOut className="size-4" aria-hidden="true" />
+                  Sign out
+                </button>
+              )}
+              {!user && (
+                <>
+                  <Link
+                    href="/register"
+                    onClick={() => setMenuOpen(false)}
+                    className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-icta-green transition-colors hover:bg-icta-green-tint"
+                  >
+                    Create account
+                  </Link>
+                </>
+              )}
+            </div>
+          </nav>
+        </>
       )}
     </header>
   );

@@ -142,26 +142,27 @@ export default function Home() {
       <div className="flag-stripe h-1.5 w-full shrink-0" aria-hidden="true" />
 
       {/* Hero */}
-      <main className="flex flex-1 flex-col items-center bg-background px-6 pb-16 pt-16 sm:pt-24">
+      <main className="flex flex-1 flex-col items-center bg-background px-4 pb-12 pt-10 sm:px-6 sm:pb-16 sm:pt-20 md:pt-24">
         <div className="hero-backdrop relative isolate w-full max-w-6xl overflow-hidden">
           <div className="hero-grid pointer-events-none absolute inset-0 -z-10" aria-hidden="true" />
 
           <div className="relative mx-auto max-w-3xl text-center">
-            <div className="mb-6 flex justify-center animate-fade-in-up">
-              <SentinelMark state="idle" size={128} />
+            <div className="mb-4 flex justify-center sm:mb-6 animate-fade-in-up">
+              <SentinelMark state="idle" size={96} className="sm:hidden [&>div]:!w-[96px] [&>div]:!h-[96px]" />
+              <SentinelMark state="idle" size={128} className="hidden sm:block" />
             </div>
 
             <p
-              className="mb-3 flex items-center justify-center gap-2 text-sm font-medium uppercase tracking-[0.2em] text-icta-gray-500 animate-fade-in-up"
+              className="mb-2.5 flex items-center justify-center gap-2 text-xs font-medium uppercase tracking-[0.2em] text-icta-gray-500 animate-fade-in-up sm:mb-3 sm:text-sm"
               style={{ animationDelay: "120ms" }}
             >
-              <span className="h-px w-6 bg-icta-green/40" aria-hidden="true" />
+              <span className="h-px w-4 bg-icta-green/40 sm:w-6" aria-hidden="true" />
               ICT Authority, Kenya
-              <span className="h-px w-6 bg-icta-red/40" aria-hidden="true" />
+              <span className="h-px w-4 bg-icta-red/40 sm:w-6" aria-hidden="true" />
             </p>
 
             <h1
-              className="mb-5 text-4xl font-bold tracking-tight text-icta-gray-900 animate-fade-in-up text-balance sm:text-6xl font-serif"
+              className="mb-4 text-[1.75rem] font-bold tracking-tight text-icta-gray-900 animate-fade-in-up text-balance sm:mb-5 sm:text-5xl md:text-6xl font-serif"
               style={{ animationDelay: "200ms" }}
             >
               Keep government websites{" "}
@@ -169,7 +170,7 @@ export default function Home() {
             </h1>
 
             <p
-              className="mx-auto mb-2 max-w-2xl text-lg text-icta-gray-600 animate-fade-in-up sm:text-xl"
+              className="mx-auto mb-2 max-w-2xl text-base text-icta-gray-600 animate-fade-in-up sm:text-lg md:text-xl"
               style={{ animationDelay: "280ms" }}
             >
               Sentinel scans public{" "}
@@ -178,7 +179,7 @@ export default function Home() {
             </p>
 
             <p
-              className="mb-10 text-sm text-icta-gray-500 animate-fade-in-up"
+              className="mb-8 text-sm text-icta-gray-500 animate-fade-in-up sm:mb-10"
               style={{ animationDelay: "340ms" }}
             >
               For ministries, counties, and agencies across Kenya
@@ -188,9 +189,9 @@ export default function Home() {
               <HomeHeroActions />
             </div>
 
-            {/* Floating hero cards */}
+            {/* Floating hero cards — hidden on mobile, shown on lg+ */}
             <div
-              className="relative mx-auto mt-14 w-full max-w-xl animate-fade-in-up"
+              className="relative mx-auto mt-10 w-full max-w-xl animate-fade-in-up sm:mt-14 lg:mt-14"
               style={{ animationDelay: "480ms" }}
             >
               <div
@@ -233,14 +234,14 @@ export default function Home() {
                       Latest scan · Ministry of Health
                     </p>
                     <div className="mt-1 flex items-baseline gap-2">
-                      <span className="font-serif text-3xl font-bold tabular-nums text-icta-gray-900">
+                      <span className="font-serif text-2xl font-bold tabular-nums text-icta-gray-900 sm:text-3xl">
                         92.4
                       </span>
                       <span className={badgeGreen}>Up 2.1</span>
                     </div>
                   </div>
-                  <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-icta-green-tint/70 text-icta-green">
-                    <ShieldCheck className="size-6" aria-hidden="true" />
+                  <span className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-icta-green-tint/70 text-icta-green sm:size-12">
+                    <ShieldCheck className="size-5 sm:size-6" aria-hidden="true" />
                   </span>
                 </div>
                 <div
@@ -259,13 +260,13 @@ export default function Home() {
         </div>
 
         {/* Metrics strip */}
-        <dl className="mx-auto mt-16 grid w-full max-w-3xl grid-cols-2 gap-x-6 gap-y-8 sm:grid-cols-4">
+        <dl className="mx-auto mt-12 grid w-full max-w-3xl grid-cols-2 gap-4 sm:mt-16 sm:gap-x-6 sm:gap-y-8 md:grid-cols-4">
           {METRICS.map((metric) => (
-            <div key={metric.label} className="text-center">
-              <dd className="font-serif text-3xl font-bold text-icta-gray-900">
+            <div key={metric.label} className="rounded-xl border border-icta-gray-200/60 bg-white px-4 py-3 text-center shadow-card sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none">
+              <dd className="font-serif text-2xl font-bold text-icta-gray-900 sm:text-3xl">
                 {metric.value}
               </dd>
-              <dt className="mt-1 text-xs font-medium uppercase tracking-wide text-icta-gray-500">
+              <dt className="mt-0.5 text-[11px] font-medium uppercase tracking-wide text-icta-gray-500 sm:mt-1 sm:text-xs">
                 {metric.label}
               </dt>
             </div>
@@ -274,32 +275,32 @@ export default function Home() {
 
         {/* Benefits */}
         <section
-          className="mx-auto mt-20 w-full max-w-5xl"
+          className="mx-auto mt-14 w-full max-w-5xl sm:mt-20"
           aria-labelledby="benefits-heading"
         >
           <h2
             id="benefits-heading"
-            className="mb-3 text-center text-2xl font-bold tracking-tight text-icta-gray-900 sm:text-3xl font-serif"
+            className="mb-2 text-center text-xl font-bold tracking-tight text-icta-gray-900 sm:mb-3 sm:text-2xl md:text-3xl font-serif"
           >
             Why Sentinel
           </h2>
-          <p className="mx-auto mb-10 max-w-2xl text-center text-sm text-icta-gray-600 sm:text-base">
+          <p className="mx-auto mb-6 max-w-2xl text-center text-sm text-icta-gray-600 sm:mb-10 sm:text-base">
             Everything your team needs to understand and improve website
             compliance across the public sector.
           </p>
 
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
             {BENEFITS.map((benefit, index) => (
               <ScrollReveal key={benefit.title} delay={index * 60}>
                 <Card className="card-hover h-full">
-                  <CardContent className="p-5">
-                    <span className={`${iconTile} ${benefit.tile} mb-4`}>
+                  <CardContent className="p-4 sm:p-5">
+                    <span className={`${iconTile} ${benefit.tile} mb-3 size-9 sm:mb-4 sm:size-10`}>
                       {benefit.icon}
                     </span>
-                    <h3 className="mb-1.5 font-semibold text-icta-gray-900 font-serif">
+                    <h3 className="mb-1 text-sm font-semibold text-icta-gray-900 sm:mb-1.5 sm:text-base font-serif">
                       {benefit.title}
                     </h3>
-                    <p className="text-sm leading-relaxed text-icta-gray-600">
+                    <p className="text-xs leading-relaxed text-icta-gray-600 sm:text-sm">
                       {benefit.description}
                     </p>
                   </CardContent>
@@ -310,29 +311,29 @@ export default function Home() {
         </section>
 
         {/* Tools */}
-        <section className="mx-auto mt-20 w-full max-w-5xl" aria-labelledby="tools-heading">
+        <section className="mx-auto mt-14 w-full max-w-5xl sm:mt-20" aria-labelledby="tools-heading">
           <h2
             id="tools-heading"
-            className="mb-3 text-center text-2xl font-bold tracking-tight text-icta-gray-900 sm:text-3xl font-serif"
+            className="mb-2 text-center text-xl font-bold tracking-tight text-icta-gray-900 sm:mb-3 sm:text-2xl md:text-3xl font-serif"
           >
             Tools
           </h2>
-          <p className="mx-auto mb-10 max-w-2xl text-center text-sm text-icta-gray-600 sm:text-base">
+          <p className="mx-auto mb-6 max-w-2xl text-center text-sm text-icta-gray-600 sm:mb-10 sm:text-base">
             Jump straight into the workspace.
           </p>
 
           <nav
             aria-label="Sentinel tools"
-            className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"
+            className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3 lg:grid-cols-3"
           >
             {TOOLS.map((item, index) => (
               <ScrollReveal key={item.href} delay={index * 60}>
                 <Link
                   href={item.href}
-                  className="card card-hover group flex h-full items-start gap-3 px-4 py-4 text-left"
+                  className="card card-hover group flex h-full items-center gap-3 px-3 py-3 text-left sm:items-start sm:px-4 sm:py-4"
                 >
                   <span
-                    className={`${iconTile} ${item.tile} size-10 transition-transform group-hover:scale-105`}
+                    className={`${iconTile} ${item.tile} size-9 shrink-0 transition-transform group-hover:scale-105 sm:size-10`}
                   >
                     {item.icon}
                   </span>
@@ -355,20 +356,20 @@ export default function Home() {
         </section>
 
         {/* Final CTA */}
-        <section className="mt-20 w-full max-w-4xl text-center">
-          <div className="relative overflow-hidden rounded-2xl border border-icta-green-deep/60 bg-gradient-to-br from-[#002e14] via-icta-green-deep to-icta-green px-6 py-14 shadow-pop">
+        <section className="mt-14 w-full max-w-4xl text-center sm:mt-20">
+          <div className="relative overflow-hidden rounded-2xl border border-icta-green-deep/60 bg-gradient-to-br from-[#002e14] via-icta-green-deep to-icta-green px-5 py-10 shadow-pop sm:px-6 sm:py-14">
             <div
               className="hero-grid pointer-events-none absolute inset-0 opacity-40"
               aria-hidden="true"
             />
             <div className="relative">
-              <span className="mb-6 inline-flex size-14 items-center justify-center rounded-2xl bg-white/10 text-white ring-1 ring-inset ring-white/20">
-                <ShieldCheck className="size-7" aria-hidden="true" />
+              <span className="mb-4 inline-flex size-12 items-center justify-center rounded-2xl bg-white/10 text-white ring-1 ring-inset ring-white/20 sm:mb-6 sm:size-14">
+                <ShieldCheck className="size-6 sm:size-7" aria-hidden="true" />
               </span>
-              <h2 className="mb-3 text-2xl font-bold tracking-tight text-white sm:text-3xl font-serif">
+              <h2 className="mb-2 text-xl font-bold tracking-tight text-white sm:mb-3 sm:text-2xl md:text-3xl font-serif">
                 Ready to check your first site?
               </h2>
-              <p className="mx-auto mb-8 max-w-xl text-sm text-white/85 sm:text-base">
+              <p className="mx-auto mb-6 max-w-xl text-sm text-white/85 sm:mb-8 sm:text-base">
                 Create an account and run a compliance scan on any public .go.ke
                 or .gov.ke website — results are ready in under a minute.
               </p>

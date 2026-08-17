@@ -7,6 +7,7 @@ import {
   Check,
   ChevronsUpDown,
   Copy,
+  ExternalLink,
   LayoutGrid,
   RefreshCw,
   ScanSearch,
@@ -164,6 +165,127 @@ function orgTypeLabel(type: string): string {
 
 const BATCH_POLL_MS = 2500;
 const BATCH_STORAGE_KEY = "sentinel.registry.scanBatchId";
+
+function RegistryMobileCard({
+  row,
+  index,
+  view,
+  copiedDomainId,
+  onCopyUrl,
+  onOpenDetails,
+}: {
+  row: RegistryEntry & { rank_score?: number };
+  index: number;
+  view: DashboardView;
+  copiedDomainId: string | null;
+  onCopyUrl: (row: RegistryEntry) => void;
+  onOpenDetails: (row: RegistryEntry) => void;
+}) {
+  return (
+    <div
+      className="rounded-xl border border-icta-gray-200 bg-white p-3.5 shadow-card animate-fade-in sm:hidden"
+      style={{ animationDelay: `${Math.min(index * 30, 300)}ms` }}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs font-medium tabular-nums text-icta-gray-500">
+              #{index + 1}
+            </span>
+            <button
+              type="button"
+              onClick={() => onOpenDetails(row)}
+              className="truncate text-sm font-semibold text-icta-gray-900 underline decoration-transparent underline-offset-2 transition-colors hover:decoration-icta-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-icta-black"
+            >
+              {row.registered_name || row.org_name}
+            </button>
+          </div>
+          <a
+            href={row.url}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-0.5 flex items-center gap-1 break-all text-[11px] text-icta-link underline-offset-2 hover:underline"
+          >
+            {row.url}
+            <ExternalLink className="size-2.5 shrink-0" aria-hidden="true" />
+          </a>
+        </div>
+        <button
+          type="button"
+          onClick={() => void onCopyUrl(row)}
+          className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-icta-gray-200 bg-icta-gray-50 px-2 py-1 text-[11px] font-medium text-icta-gray-600 transition-colors hover:border-icta-gray-300 hover:bg-icta-gray-100"
+          aria-label={`Copy ${row.url} for scanning`}
+        >
+          {copiedDomainId === row.domain_id ? (
+            <>
+              <Check className="size-2.5 text-icta-green" aria-hidden="true" />
+              Copied
+            </>
+          ) : (
+            <>
+              <Copy className="size-2.5" aria-hidden="true" />
+              Copy
+            </>
+          )}
+        </button>
+      </div>
+
+      <div className="mt-2.5 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <span className="inline-flex items-center rounded-full bg-icta-gray-100 px-2 py-0.5 text-[10px] font-medium text-icta-gray-600">
+            {row.org_type.charAt(0).toUpperCase() + row.org_type.slice(1)}
+          </span>
+          {row.sector && (
+            <span className="inline-flex items-center rounded-full bg-icta-gray-100 px-2 py-0.5 text-[10px] font-medium text-icta-gray-600">
+              {row.sector}
+            </span>
+          )}
+        </div>
+
+        <div className="flex items-center gap-3">
+          {view === "leaderboard" && row.rank_score != null && (
+            <span className="text-xs font-semibold tabular-nums text-icta-gray-900">
+              {formatScore(row.rank_score)}
+            </span>
+          )}
+          <div className="text-right">
+            <div className="text-sm font-semibold tabular-nums text-icta-gray-900">
+              {formatScore(view === "leaderboard" && row.rank_score != null ? row.rank_score : row.latest_score)}
+            </div>
+            {row.previous_score != null && row.latest_score != null && (
+              <div className="text-[10px] tabular-nums text-icta-gray-500">
+                prev {row.previous_score.toFixed(1)}
+              </div>
+            )}
+          </div>
+          {view === "registry" && (
+            <span className={`text-xs font-medium ${trendClass(row.trend)}`}>
+              <span className="inline-flex items-center gap-0.5">
+                {trendLabel(row.trend)}
+                {formatDelta(row.score_delta) && (
+                  <span
+                    className={`text-[10px] tabular-nums ${row.score_delta != null && row.score_delta < 0 ? "text-icta-red" : "text-icta-green"}`}
+                  >
+                    {formatDelta(row.score_delta)}
+                  </span>
+                )}
+              </span>
+            </span>
+          )}
+        </div>
+      </div>
+
+      {view === "registry" && (
+        <div className="mt-2 flex items-center justify-between border-t border-icta-gray-100 pt-2 text-[10px] text-icta-gray-500">
+          <span>{formatChecked(row.last_checked_at)}</span>
+          {row.last_source && (
+            <span>{row.last_source === "manual" ? "manual scan" : row.last_source}</span>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function batchMarkState(
   scanning: boolean,
@@ -391,13 +513,13 @@ export function RegistryDashboard() {
 
   return (
     <div className="flex flex-1 flex-col">
-      <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-12 sm:py-16">
-        <header className="mb-8">
-          <p className={`mb-2 ${meta}`}>Compliance registry · Kenya public sector</p>
-          <h1 className="mb-2 text-2xl font-bold tracking-tight text-icta-gray-900 sm:text-3xl font-serif">
+      <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-8 sm:px-6 sm:py-12 md:py-16">
+        <header className="mb-6 sm:mb-8">
+          <p className={`mb-1.5 ${meta} sm:mb-2`}>Compliance registry · Kenya public sector</p>
+          <h1 className="mb-1.5 text-xl font-bold tracking-tight text-icta-gray-900 sm:mb-2 sm:text-2xl md:text-3xl font-serif">
             MCDA registry
           </h1>
-          <p className="max-w-2xl text-sm leading-relaxed text-icta-gray-600">
+          <p className="max-w-2xl text-xs leading-relaxed text-icta-gray-600 sm:text-sm">
             Ministries, counties, and agencies with compliance scores from
             weekly scans. Switch to the leaderboard to rank the most compliant
             sites overall by category. Use{" "}
@@ -407,7 +529,7 @@ export function RegistryDashboard() {
         </header>
 
         <div
-          className="mb-5 flex flex-wrap gap-1.5"
+          className="mb-4 flex flex-wrap gap-1 sm:mb-5 sm:gap-1.5"
           role="tablist"
           aria-label="Registry views"
         >
@@ -430,12 +552,12 @@ export function RegistryDashboard() {
           ))}
         </div>
 
-        <div className="mb-5 flex flex-col gap-4">
+        <div className="mb-4 flex flex-col gap-3 sm:mb-5 sm:gap-4">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
             <div className="flex min-w-0 flex-1 flex-col gap-2 lg:max-w-md">
               <label
                 htmlFor="registry-search"
-                className="text-xs font-medium text-icta-gray-600"
+                className="hidden text-xs font-medium text-icta-gray-600 sm:block"
               >
                 Search
               </label>
@@ -492,7 +614,7 @@ export function RegistryDashboard() {
             </div>
           </div>
 
-          <div className="flex flex-col gap-3 border-b border-icta-gray-200 pb-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-2.5 border-b border-icta-gray-200 pb-3.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:pb-4">
             <div
               className="flex flex-wrap gap-1.5"
               role="group"
@@ -572,18 +694,18 @@ export function RegistryDashboard() {
 
         {showScanPanel && (
           <section
-            className="mb-6 card border-t-4 border-t-icta-green animate-fade-in-up"
+            className="mb-4 card border-t-4 border-t-icta-green animate-fade-in-up sm:mb-6"
             role="status"
             aria-live="polite"
             aria-label={
               scanDone ? "Registry scan finished" : "Scanning registry MCDAs"
             }
           >
-            <div className="flex gap-4 px-4 py-4 sm:px-5">
+            <div className="flex gap-3 px-3 py-3 sm:gap-4 sm:px-5 sm:py-4">
               <div className="shrink-0 pt-0.5">
                 <SentinelMark
                   state={markState}
-                  size={44}
+                  size={36}
                   label={
                     markState === "processing"
                       ? "Sentinel scanning registry"
@@ -599,7 +721,7 @@ export function RegistryDashboard() {
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div>
-                    <p className="font-semibold text-icta-gray-900">
+                    <p className="text-sm font-semibold text-icta-gray-900">
                       {scanDone
                         ? markState === "error"
                           ? "Registry scan finished with errors"
@@ -711,7 +833,66 @@ export function RegistryDashboard() {
         )}
 
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[40rem] text-left text-sm">
+          {/* Mobile card view */}
+          <div className="sm:hidden space-y-2">
+            {loading && items.length === 0 && (
+              <div className="space-y-3 px-1">
+                <Skeleton className="h-20 w-full rounded-xl" />
+                <Skeleton className="h-20 w-full rounded-xl" />
+                <Skeleton className="h-20 w-full rounded-xl" />
+              </div>
+            )}
+            {view === "registry" &&
+              items.length === 0 &&
+              !loading &&
+              !errorMessage && (
+                <EmptyState
+                  icon={<LayoutGrid className="size-5" aria-hidden="true" />}
+                  title="No verified MCDAs yet"
+                >
+                  Seed the registry to populate this list.
+                </EmptyState>
+              )}
+            {view === "leaderboard" &&
+              leaderboardRows.length === 0 &&
+              !loading &&
+              !errorMessage && (
+                <EmptyState
+                  icon={<Trophy className="size-5" aria-hidden="true" />}
+                  title="No scored sites yet"
+                >
+                  Run <span className="font-medium text-icta-gray-900">Scan all MCDAs</span>{" "}
+                  to build the leaderboard.
+                </EmptyState>
+              )}
+            {view === "registry" &&
+              sortedItems.map((row, index) => (
+                <RegistryMobileCard
+                  key={row.domain_id}
+                  row={row}
+                  index={index}
+                  view={view}
+                  copiedDomainId={copiedDomainId}
+                  onCopyUrl={onCopyUrl}
+                  onOpenDetails={openDetails}
+                />
+              ))}
+            {view === "leaderboard" &&
+              leaderboardRows.map((row, index) => (
+                <RegistryMobileCard
+                  key={`${leaderboardMetric}-${row.domain_id}`}
+                  row={row as RegistryEntry & { rank_score?: number }}
+                  index={index}
+                  view={view}
+                  copiedDomainId={copiedDomainId}
+                  onCopyUrl={onCopyUrl}
+                  onOpenDetails={openDetails}
+                />
+              ))}
+          </div>
+
+          {/* Desktop table view */}
+          <table className="hidden w-full min-w-[40rem] text-left text-sm sm:table">
             <thead>
               <tr className="border-b border-icta-gray-200 text-xs uppercase tracking-wide text-icta-gray-600">
                 <th

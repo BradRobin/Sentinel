@@ -11,6 +11,7 @@ import {
   CHECK_DASH,
   CHECK_PATH,
   RIBBON_PATH,
+  SENTINEL_TRICOLOR_STOPS,
   WIND_INTO_ANCHOR,
   easeOutCubic,
   type SentinelMarkState,
@@ -24,8 +25,8 @@ export interface SentinelMarkProps {
   label?: string;
 }
 
-/** Logo settle / check green — matches the --icta-green theme token. */
-const MARK_GREEN = "#006600";
+/** Logo settle / check green — matches the tricolor end stop / --icta-green. */
+const MARK_GREEN = SENTINEL_TRICOLOR_STOPS[2].color;
 const ERROR_STROKE = "var(--icta-gray-600)";
 
 /** Pop settle animation length in ms — keep in sync with sentinel-pop CSS. */
@@ -244,9 +245,13 @@ export function SentinelMark({
       <svg viewBox="0 0 100 100" aria-hidden="true">
         <defs>
           <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#BB0000" />
-            <stop offset="50%" stopColor="#111111" />
-            <stop offset="100%" stopColor={MARK_GREEN} />
+            {SENTINEL_TRICOLOR_STOPS.map((stop) => (
+              <stop
+                key={stop.offset}
+                offset={stop.offset}
+                stopColor={stop.color}
+              />
+            ))}
           </linearGradient>
         </defs>
         <g className="sentinel-mark__ribbon-group">

@@ -6,8 +6,12 @@ import { useEffect, useState, type FormEvent } from "react";
 import { Lock, Mail, ShieldCheck, User } from "lucide-react";
 
 import { AuthShell } from "@/components/AuthShell";
+<<<<<<< HEAD
 import { ErrorState } from "@/components/ErrorState";
 import { Spinner } from "@/components/Spinner";
+=======
+import { PasswordField } from "@/components/PasswordField";
+>>>>>>> 9b7c9a9a952b4c1faf1266d14506edc3128de21e
 import { AuthError, getCurrentUser, registerUser } from "@/lib/auth";
 import { btnPrimary, fieldLabel, inputBase, inputError, textLink } from "@/lib/ui";
 
@@ -112,6 +116,7 @@ export default function RegisterPage() {
           </div>
         </div>
 
+<<<<<<< HEAD
         <div>
           <label htmlFor="reg-password" className={fieldLabel}>
             Password
@@ -155,6 +160,34 @@ export default function RegisterPage() {
             />
           </div>
         </div>
+=======
+        <PasswordField
+          id="reg-password"
+          label="Password"
+          autoComplete="new-password"
+          required
+          value={password}
+          onChange={(e) => {
+            setPassword(e.target.value);
+            if (error) setError(null);
+          }}
+          placeholder="At least 8 characters"
+        />
+
+        <PasswordField
+          id="reg-confirm"
+          label="Confirm password"
+          autoComplete="new-password"
+          required
+          value={confirm}
+          onChange={(e) => {
+            setConfirm(e.target.value);
+            if (error) setError(null);
+          }}
+          inputClassName={error ? inputError : ""}
+          placeholder="Repeat your password"
+        />
+>>>>>>> 9b7c9a9a952b4c1faf1266d14506edc3128de21e
 
         {error && <ErrorState compact message={error} />}
 

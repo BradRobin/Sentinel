@@ -1,5 +1,6 @@
 "use client";
 
+<<<<<<< HEAD
 import { useMemo, useRef, useState } from "react";
 import {
   ArrowDown,
@@ -21,6 +22,13 @@ import { RegistryDetailDrawer } from "@/components/RegistryDetailDrawer";
 import { Skeleton } from "@/components/Skeleton";
 import { Spinner } from "@/components/Spinner";
 import { useToast } from "@/components/Toast";
+=======
+import Link from "next/link";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+
+import { SentinelMark } from "@/components/SentinelMark";
+import { useCountUp } from "@/hooks/useCountUp";
+>>>>>>> 9b7c9a9a952b4c1faf1266d14506edc3128de21e
 import {
   getRegistry,
   getRegistryScanBatch,
@@ -28,9 +36,13 @@ import {
   type RegistryEntry,
   type RegistryScanBatchStatus,
 } from "@/lib/api";
+<<<<<<< HEAD
 import { useApiResource } from "@/hooks/useApiResource";
 import { usePolling } from "@/hooks/usePolling";
 import { useSessionStorageState } from "@/hooks/useSessionStorageState";
+=======
+import { scoreBandRowBorderClass } from "@/lib/kenya-map";
+>>>>>>> 9b7c9a9a952b4c1faf1266d14506edc3128de21e
 import { copyScanUrl } from "@/lib/scan-url-clipboard";
 import {
   LEADERBOARD_METRIC_OPTIONS,
@@ -47,6 +59,7 @@ import {
   btnMuted,
   btnPrimary,
   btnSecondary,
+  btnSecondarySm,
   inputBase,
   meta,
 } from "@/lib/ui";
@@ -327,8 +340,65 @@ function StatusChip({
   );
 }
 
+function RegistrySummaryStrip({ items }: { items: RegistryEntry[] }) {
+  const stats = useMemo(() => {
+    const scored = items.filter((i) => i.latest_score != null);
+    const avg =
+      scored.length > 0
+        ? scored.reduce((sum, i) => sum + (i.latest_score as number), 0) /
+          scored.length
+        : 0;
+    return {
+      total: items.length,
+      avg,
+      hasScores: scored.length > 0,
+      up: items.filter((i) => i.trend === "up").length,
+      down: items.filter((i) => i.trend === "down").length,
+    };
+  }, [items]);
+
+  const total = useCountUp(stats.total, { enabled: stats.total > 0 });
+  const avg = useCountUp(stats.avg, {
+    decimals: 1,
+    enabled: stats.hasScores,
+  });
+  const up = useCountUp(stats.up, { enabled: stats.total > 0 });
+  const down = useCountUp(stats.down, { enabled: stats.total > 0 });
+
+  return (
+    <div
+      className="flex flex-wrap items-baseline gap-x-6 gap-y-2 text-sm"
+      aria-label="Registry summary"
+    >
+      <p className="tabular-nums text-icta-black">
+        <span className="text-lg font-semibold">{total}</span>{" "}
+        <span className="text-icta-gray-600">MCDAs tracked</span>
+      </p>
+      <p className="tabular-nums text-icta-black">
+        <span className="text-lg font-semibold">
+          {stats.hasScores ? avg.toFixed(1) : "—"}
+        </span>{" "}
+        <span className="text-icta-gray-600">avg score</span>
+      </p>
+      <p className="tabular-nums text-icta-gray-600">
+        <span className="font-semibold text-icta-green">{up}</span> up
+        <span className="mx-1.5 text-icta-gray-200">·</span>
+        <span className="font-semibold text-icta-red">{down}</span> down
+        <span className="ml-1">since last check</span>
+      </p>
+    </div>
+  );
+}
+
 export function RegistryDashboard() {
+<<<<<<< HEAD
   const { toast } = useToast();
+=======
+  const [items, setItems] = useState<RegistryEntry[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [errorDetail, setErrorDetail] = useState<string | null>(null);
+  const [showErrorDetail, setShowErrorDetail] = useState(false);
+>>>>>>> 9b7c9a9a952b4c1faf1266d14506edc3128de21e
   const [query, setQuery] = useState("");
   const [request, setRequest] = useState<{ query: string; orgFilter: OrgFilter }>({
     query: "",
@@ -425,6 +495,7 @@ export function RegistryDashboard() {
     }, 1600);
   }
 
+<<<<<<< HEAD
   usePolling(
     async () => {
       const status = await getRegistryScanBatch(batchId!);
@@ -461,6 +532,104 @@ export function RegistryDashboard() {
 
   // Restore an in-flight batch from a previous visit.
   // (batchId is sessionStorage-backed via useSessionStorageState.)
+=======
+  function load(nextQuery: string, nextFilter: OrgFilter) {
+    startTransition(async () => {
+      try {
+        setError(null);
+        setErrorDetail(null);
+        setShowErrorDetail(false);
+        const data = await getRegistry({
+          q: nextQuery.trim() || undefined,
+          orgType: nextFilter === "all" ? undefined : nextFilter,
+          limit: 300,
+        });
+        setItems(data.items);
+      } catch (err) {
+        const detail =
+          err instanceof Error ? err.message : "Failed to load registry";
+        console.error("[registry] load failed:", detail, err);
+        setError("Couldn't load the registry right now.");
+        setErrorDetail(detail);
+        setItems([]);
+      }
+    });
+  }
+
+  useEffect(() => {
+    let initialFilter: OrgFilter = "all";
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const ot = params.get("org_type");
+      if (ot === "ministry" || ot === "agency" || ot === "county") {
+        initialFilter = ot;
+        setOrgFilter(ot);
+      }
+    } catch {
+      // ignore
+    }
+    load("", initialFilter);
+    try {
+      const saved = window.sessionStorage.getItem(BATCH_STORAGE_KEY);
+      if (saved) setBatchId(saved);
+    } catch {
+      // ignore storage errors
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (!batchId) return;
+
+    let cancelled = false;
+    let timer: number | undefined;
+
+    async function tick() {
+      try {
+        const status = await getRegistryScanBatch(batchId!);
+        if (cancelled) return;
+        setBatchStatus(status);
+        setScanError(null);
+
+        const finished = status.counts.complete + status.counts.failed;
+        if (finished > lastRefreshComplete.current || status.done) {
+          lastRefreshComplete.current = finished;
+          load(queryRef.current, orgFilterRef.current);
+        }
+
+        if (status.done) {
+          setShowFinishedBanner(true);
+          try {
+            window.sessionStorage.removeItem(BATCH_STORAGE_KEY);
+          } catch {
+            // ignore
+          }
+          setBatchId(null);
+          return;
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setScanError(
+            err instanceof Error
+              ? err.message
+              : "Failed to poll registry scan status",
+          );
+        }
+      }
+      if (!cancelled) {
+        timer = window.setTimeout(() => {
+          void tick();
+        }, BATCH_POLL_MS);
+      }
+    }
+
+    void tick();
+    return () => {
+      cancelled = true;
+      if (timer !== undefined) window.clearTimeout(timer);
+    };
+  }, [batchId]);
+>>>>>>> 9b7c9a9a952b4c1faf1266d14506edc3128de21e
 
   async function onScanAll() {
     setScanStarting(true);
@@ -522,9 +691,19 @@ export function RegistryDashboard() {
           <p className="max-w-2xl text-xs leading-relaxed text-icta-gray-600 sm:text-sm">
             Ministries, counties, and agencies with compliance scores from
             weekly scans. Switch to the leaderboard to rank the most compliant
+<<<<<<< HEAD
             sites overall by category. Use{" "}
             <span className="text-icta-gray-900 font-medium">Scan all</span> to re-check every
             listed site.
+=======
+            sites overall or by category. Use{" "}
+            <span className="text-icta-black">Scan all</span> to re-check every
+            listed site. County choropleth and national HQ pins live on the{" "}
+            <Link href="/map" className="text-icta-link hover:underline">
+              Kenya map
+            </Link>
+            .
+>>>>>>> 9b7c9a9a952b4c1faf1266d14506edc3128de21e
           </p>
         </header>
 
@@ -657,6 +836,10 @@ export function RegistryDashboard() {
               {!loading && scored > 0 ? ` · ${scored} with scores` : ""}
             </div>
           </div>
+
+          {!error && !pending && items.length > 0 && view === "registry" && (
+            <RegistrySummaryStrip items={items} />
+          )}
 
           {view === "leaderboard" && (
             <div className="flex flex-col gap-2">
@@ -815,6 +998,7 @@ export function RegistryDashboard() {
 
         {scanError && <ErrorState message={scanError} className="mb-6" />}
 
+<<<<<<< HEAD
         {errorMessage && (
           <ErrorState
             message={errorMessage}
@@ -830,6 +1014,40 @@ export function RegistryDashboard() {
               </>
             }
           />
+=======
+        {error && (
+          <div
+            className="mb-6 rounded-md border border-icta-red/20 bg-icta-red/5 px-4 py-4"
+            role="alert"
+          >
+            <p className="text-sm text-icta-gray-600">{error}</p>
+            <button
+              type="button"
+              onClick={() => load(query, orgFilter)}
+              className={`mt-4 ${btnSecondarySm}`}
+              disabled={pending}
+            >
+              {pending ? "Retrying…" : "Retry"}
+            </button>
+            {errorDetail && (
+              <div className="mt-3">
+                <button
+                  type="button"
+                  className="text-xs font-medium text-icta-gray-600 underline-offset-2 hover:underline"
+                  onClick={() => setShowErrorDetail((v) => !v)}
+                  aria-expanded={showErrorDetail}
+                >
+                  {showErrorDetail ? "Hide technical details" : "Technical details"}
+                </button>
+                {showErrorDetail && (
+                  <pre className="mt-2 overflow-x-auto rounded-md bg-white/80 px-3 py-2 text-[11px] leading-relaxed text-icta-gray-600">
+                    {errorDetail}
+                  </pre>
+                )}
+              </div>
+            )}
+          </div>
+>>>>>>> 9b7c9a9a952b4c1faf1266d14506edc3128de21e
         )}
 
         <div className="overflow-x-auto">
@@ -1004,10 +1222,10 @@ export function RegistryDashboard() {
                 sortedItems.map((row, index) => (
                   <tr
                     key={row.domain_id}
-                    className="border-b border-icta-gray-100 align-top transition-colors hover:bg-icta-gray-50/80 animate-fade-in"
+                    className={`border-b border-icta-gray-100 align-top transition-colors hover:bg-icta-gray-50/80 animate-fade-in ${scoreBandRowBorderClass(row.latest_score)}`}
                     style={{ animationDelay: `${Math.min(index * 20, 300)}ms` }}
                   >
-                    <td className="py-3 pr-3 tabular-nums text-icta-gray-600">
+                    <td className="py-3 pr-3 pl-3 tabular-nums text-icta-gray-600">
                       {index + 1}
                     </td>
                     <td className="py-3 pr-4">

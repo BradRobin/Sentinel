@@ -1,5 +1,15 @@
 /** Sentinel mark geometry and complete-state wind-down constants. */
 
+/** Tricolor stroke stops — single source for mark SVG + nav wordmark. */
+export const SENTINEL_TRICOLOR_STOPS = [
+  { offset: "0%", color: "#BB0000" },
+  { offset: "50%", color: "#111111" },
+  { offset: "100%", color: "#006600" },
+] as const;
+
+/** CSS linear-gradient matching the mark (red → black → green). */
+export const SENTINEL_TRICOLOR_GRADIENT_CSS = `linear-gradient(135deg, ${SENTINEL_TRICOLOR_STOPS[0].color} 0%, ${SENTINEL_TRICOLOR_STOPS[1].color} 50%, ${SENTINEL_TRICOLOR_STOPS[2].color} 100%)`;
+
 export const RIBBON_PATH =
   "M 82 32 C 92 48 88 68 72 78 C 56 88 36 84 26 70 C 18 58 20 42 32 34 C 42 27 54 30 58 40 C 61 48 56 55 48 54";
 

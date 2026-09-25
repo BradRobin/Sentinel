@@ -21,6 +21,7 @@ import psycopg
 
 from app.core.config import settings
 from app.core.database import close_pool
+from app.data.mcda_geo import geo_for_registry_entry
 from app.data.mcda_registry import MCDA_REGISTRY
 from app.services.registry import upsert_registry_entry
 
@@ -98,15 +99,35 @@ def ensure_schema(conn: psycopg.Connection) -> None:
             """
         )
         print("Schema: domain_score_updates already present")
-        return
+    else:
+        if not MIGRATION.is_file() and not _DOCKER_MIGRATION.is_file():
+            print(f"ERROR: migration not found at {MIGRATION}", file=sys.stderr)
+            sys.exit(1)
+        migration = _migration_path()
+        print(f"Applying migration {migration.name} …")
+        conn.execute(migration.read_text(encoding="utf-8"))
+        print("Schema: migration applied")
 
-    if not MIGRATION.is_file() and not _DOCKER_MIGRATION.is_file():
-        print(f"ERROR: migration not found at {MIGRATION}", file=sys.stderr)
-        sys.exit(1)
-    migration = _migration_path()
-    print(f"Applying migration {migration.name} …")
-    conn.execute(migration.read_text(encoding="utf-8"))
-    print("Schema: migration applied")
+    # HQ / coordinates for national MCDA map markers
+    conn.execute(
+        """
+        ALTER TABLE organizations
+        ADD COLUMN IF NOT EXISTS hq_county TEXT
+        """
+    )
+    conn.execute(
+        """
+        ALTER TABLE organizations
+        ADD COLUMN IF NOT EXISTS latitude DOUBLE PRECISION
+        """
+    )
+    conn.execute(
+        """
+        ALTER TABLE organizations
+        ADD COLUMN IF NOT EXISTS longitude DOUBLE PRECISION
+        """
+    )
+    print("Schema: organizations geo columns ensured")
 
 
 def main() -> None:
@@ -154,6 +175,7 @@ def main() -> None:
     try:
         count = 0
         for entry in MCDA_REGISTRY:
+            geo = geo_for_registry_entry(entry)
             domain_id = upsert_registry_entry(
                 org_name=entry["org_name"],
                 org_type=entry["org_type"],
@@ -161,6 +183,9 @@ def main() -> None:
                 url=entry["url"],
                 registered_name=entry["registered_name"],
                 aliases=entry["aliases"],
+                hq_county=geo["hq_county"] if geo else None,
+                latitude=geo["latitude"] if geo else None,
+                longitude=geo["longitude"] if geo else None,
             )
             count += 1
             print(f"  upserted {entry['url']} → {domain_id}")

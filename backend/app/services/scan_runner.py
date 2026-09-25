@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Callable
 
 from app.checks.accessibility import run_accessibility_checks
@@ -17,6 +18,8 @@ from app.checks.security import _EXPOSED_PATHS, run_security_checks
 from app.checks.seo import run_seo_checks
 from app.schemas.findings import Finding
 from app.services.manual_review import emit_manual_review_findings_for_scan
+
+logger = logging.getLogger(__name__)
 
 # Scored categories in scoring_weights / SRS display order (monitoring excluded)
 SCORED_PROGRESS_CATEGORIES: tuple[str, ...] = (
@@ -117,6 +120,12 @@ def run_all_checks(
 
     # Excluded from scored progress sequence
     findings.extend(run_monitoring_checks(snap))
-    findings.extend(emit_manual_review_findings_for_scan(scan_id))
+    try:
+        findings.extend(emit_manual_review_findings_for_scan(scan_id))
+    except Exception as exc:
+        # Manual queue is additive — never blank the whole scan over a DB blip
+        logger.warning(
+            "Manual review emit failed for scan %s: %s", scan_id, exc
+        )
 
     return findings

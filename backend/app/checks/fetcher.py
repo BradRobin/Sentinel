@@ -13,11 +13,23 @@ import httpx
 from app.core.ssrf import SSRFError, validate_scan_url
 
 # Primary landing-page fetch (slow gov hosts need headroom)
-DEFAULT_TIMEOUT = 15.0
+DEFAULT_TIMEOUT = 25.0
 # Auxiliary same-origin probes (robots.txt, sitemap, exposed paths)
 AUX_TIMEOUT = 4.0
 AUX_RETRIES = 1
-USER_AGENT = "ICTA-Sentinel/0.1 (+https://ict.go.ke)"
+# Browser-like UA: many .go.ke WAFs (Cloudflare) reject bare custom bot strings.
+# Product identity kept in the compatible token for transparency.
+USER_AGENT = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/120.0.0.0 Safari/537.36 "
+    "ICTA-Sentinel/0.1 (+https://ict.go.ke)"
+)
+_DEFAULT_HEADERS = {
+    "User-Agent": USER_AGENT,
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "en-KE,en;q=0.9",
+}
 
 
 @dataclass
@@ -71,7 +83,7 @@ def fetch_url(
         timeout=timeout,
         follow_redirects=False,
         verify=verify,
-        headers={"User-Agent": USER_AGENT},
+        headers=_DEFAULT_HEADERS,
     ) as client:
         response = client.get(validated.original)
     elapsed = (datetime.now(timezone.utc) - start).total_seconds() * 1000

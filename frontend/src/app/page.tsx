@@ -19,6 +19,7 @@ import { StandardDocLink } from "@/components/ClauseLink";
 import { HomeHeroActions } from "@/components/HomeHeroActions";
 import { ScrollReveal } from "@/components/ScrollReveal";
 import { SentinelMark } from "@/components/SentinelMark";
+<<<<<<< HEAD
 import { Card, CardContent } from "@/components/ui/card";
 import {
   badgeGreen,
@@ -34,6 +35,9 @@ const METRICS: Array<{ value: string; label: string }> = [
   { value: "24h", label: "Fresh results" },
   { value: "§6.5", label: "The rulebook" },
 ];
+=======
+import { SENTINEL_TRICOLOR_GRADIENT_CSS } from "@/lib/sentinel-mark-paths";
+>>>>>>> 9b7c9a9a952b4c1faf1266d14506edc3128de21e
 
 const BENEFITS: Array<{
   title: string;
@@ -139,8 +143,6 @@ const TOOLS: Array<{
 export default function Home() {
   return (
     <div className="flex flex-1 flex-col">
-      <div className="flag-stripe h-1.5 w-full shrink-0" aria-hidden="true" />
-
       {/* Hero */}
       <main className="flex flex-1 flex-col items-center bg-background px-4 pb-12 pt-10 sm:px-6 sm:pb-16 sm:pt-20 md:pt-24">
         <div className="hero-backdrop relative isolate w-full max-w-6xl overflow-hidden">
@@ -152,6 +154,7 @@ export default function Home() {
               <SentinelMark state="idle" size={128} className="hidden sm:block" />
             </div>
 
+<<<<<<< HEAD
             <p
               className="mb-2.5 flex items-center justify-center gap-2 text-xs font-medium uppercase tracking-[0.2em] text-icta-gray-500 animate-fade-in-up sm:mb-3 sm:text-sm"
               style={{ animationDelay: "120ms" }}
@@ -168,6 +171,29 @@ export default function Home() {
               Keep government websites{" "}
               <span className="text-gradient">compliant</span>
             </h1>
+=======
+          <h1
+            className="mb-4 text-4xl font-bold tracking-tight text-icta-black animate-fade-in-up sm:text-6xl"
+            style={{ animationDelay: "200ms" }}
+          >
+            Keep government websites{" "}
+            <span
+              className="bg-clip-text text-transparent"
+              style={{ backgroundImage: SENTINEL_TRICOLOR_GRADIENT_CSS }}
+            >
+              compliant
+            </span>
+          </h1>
+
+          <p
+            className="mx-auto mb-2 max-w-2xl text-base text-icta-gray-600 animate-fade-in-up sm:text-lg"
+            style={{ animationDelay: "280ms" }}
+          >
+            Sentinel scans public{" "}
+            <StandardDocLink>ICTA.6.003:2023 §6.5</StandardDocLink> compliance
+            — automated checks, scoring, and officer review in one place.
+          </p>
+>>>>>>> 9b7c9a9a952b4c1faf1266d14506edc3128de21e
 
             <p
               className="mx-auto mb-2 max-w-2xl text-base text-icta-gray-600 animate-fade-in-up sm:text-lg md:text-xl"

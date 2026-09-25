@@ -37,10 +37,17 @@ const ROLE_OPTIONS: Array<{
     icon: <ShieldCheck className="size-5" aria-hidden="true" />,
   },
   {
+<<<<<<< HEAD
     value: "admin",
     title: "Administrator",
     description: "Run scans, manage the registry, and monitor compliance.",
     icon: <Settings className="size-5" aria-hidden="true" />,
+=======
+    value: "viewer",
+    title: "Casual user",
+    description:
+      "Log in to check recent scans, analyse reports, and see which websites perform best.",
+>>>>>>> 9b7c9a9a952b4c1faf1266d14506edc3128de21e
   },
 ];
 

@@ -6,8 +6,12 @@ import { useEffect, useState, type FormEvent } from "react";
 import { Lock, Mail } from "lucide-react";
 
 import { AuthShell } from "@/components/AuthShell";
+<<<<<<< HEAD
 import { ErrorState } from "@/components/ErrorState";
 import { Spinner } from "@/components/Spinner";
+=======
+import { PasswordField } from "@/components/PasswordField";
+>>>>>>> 9b7c9a9a952b4c1faf1266d14506edc3128de21e
 import { AuthError, getCurrentUser, loginUser } from "@/lib/auth";
 import { btnPrimary, fieldLabel, inputBase, inputError, textLink } from "@/lib/ui";
 
@@ -82,6 +86,7 @@ export default function LoginPage() {
           </div>
         </div>
 
+<<<<<<< HEAD
         <div>
           <label htmlFor="login-password" className={fieldLabel}>
             Password
@@ -103,6 +108,21 @@ export default function LoginPage() {
             />
           </div>
         </div>
+=======
+        <PasswordField
+          id="login-password"
+          label="Password"
+          autoComplete="current-password"
+          required
+          value={password}
+          onChange={(e) => {
+            setPassword(e.target.value);
+            if (error) setError(null);
+          }}
+          inputClassName={error ? inputError : ""}
+          placeholder="••••••••"
+        />
+>>>>>>> 9b7c9a9a952b4c1faf1266d14506edc3128de21e
 
         {error && <ErrorState compact message={error} />}
 
